@@ -22,6 +22,7 @@ pub struct Font {
 }
 
 impl Font {
+    /// Creates a font from a file.
     pub fn create<P: AsRef<Path>>(path: P, library: &Library, document: &PdfDocumentReference) -> Result<Font> {
         let file = File::open(path.as_ref()).map_err(|_| Error::FontNotFound(PathBuf::from(path.as_ref())))?;
         Ok(Font {

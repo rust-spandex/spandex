@@ -1,3 +1,7 @@
+//! This crate contains all the tools we need to generate nice pdf documents.
+
+#![warn(missing_docs)]
+
 pub mod font;
 
 use std::path::PathBuf;
