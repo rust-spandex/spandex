@@ -19,6 +19,7 @@ pub fn pt(mms: f64) -> f64 {
 }
 
 /// The window that is the part of the page on which we're allowed to write.
+#[derive(Copy, Clone)]
 pub struct Window {
     /// The x coordinate of the window, in pt.
     pub x: f64,
@@ -62,10 +63,10 @@ impl Document {
 
         let (document, page, layer) = PdfDocument::new(name, mm(width), mm(height), "");
         let window = Window {
-            x: 0.0,
-            y: 0.0,
-            width,
-            height,
+            x: 100.0,
+            y: 100.0,
+            width: width - 200.0,
+            height: height - 200.0,
         };
 
         let page = document.get_page(page);
@@ -76,7 +77,7 @@ impl Document {
             page,
             layer,
             window,
-            cursor: (0.0, height),
+            cursor: (window.x, window.height + window.y),
             page_size: (width, height),
         }
 
@@ -111,16 +112,16 @@ impl Document {
 
             let text_width = font.text_width(&line, size);
 
-            if text_width >= self.page_size.0 {
+            if text_width >= self.window.width {
 
                 let remaining = words.pop().unwrap();
-                let remaining_width = self.page_size.0 - font.text_width(&words.join(" "), size);
+                let remaining_width = self.window.width - font.text_width(&words.join(" "), size);
                 self.write_line(&words, font, size, 3.2 + remaining_width / (words.len() as f64));
 
                 words.clear();
                 words.push(remaining);
 
-                if self.cursor.1 <= size {
+                if self.cursor.1 <= size + self.window.y {
                     self.new_page();
                 }
 
@@ -129,7 +130,7 @@ impl Document {
 
         if ! words.is_empty() {
             self.write_line(&words, font, size, 3.0);
-            if self.cursor.1 <= size {
+            if self.cursor.1 <= size + self.window.y {
                 self.new_page();
             }
         }
@@ -137,7 +138,7 @@ impl Document {
 
     /// Writes a line in the document.
     pub fn write_line(&mut self, words: &[&str], font: &Font, size: f64, spacing: f64) {
-        let mut current_width = 0.0;
+        let mut current_width = self.window.x;
 
         for word in words {
             let width = mm(current_width);
@@ -160,7 +161,7 @@ impl Document {
         let page = self.document.add_page(mm(self.page_size.0), mm(self.page_size.1), "");
         self.page = self.document.get_page(page.0);
         self.layer = self.page.get_layer(page.1);
-        self.cursor.1 = self.page_size.1;
+        self.cursor.1 = self.window.height + self.window.y;
     }
 
     /// Saves the document into a file.
