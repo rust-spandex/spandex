@@ -4,7 +4,7 @@ use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 
-use freetype::{Face, Library};
+use freetype::{Face, Library, face};
 
 use printpdf::PdfDocumentReference;
 use printpdf::types::plugins::graphics::two_dimensional::font::IndirectFontRef;
@@ -24,12 +24,10 @@ pub struct Font {
 impl Font {
     pub fn create<P: AsRef<Path>>(path: P, library: &Library, document: &PdfDocumentReference) -> Result<Font> {
         let file = File::open(path.as_ref()).map_err(|_| Error::FontNotFound(PathBuf::from(path.as_ref())))?;
-        Font {
+        Ok(Font {
             freetype: library.new_face(path.as_ref(), 0)?,
             printpdf: document.add_external_font(file)?,
-        };
-
-        panic!();
+        })
     }
 }
 
@@ -102,6 +100,33 @@ impl FontManager {
         };
         self.fonts.insert(name, font);
         Ok(())
+    }
+
+    /// Returns a reference font if it is present in the font manager.
+    pub fn get(&self, font_name: &str) -> Option<&Font> {
+        self.fonts.get(font_name)
+    }
+
+    /// Computes the text width of a font.
+    pub fn text_width(&self, font: &Font, scale: i64, text: &str) -> f64 {
+        // vertical scale for the space character
+        let vert_scale = {
+            if let Ok(_) = font.freetype.load_char(0x0020, face::LoadFlag::NO_SCALE) {
+                font.freetype.glyph().metrics().vertAdvance
+            } else {
+                1000
+            }
+        };
+
+        // calculate the width of the text in unscaled units
+        let sum_width = text.chars().fold(0, |acc, ch| {
+            if let Ok(_) = font.freetype.load_char(ch as usize, face::LoadFlag::NO_SCALE) {
+                let glyph_w = font.freetype.glyph().metrics().horiAdvance;
+                acc + glyph_w
+            } else { acc }
+        });
+
+        sum_width as f64 / (vert_scale as f64 / scale as f64)
     }
 
 }
