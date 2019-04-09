@@ -30,6 +30,33 @@ impl Font {
             printpdf: document.inner_mut().add_external_font(file)?,
         })
     }
+
+    /// Computes the text width of the font at a specified size.
+    pub fn text_width(&self, text: &str, scale: f64) -> f64 {
+        // vertical scale for the space character
+        let vert_scale = {
+            if let Ok(_) = self.freetype.load_char(0x0020, face::LoadFlag::NO_SCALE) {
+                self.freetype.glyph().metrics().vertAdvance
+            } else {
+                1000
+            }
+        };
+
+        // calculate the width of the text in unscaled units
+        let sum_width = text.chars().fold(0, |acc, ch| {
+            if let Ok(_) = self.freetype.load_char(ch as usize, face::LoadFlag::NO_SCALE) {
+                let glyph_w = self.freetype.glyph().metrics().horiAdvance;
+                acc + glyph_w
+            } else { acc }
+        });
+
+        sum_width as f64 / (vert_scale as f64 / scale)
+    }
+
+    /// Returns a reference to the printpdf font.
+    pub fn printpdf(&self) -> &IndirectFontRef {
+        &self.printpdf
+    }
 }
 
 /// The different fonts that will be used in a document.
@@ -108,26 +135,5 @@ impl FontManager {
         self.fonts.get(font_name)
     }
 
-    /// Computes the text width of a font.
-    pub fn text_width(&self, font: &Font, scale: i64, text: &str) -> f64 {
-        // vertical scale for the space character
-        let vert_scale = {
-            if let Ok(_) = font.freetype.load_char(0x0020, face::LoadFlag::NO_SCALE) {
-                font.freetype.glyph().metrics().vertAdvance
-            } else {
-                1000
-            }
-        };
-
-        // calculate the width of the text in unscaled units
-        let sum_width = text.chars().fold(0, |acc, ch| {
-            if let Ok(_) = font.freetype.load_char(ch as usize, face::LoadFlag::NO_SCALE) {
-                let glyph_w = font.freetype.glyph().metrics().horiAdvance;
-                acc + glyph_w
-            } else { acc }
-        });
-
-        sum_width as f64 / (vert_scale as f64 / scale as f64)
-    }
-
 }
+
