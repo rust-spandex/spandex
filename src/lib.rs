@@ -3,6 +3,7 @@
 #![warn(missing_docs)]
 
 pub mod font;
+pub mod document;
 
 use std::path::PathBuf;
 use std::{fmt, result};

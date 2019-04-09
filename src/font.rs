@@ -6,10 +6,10 @@ use std::collections::HashMap;
 
 use freetype::{Face, Library, face};
 
-use printpdf::PdfDocumentReference;
 use printpdf::types::plugins::graphics::two_dimensional::font::IndirectFontRef;
 
 use crate::{Error, Result};
+use crate::document::Document;
 
 /// A font that contains the printpdf object font needed to render text and the freetype font
 /// needed to measure text.
@@ -23,11 +23,11 @@ pub struct Font {
 
 impl Font {
     /// Creates a font from a file.
-    pub fn create<P: AsRef<Path>>(path: P, library: &Library, document: &PdfDocumentReference) -> Result<Font> {
+    pub fn create<P: AsRef<Path>>(path: P, library: &Library, document: &mut Document) -> Result<Font> {
         let file = File::open(path.as_ref()).map_err(|_| Error::FontNotFound(PathBuf::from(path.as_ref())))?;
         Ok(Font {
             freetype: library.new_face(path.as_ref(), 0)?,
-            printpdf: document.add_external_font(file)?,
+            printpdf: document.inner_mut().add_external_font(file)?,
         })
     }
 }
@@ -50,7 +50,7 @@ pub struct FontManager {
 impl FontManager {
 
     /// Creates a new font manager, with the default fonts.
-    pub fn init(document: &mut PdfDocumentReference) -> Result<FontManager> {
+    pub fn init(document: &mut Document) -> Result<FontManager> {
 
         let mut font_manager = FontManager {
             library: Library::init()?,
@@ -93,7 +93,7 @@ impl FontManager {
     }
 
     /// Adds a new font to the font manager.
-    pub fn add_font<P: AsRef<Path>>(&mut self, path: P, document: &mut PdfDocumentReference) -> Result<()> {
+    pub fn add_font<P: AsRef<Path>>(&mut self, path: P, document: &mut Document) -> Result<()> {
         let font = Font::create(&path, &self.library, document)?;
         let name = match (font.freetype.family_name(), font.freetype.style_name()) {
             (Some(family), Some(style)) => format!("{} {}", family, style),
