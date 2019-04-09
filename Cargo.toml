@@ -1,0 +1,9 @@
+[package]
+name = "spandex"
+version = "0.1.0"
+authors = ["Thomas Forgione <thomas@forgione.fr>"]
+edition = "2018"
+
+[dependencies]
+freetype-rs = "0.19.1"
+printpdf = "0.2.10"
