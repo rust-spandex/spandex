@@ -2,8 +2,10 @@
 
 #![warn(missing_docs)]
 
-pub mod font;
 pub mod document;
+pub mod font;
+pub mod tests;
+pub mod units;
 
 use std::path::PathBuf;
 use std::{fmt, result};
@@ -15,7 +17,7 @@ macro_rules! impl_from_error {
                 $variant(e)
             }
         }
-    }
+    };
 }
 
 /// The error type of the library.
@@ -43,7 +45,9 @@ impl fmt::Display for Error {
             Error::FreetypeError(e) => write!(fmt, "freetype error: {}", e),
             Error::PrintpdfError(e) => write!(fmt, "printpdf error: {}", e),
             Error::FontNotFound(path) => write!(fmt, "couldn't find font \"{}\"", path.display()),
-            Error::FontWithoutName(path) => write!(fmt, "font has no name or style \"{}\"", path.display()),
+            Error::FontWithoutName(path) => {
+                write!(fmt, "font has no name or style \"{}\"", path.display())
+            }
         }
     }
 }
