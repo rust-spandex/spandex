@@ -1,12 +1,16 @@
-//! Set of all dimension units used by SpanDeX, along with conversion rules to go from one to another easily.
-// 1 in = 72.27 pt
-// 1 in = 2.54 cm
-// 1 pt = 65,536 sp
-
+//! Set of all dimension units used by SpanDeX, along with conversion rules
+/// to go from one to another easily.
+///
+/// The main conversion rules used so far are that 1 in = 72.27 pt = 2.54 cm and 1 pt = 65,536 sp.
 use std::f64;
 use std::fmt;
 
-/// Scaled point, equal to 1/65,536 of a point. Defining this unit is useful because the wavelength of visible light is around 100 sp. This makes rounding errors invisible to the eye, which allows to perform uniquely integer arithmetics by treating all dimensions as integer multiples of this tiny unit. This ensures consistent computations, and thus output, across a wide variety of computers.
+/// Scaled point, equal to 1/65,536 of a point. Defining this unit is useful
+/// because the wavelength of visible light is around 100 sp. This makes
+/// rounding errors invisible to the eye, which allows to perform uniquely
+/// integer arithmetics by treating all dimensions as integer multiples of
+/// this tiny unit. This ensures consistent computations, and thus output,
+/// across a wide variety of computers.
 pub struct Sp(pub i64);
 
 /// Millimeters.
@@ -88,7 +92,10 @@ impl PartialEq<Pt> for Pt {
     }
 }
 
-/// Compares two float numbers to check if they're close enough to be considered equal.
+/// Compares two float numbers to check if they're close enough to be
+/// considered equal.
+/// Inspired by [this post](https://users.rust-lang.org/t/assert-eq-for-float-numbers/7034/3).
+///
 /// # Examples
 ///
 /// ```
