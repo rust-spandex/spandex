@@ -4,7 +4,6 @@
 
 pub mod document;
 pub mod font;
-pub mod tests;
 pub mod units;
 
 use std::path::PathBuf;
