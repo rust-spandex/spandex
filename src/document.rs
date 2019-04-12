@@ -1,10 +1,10 @@
 //! This module allows to create beautiful documents.
 
+use std::path::Path;
 use std::fs::File;
 use std::io::BufWriter;
-use std::path::Path;
 
-use printpdf::{Mm, PdfDocument, PdfDocumentReference, PdfLayerReference, PdfPageReference, Pt};
+use printpdf::{PdfDocument, PdfDocumentReference, PdfPageReference, PdfLayerReference, Mm, Pt};
 
 use crate::font::Font;
 
@@ -36,6 +36,7 @@ pub struct Window {
 
 /// This struct contains the pdf document.
 pub struct Document {
+
     /// The inner document from printpdf.
     document: PdfDocumentReference,
 
@@ -53,11 +54,13 @@ pub struct Document {
 
     /// The current page size, in pt.
     page_size: (f64, f64),
+
 }
 
 impl Document {
     /// Creates a new pdf document from its name and its size in pt.
     pub fn new(name: &str, width: f64, height: f64) -> Document {
+
         let (document, page, layer) = PdfDocument::new(name, mm(width), mm(height), "");
         let window = Window {
             x: 100.0,
@@ -77,6 +80,7 @@ impl Document {
             cursor: (window.x, window.height + window.y),
             page_size: (width, height),
         }
+
     }
 
     /// Returns a reference to the inner pdf document.
@@ -109,14 +113,10 @@ impl Document {
             let text_width = font.text_width(&line, size);
 
             if text_width >= self.window.width {
+
                 let remaining = words.pop().unwrap();
                 let remaining_width = self.window.width - font.text_width(&words.join(" "), size);
-                self.write_line(
-                    &words,
-                    font,
-                    size,
-                    3.2 + remaining_width / (words.len() as f64),
-                );
+                self.write_line(&words, font, size, 3.2 + remaining_width / (words.len() as f64));
 
                 words.clear();
                 words.push(remaining);
@@ -124,10 +124,11 @@ impl Document {
                 if self.cursor.1 <= size + self.window.y {
                     self.new_page();
                 }
+
             }
         }
 
-        if !words.is_empty() {
+        if ! words.is_empty() {
             self.write_line(&words, font, size, 3.0);
             if self.cursor.1 <= size + self.window.y {
                 self.new_page();
@@ -143,13 +144,7 @@ impl Document {
             let width = mm(current_width);
             let height = mm(self.cursor.1);
 
-            self.layer.use_text(
-                word.to_owned(),
-                size as i64,
-                width,
-                height - mm(size),
-                font.printpdf(),
-            );
+            self.layer.use_text(word.to_owned(), size as i64, width, height - mm(size), font.printpdf());
             current_width += font.text_width(word, size) + spacing;
         }
 
@@ -163,9 +158,7 @@ impl Document {
 
     /// Creates a new page and append it to the document.
     pub fn new_page(&mut self) {
-        let page = self
-            .document
-            .add_page(mm(self.page_size.0), mm(self.page_size.1), "");
+        let page = self.document.add_page(mm(self.page_size.0), mm(self.page_size.1), "");
         self.page = self.document.get_page(page.0);
         self.layer = self.page.get_layer(page.1);
         self.cursor.1 = self.window.height + self.window.y;
