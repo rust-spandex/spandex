@@ -80,7 +80,12 @@ impl Config {
         let mut content = String::new();
         let mut file = File::open(&self.input)?;
         file.read_to_string(&mut content)?;
-        document.write_content(&content, font, 10.0);
+
+        if self.input.ends_with(".md") || self.input.ends_with(".mdown") {
+            document.write_markdown(&content, font, 10.0);
+        } else {
+            document.write_content(&content, font, 10.0);
+        }
         document.save("output.pdf");
         Ok(())
     }

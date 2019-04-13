@@ -6,6 +6,8 @@ use std::io::BufWriter;
 
 use printpdf::{PdfDocument, PdfDocumentReference, PdfPageReference, PdfLayerReference, Mm, Pt};
 
+use pulldown_cmark::{Event, Tag, Parser};
+
 use crate::font::Font;
 
 /// Converts Pts to Mms.
@@ -16,6 +18,55 @@ pub fn mm(pts: f64) -> Mm {
 /// Converts Mms to Pts.
 pub fn pt(mms: f64) -> f64 {
     Into::<Pt>::into(Mm(mms)).0
+}
+
+/// The struct that manages the counters for the document.
+#[derive(Copy, Clone)]
+pub struct Counters {
+    /// The section counter.
+    pub sections: usize,
+
+    /// The subsection couter.
+    pub subsections: usize,
+
+    /// The subsubsection counter.
+    pub subsubsections: usize,
+}
+
+impl Counters {
+    /// Creates a new empty counters.
+    pub fn new() -> Counters {
+        Counters {
+            sections: 0,
+            subsections: 0,
+            subsubsections: 0,
+        }
+    }
+
+    /// Increases the corresponding counter and returns it if it is correct.
+    pub fn increment(&mut self, counter_id: i32) -> Option<usize> {
+        match counter_id {
+            1 => {
+                self.sections += 1;
+                Some(self.sections)
+            }
+
+            2 => {
+                self.subsections += 1;
+                Some(self.subsections)
+            },
+
+            3 => {
+                self.subsubsections += 1;
+                Some(self.subsubsections)
+            },
+
+            _ => {
+                warn!("sub sub sub sections are not supported");
+                None
+            },
+        }
+    }
 }
 
 /// The window that is the part of the page on which we're allowed to write.
@@ -55,6 +106,8 @@ pub struct Document {
     /// The current page size, in pt.
     page_size: (f64, f64),
 
+    /// The counters of the document
+    counters: Counters,
 }
 
 impl Document {
@@ -73,6 +126,7 @@ impl Document {
             window,
             cursor: (window.x, window.height + window.y),
             page_size: (width, height),
+            counters: Counters::new(),
         }
 
     }
@@ -85,6 +139,47 @@ impl Document {
     /// Returns a mutable reference to the inner pdf document.
     pub fn inner_mut(&mut self) -> &mut PdfDocumentReference {
         &mut self.document
+    }
+
+    /// Writes markdown content on the document.
+    pub fn write_markdown(&mut self, markdown: &str, font: &Font, size: f64) {
+
+        let mut current_size = size;
+        let mut content = String::new();
+
+        let parser = Parser::new(markdown);
+
+        for event in parser {
+            match event {
+                Event::Start(Tag::Header(i)) => {
+                    if let Some(value) = self.counters.increment(i) {
+                        content.push_str(&format!("{}. ", value));
+                    }
+
+                    current_size = size + 3.0 * (4 - i) as f64;
+                },
+
+                Event::Start(Tag::Item) => {
+                    content.push_str(" - ");
+                },
+
+                Event::Text(ref text) => {
+                    content.push(' ');
+                    content.push_str(text);
+                },
+
+                Event::End(Tag::Header(_)) | Event::End(Tag::Paragraph) | Event::End(Tag::Item) => {
+                    self.write_paragraph(&content, font, current_size);
+                    self.new_line(current_size);
+
+                    content.clear();
+                    current_size = size;
+                },
+
+                _ => (),
+            }
+            trace!("{:?}", event);
+        }
     }
 
     /// Writes content on the document.
