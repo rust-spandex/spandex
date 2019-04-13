@@ -90,7 +90,9 @@ fn run() -> Result<(), Box<Error>> {
             current_dir.push("spandex.toml");
 
             if current_dir.is_file() {
+
                 break current_dir;
+
             } else {
 
                 // Remove spandex.toml
@@ -111,8 +113,6 @@ fn run() -> Result<(), Box<Error>> {
         config.build()?;
 
     }
-
-
 
     Ok(())
 }

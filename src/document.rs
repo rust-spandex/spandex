@@ -1,5 +1,6 @@
 //! This module allows to create beautiful documents.
 
+use std::fmt;
 use std::path::Path;
 use std::fs::File;
 use std::io::BufWriter;
@@ -8,7 +9,7 @@ use printpdf::{PdfDocument, PdfDocumentReference, PdfPageReference, PdfLayerRefe
 
 use pulldown_cmark::{Event, Tag, Parser};
 
-use crate::font::Font;
+use crate::font::{Font, FontConfig};
 
 /// Converts Pts to Mms.
 pub fn mm(pts: f64) -> Mm {
@@ -92,6 +93,19 @@ impl Counters {
     }
 }
 
+impl fmt::Display for Counters {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.sections)?;
+        if self.subsections > 0 {
+            write!(fmt, ".{}", self.subsections)?;
+        }
+        if self.subsubsections > 0 {
+            write!(fmt, ".{}", self.subsubsections)?;
+        }
+        Ok(())
+    }
+}
+
 /// The window that is the part of the page on which we're allowed to write.
 #[derive(Copy, Clone)]
 pub struct Window {
@@ -165,7 +179,7 @@ impl Document {
     }
 
     /// Writes markdown content on the document.
-    pub fn write_markdown(&mut self, markdown: &str, font: &Font, size: f64) {
+    pub fn write_markdown(&mut self, markdown: &str, font_config: &FontConfig, size: f64) {
 
         let mut current_size = size;
         let mut content = String::new();
@@ -175,8 +189,8 @@ impl Document {
         for event in parser {
             match event {
                 Event::Start(Tag::Header(i)) => {
-                    if let Some(value) = self.counters.increment(i) {
-                        content.push_str(&format!("{}. ", value));
+                    if self.counters.increment(i).is_some() {
+                        content.push_str(&format!("{}", self.counters));
                     }
 
                     current_size = size + 3.0 * (4 - i) as f64;
@@ -191,8 +205,16 @@ impl Document {
                     content.push_str(text);
                 },
 
-                Event::End(Tag::Header(_)) | Event::End(Tag::Paragraph) | Event::End(Tag::Item) => {
-                    self.write_paragraph(&content, font, current_size);
+                Event::End(Tag::Paragraph) | Event::End(Tag::Item) => {
+                    self.write_paragraph(&content, font_config.regular, current_size);
+                    self.new_line(current_size);
+
+                    content.clear();
+                    current_size = size;
+                },
+
+                Event::End(Tag::Header(_)) => {
+                    self.write_paragraph(&content, font_config.bold, current_size);
                     self.new_line(current_size);
 
                     content.clear();
@@ -215,6 +237,7 @@ impl Document {
 
     /// Writes a paragraph on the document.
     pub fn write_paragraph(&mut self, paragraph: &str, font: &Font, size: f64) {
+        debug!("{}", paragraph);
         let mut words = vec![];
 
         for word in paragraph.split_whitespace() {

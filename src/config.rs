@@ -72,17 +72,20 @@ impl Config {
         let mut document = Document::new("Hello", page_width.0, page_height.0, window);
 
         let font_manager = FontManager::init(&mut document)?;
-        let font_name = "CMU Serif Roman";
+        let regular_font_name = "CMU Serif Roman";
+        let bold_font_name = "CMU Serif Bold";
 
-        let font = font_manager.get(font_name)
-            .ok_or(Error::FontNotFound(PathBuf::from(font_name)))?;
+        let font_config = font_manager.config(regular_font_name, bold_font_name)?;
+
+        let font = font_manager.get(regular_font_name)
+            .ok_or(Error::FontNotFound(PathBuf::from(regular_font_name)))?;
 
         let mut content = String::new();
         let mut file = File::open(&self.input)?;
         file.read_to_string(&mut content)?;
 
         if self.input.ends_with(".md") || self.input.ends_with(".mdown") {
-            document.write_markdown(&content, font, 10.0);
+            document.write_markdown(&content, &font_config, 10.0);
         } else {
             document.write_content(&content, font, 10.0);
         }

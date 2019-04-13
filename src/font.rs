@@ -71,10 +71,13 @@ impl Font {
     }
 }
 
-/// The different fonts that will be used in a document.
-pub enum FontType {
+/// A font configuration for a document.
+pub struct FontConfig<'a> {
     /// The regular font.
-    Regular,
+    pub regular: &'a Font,
+
+    /// The bold font.
+    pub bold: &'a Font,
 }
 
 /// This struct holds the different fonts.
@@ -87,6 +90,16 @@ pub struct FontManager {
 }
 
 impl FontManager {
+    /// Creates a font config.
+    pub fn config<'a>(&'a self, regular: &str, bold: &str) -> Result<FontConfig<'a>> {
+        Ok(FontConfig {
+            regular: self.fonts.get(regular).ok_or(Error::FontNotFound(PathBuf::from(regular)))?,
+            bold: self.fonts.get(bold).ok_or(Error::FontNotFound(PathBuf::from(bold)))?,
+        })
+    }
+}
+
+impl FontManager {
 
     /// Creates a new font manager, with the default fonts.
     pub fn init(document: &mut Document) -> Result<FontManager> {
@@ -96,7 +109,7 @@ impl FontManager {
             fonts: HashMap::new(),
         };
 
-        // Insert the default fonts.
+        // Insert the default fonts
         font_manager.add_font(include_bytes!("../assets/fonts/cmunbi.ttf"), document)?;
         font_manager.add_font(include_bytes!("../assets/fonts/cmunbl.ttf"), document)?;
         font_manager.add_font(include_bytes!("../assets/fonts/cmunbmo.ttf"), document)?;
