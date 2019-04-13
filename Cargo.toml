@@ -1,9 +1,15 @@
 [package]
 name = "spandex"
 version = "0.1.0"
+description = "A modern LaTeX alternative"
 authors = ["Thomas Forgione <thomas@forgione.fr>"]
 edition = "2018"
 
 [dependencies]
 freetype-rs = "0.19.1"
 printpdf = "0.2.10"
+clap = "2.33.0"
+toml = "0.5.0"
+serde = { version = "1.0", features = ["derive"] }
+log = "0.4.6"
+beautylog = "0.1.0"

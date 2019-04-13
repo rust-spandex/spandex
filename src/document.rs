@@ -59,15 +59,9 @@ pub struct Document {
 
 impl Document {
     /// Creates a new pdf document from its name and its size in pt.
-    pub fn new(name: &str, width: f64, height: f64) -> Document {
+    pub fn new(name: &str, width: f64, height: f64, window: Window) -> Document {
 
         let (document, page, layer) = PdfDocument::new(name, mm(width), mm(height), "");
-        let window = Window {
-            x: 100.0,
-            y: 100.0,
-            width: width - 200.0,
-            height: height - 200.0,
-        };
 
         let page = document.get_page(page);
         let layer = page.get_layer(layer);

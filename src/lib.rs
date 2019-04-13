@@ -5,9 +5,10 @@
 pub mod document;
 pub mod font;
 pub mod units;
+pub mod config;
 
 use std::path::PathBuf;
-use std::{fmt, result};
+use std::{io, fmt, error, result};
 
 macro_rules! impl_from_error {
     ($type: ty, $variant: path, $from: ty) => {
@@ -22,6 +23,12 @@ macro_rules! impl_from_error {
 /// The error type of the library.
 #[derive(Debug)]
 pub enum Error {
+    /// Cannot read current directory.
+    CannotReadCurrentDir,
+
+    /// No spandex.toml was found.
+    NoConfigFile,
+
     /// Error while dealing with freetype.
     FreetypeError(freetype::Error),
 
@@ -33,23 +40,32 @@ pub enum Error {
 
     /// The specified font has no name or no style.
     FontWithoutName(PathBuf),
+
+    /// Another io error occured.
+    IoError(io::Error),
 }
 
 impl_from_error!(Error, Error::FreetypeError, freetype::Error);
 impl_from_error!(Error, Error::PrintpdfError, printpdf::errors::Error);
+impl_from_error!(Error, Error::IoError, io::Error);
 
 impl fmt::Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            Error::CannotReadCurrentDir => write!(fmt, "cannot read current directory"),
+            Error::NoConfigFile => write!(fmt, "no spandex.toml was found"),
             Error::FreetypeError(e) => write!(fmt, "freetype error: {}", e),
             Error::PrintpdfError(e) => write!(fmt, "printpdf error: {}", e),
             Error::FontNotFound(path) => write!(fmt, "couldn't find font \"{}\"", path.display()),
             Error::FontWithoutName(path) => {
                 write!(fmt, "font has no name or style \"{}\"", path.display())
             }
+            Error::IoError(e) => write!(fmt, "an io error occured: {}", e),
         }
     }
 }
 
+impl error::Error for Error {}
+
 /// The result type of the library.
-type Result<T> = result::Result<T, Error>;
+pub type Result<T> = result::Result<T, Error>;
