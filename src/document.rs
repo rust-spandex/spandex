@@ -44,15 +44,38 @@ impl Counters {
     }
 
     /// Increases the corresponding counter and returns it if it is correct.
+    ///
+    /// The counters of the subsections will be reinitialized.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use spandex::document::Counters;
+    /// let mut counters = Counters::new();
+    /// counters.increment(1);
+    /// assert_eq!(counters.sections, 1);
+    /// assert_eq!(counters.subsections, 0);
+    /// assert_eq!(counters.subsubsections, 0);
+    /// counters.increment(2);
+    /// assert_eq!(counters.subsections, 1);
+    /// counters.increment(2);
+    /// assert_eq!(counters.subsections, 2);
+    /// counters.increment(1);
+    /// assert_eq!(counters.sections, 2);
+    /// assert_eq!(counters.subsections, 0);
+    /// ```
     pub fn increment(&mut self, counter_id: i32) -> Option<usize> {
         match counter_id {
             1 => {
                 self.sections += 1;
+                self.subsections = 0;
+                self.subsubsections = 0;
                 Some(self.sections)
             }
 
             2 => {
                 self.subsections += 1;
+                self.subsubsections = 0;
                 Some(self.subsections)
             },
 
