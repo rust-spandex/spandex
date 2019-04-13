@@ -2,6 +2,9 @@
 
 #![warn(missing_docs)]
 
+#[macro_use]
+extern crate log;
+
 pub mod document;
 pub mod font;
 pub mod units;

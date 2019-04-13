@@ -1,5 +1,6 @@
 //! This module contains everything that helps us dealing with fonts.
 
+use std::io::Cursor;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::collections::HashMap;
@@ -22,12 +23,23 @@ pub struct Font {
 }
 
 impl Font {
-    /// Creates a font from a file.
-    pub fn create<P: AsRef<Path>>(path: P, library: &Library, document: &mut Document) -> Result<Font> {
+    /// Creates a font from a path to a file.
+    pub fn from_file<P: AsRef<Path>>(path: P, library: &Library, document: &mut Document) -> Result<Font> {
         let file = File::open(path.as_ref()).map_err(|_| Error::FontNotFound(PathBuf::from(path.as_ref())))?;
         Ok(Font {
             freetype: library.new_face(path.as_ref(), 0)?,
             printpdf: document.inner_mut().add_external_font(file)?,
+        })
+    }
+
+    /// Creates a font from a byte array.
+    pub fn from_bytes(bytes: &[u8], library: &Library, document: &mut Document) -> Result<Font> {
+        let cursor = Cursor::new(bytes);
+        Ok(Font {
+            // I don't like this bytes.to_vec() but I'm not sure there's a better way of doing
+            // this...
+            freetype: library.new_memory_face(bytes.to_vec(), 0)?,
+            printpdf: document.inner_mut().add_external_font(cursor)?,
         })
     }
 
@@ -85,46 +97,49 @@ impl FontManager {
         };
 
         // Insert the default fonts.
-        font_manager.add_font("assets/fonts/cmunbi.ttf", document)?;
-        font_manager.add_font("assets/fonts/cmunbl.ttf", document)?;
-        font_manager.add_font("assets/fonts/cmunbmo.ttf", document)?;
-        font_manager.add_font("assets/fonts/cmunbmr.ttf", document)?;
-        font_manager.add_font("assets/fonts/cmunbso.ttf", document)?;
-        font_manager.add_font("assets/fonts/cmunbsr.ttf", document)?;
-        font_manager.add_font("assets/fonts/cmunbtl.ttf", document)?;
-        font_manager.add_font("assets/fonts/cmunbto.ttf", document)?;
-        font_manager.add_font("assets/fonts/cmunbx.ttf", document)?;
-        font_manager.add_font("assets/fonts/cmunci.ttf", document)?;
-        font_manager.add_font("assets/fonts/cmunit.ttf", document)?;
-        font_manager.add_font("assets/fonts/cmunobi.ttf", document)?;
-        font_manager.add_font("assets/fonts/cmunobx.ttf", document)?;
-        font_manager.add_font("assets/fonts/cmunorm.ttf", document)?;
-        font_manager.add_font("assets/fonts/cmunoti.ttf", document)?;
-        font_manager.add_font("assets/fonts/cmunrm.ttf", document)?;
-        font_manager.add_font("assets/fonts/cmunsi.ttf", document)?;
-        font_manager.add_font("assets/fonts/cmunsl.ttf", document)?;
-        font_manager.add_font("assets/fonts/cmunso.ttf", document)?;
-        font_manager.add_font("assets/fonts/cmunssdc.ttf", document)?;
-        font_manager.add_font("assets/fonts/cmunss.ttf", document)?;
-        font_manager.add_font("assets/fonts/cmunsx.ttf", document)?;
-        font_manager.add_font("assets/fonts/cmuntb.ttf", document)?;
-        font_manager.add_font("assets/fonts/cmunti.ttf", document)?;
-        font_manager.add_font("assets/fonts/cmuntt.ttf", document)?;
-        font_manager.add_font("assets/fonts/cmuntx.ttf", document)?;
-        font_manager.add_font("assets/fonts/cmunui.ttf", document)?;
-        font_manager.add_font("assets/fonts/cmunvi.ttf", document)?;
-        font_manager.add_font("assets/fonts/cmunvt.ttf", document)?;
+        font_manager.add_font(include_bytes!("../assets/fonts/cmunbi.ttf"), document)?;
+        font_manager.add_font(include_bytes!("../assets/fonts/cmunbl.ttf"), document)?;
+        font_manager.add_font(include_bytes!("../assets/fonts/cmunbmo.ttf"), document)?;
+        font_manager.add_font(include_bytes!("../assets/fonts/cmunbmr.ttf"), document)?;
+        font_manager.add_font(include_bytes!("../assets/fonts/cmunbso.ttf"), document)?;
+        font_manager.add_font(include_bytes!("../assets/fonts/cmunbsr.ttf"), document)?;
+        font_manager.add_font(include_bytes!("../assets/fonts/cmunbtl.ttf"), document)?;
+        font_manager.add_font(include_bytes!("../assets/fonts/cmunbto.ttf"), document)?;
+        font_manager.add_font(include_bytes!("../assets/fonts/cmunbx.ttf"), document)?;
+        font_manager.add_font(include_bytes!("../assets/fonts/cmunci.ttf"), document)?;
+        font_manager.add_font(include_bytes!("../assets/fonts/cmunit.ttf"), document)?;
+        font_manager.add_font(include_bytes!("../assets/fonts/cmunobi.ttf"), document)?;
+        font_manager.add_font(include_bytes!("../assets/fonts/cmunobx.ttf"), document)?;
+        font_manager.add_font(include_bytes!("../assets/fonts/cmunorm.ttf"), document)?;
+        font_manager.add_font(include_bytes!("../assets/fonts/cmunoti.ttf"), document)?;
+        font_manager.add_font(include_bytes!("../assets/fonts/cmunrm.ttf"), document)?;
+        font_manager.add_font(include_bytes!("../assets/fonts/cmunsi.ttf"), document)?;
+        font_manager.add_font(include_bytes!("../assets/fonts/cmunsl.ttf"), document)?;
+        font_manager.add_font(include_bytes!("../assets/fonts/cmunso.ttf"), document)?;
+        font_manager.add_font(include_bytes!("../assets/fonts/cmunssdc.ttf"), document)?;
+        font_manager.add_font(include_bytes!("../assets/fonts/cmunss.ttf"), document)?;
+        font_manager.add_font(include_bytes!("../assets/fonts/cmunsx.ttf"), document)?;
+        font_manager.add_font(include_bytes!("../assets/fonts/cmuntb.ttf"), document)?;
+        font_manager.add_font(include_bytes!("../assets/fonts/cmunti.ttf"), document)?;
+        font_manager.add_font(include_bytes!("../assets/fonts/cmuntt.ttf"), document)?;
+        font_manager.add_font(include_bytes!("../assets/fonts/cmuntx.ttf"), document)?;
+        font_manager.add_font(include_bytes!("../assets/fonts/cmunui.ttf"), document)?;
+        font_manager.add_font(include_bytes!("../assets/fonts/cmunvi.ttf"), document)?;
+        font_manager.add_font(include_bytes!("../assets/fonts/cmunvt.ttf"), document)?;
 
         Ok(font_manager)
 
     }
 
     /// Adds a new font to the font manager.
-    pub fn add_font<P: AsRef<Path>>(&mut self, path: P, document: &mut Document) -> Result<()> {
-        let font = Font::create(&path, &self.library, document)?;
+    pub fn add_font(&mut self, bytes: &[u8], document: &mut Document) -> Result<()> {
+        let font = Font::from_bytes(bytes, &self.library, document)?;
         let name = match (font.freetype.family_name(), font.freetype.style_name()) {
             (Some(family), Some(style)) => format!("{} {}", family, style),
-            _ => return Err(Error::FontWithoutName(PathBuf::from(path.as_ref()))),
+            _ => {
+                error!("Failed to create a built in font, this is a implementation error");
+                unreachable!();
+            },
         };
         self.fonts.insert(name, font);
         Ok(())

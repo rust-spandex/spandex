@@ -11,8 +11,6 @@ use std::io::{Read, Write};
 use clap::{App, Arg, SubCommand, crate_version, crate_authors, crate_description};
 
 use spandex::config::Config;
-use spandex::document::{Document, pt};
-use spandex::font::FontManager;
 use spandex::Error as SError;
 
 macro_rules! unwrap {

@@ -8,7 +8,7 @@ use serde::{Serialize, Deserialize};
 
 use crate::units::{Sp, Pt, Mm};
 use crate::document::Window;
-use crate::document::{Document, pt};
+use crate::document::Document;
 use crate::font::FontManager;
 use crate::{Error, Result};
 
