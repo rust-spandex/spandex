@@ -2,6 +2,20 @@
 
 # SpanDeX
 
+## Commands
+
+For the moment, only two commands are available:
+  - `spandex init <name>`: creates a directory for a SpanDeX document with a
+    `spandex.toml` and an initial `main.md` files. If no name is specified, the
+    name of the current directory will be used instead.
+
+  - `spandex build`: triggers the build of SpanDeX, and generates an
+    `output.pdf` file.
+
+## Build the examples
+
+To build one of the examples, go to the example directory and run `cargo run -- build`.
+
 ## Default fonts
   - CMU Serif BoldItalic
   - CMU Serif Extra BoldSlanted

@@ -77,10 +77,10 @@ fn run() -> Result<(), Box<Error>> {
 
         // Write an hello world file
         current_dir.pop();
-        current_dir.push("main.txt");
+        current_dir.push("main.md");
 
         let mut file = File::create(&current_dir)?;
-        file.write("Hello world".as_bytes())?;
+        file.write("# Hello world".as_bytes())?;
 
     } else if let Some(_) = matches.subcommand_matches("build") {
 

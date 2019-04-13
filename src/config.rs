@@ -47,7 +47,7 @@ impl Config {
             left_margin: Sp::from(Mm(30.0)).0,
             text_width: Sp::from(Mm(150.0)).0,
             text_height: Sp::from(Mm(237.0)).0,
-            input: String::from("main.txt"),
+            input: String::from("main.md"),
         }
     }
 
