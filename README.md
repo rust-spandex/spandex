@@ -2,7 +2,23 @@
 
 # SpanDeX
 
-## Commands
+## Install
+
+As always in rust, it's super simple to install.
+
+First, install rust
+
+``` sh
+curl https://sh.rustup.rs -sSf | sh
+```
+
+Then, install SpanDeX
+
+``` sh
+cargo install --git https://github.com/tforgione/spandex
+```
+
+## Usage
 
 For the moment, only two commands are available:
   - `spandex init <name>`: creates a directory for a SpanDeX document with a
