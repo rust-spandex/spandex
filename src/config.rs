@@ -19,19 +19,19 @@ pub struct Config {
     pub title: String,
 
     /// The page size of the document.
-    pub page_size: (i64, i64),
+    pub page_size: (Sp, Sp),
 
     /// The top margin of the document.
-    pub top_margin: i64,
+    pub top_margin: Sp,
 
     /// The left margin of the document.
-    pub left_margin: i64,
+    pub left_margin: Sp,
 
     /// The text width of the document.
-    pub text_width: i64,
+    pub text_width: Sp,
 
     /// The text height of the document.
-    pub text_height: i64,
+    pub text_height: Sp,
 
     /// The path to the first file of the spandex content.
     pub input: String,
@@ -42,25 +42,25 @@ impl Config {
     pub fn with_title(title: &str) -> Config {
         Config {
             title: String::from(title),
-            page_size: (Sp::from(Mm(210.0)).0, Sp::from(Mm(297.0)).0),
-            top_margin: Sp::from(Mm(30.0)).0,
-            left_margin: Sp::from(Mm(30.0)).0,
-            text_width: Sp::from(Mm(150.0)).0,
-            text_height: Sp::from(Mm(237.0)).0,
+            page_size: (Sp::from(Mm(210.0)), Sp::from(Mm(297.0))),
+            top_margin: Sp::from(Mm(30.0)),
+            left_margin: Sp::from(Mm(30.0)),
+            text_width: Sp::from(Mm(150.0)),
+            text_height: Sp::from(Mm(237.0)),
             input: String::from("main.md"),
         }
     }
 
     /// Triggers the build of the document.
     pub fn build(&self) -> Result<()> {
-        let page_width: Pt = Sp(self.page_size.0).into();
-        let page_height: Pt = Sp(self.page_size.1).into();
+        let page_width: Pt = self.page_size.0.into();
+        let page_height: Pt = self.page_size.1.into();
 
-        let text_width: Pt = Sp(self.text_width).into();
-        let text_height: Pt = Sp(self.text_height).into();
+        let text_width: Pt = self.text_width.into();
+        let text_height: Pt = self.text_height.into();
 
-        let left_margin: Pt = Sp(self.left_margin).into();
-        let top_margin: Pt = Sp(self.top_margin).into();
+        let left_margin: Pt = self.left_margin.into();
+        let top_margin: Pt = self.top_margin.into();
 
         let window = Window {
             x: left_margin.0,

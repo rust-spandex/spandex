@@ -33,7 +33,7 @@ fn main() {
 
 fn run() -> Result<(), Box<Error>> {
 
-    let matches = App::new("SpanDeX")
+    let mut app = App::new("SpanDeX")
         .version(crate_version!())
         .author(crate_authors!("\n"))
         .about(crate_description!())
@@ -42,8 +42,9 @@ fn run() -> Result<(), Box<Error>> {
             .arg(Arg::with_name("TITLE")
                  .required(false)))
         .subcommand(SubCommand::with_name("build")
-            .about("Builds the SpanDeX project"))
-        .get_matches();
+            .about("Builds the SpanDeX project"));
+
+    let matches = app.clone().get_matches();
 
     if let Some(init) = matches.subcommand_matches("init") {
 
@@ -111,6 +112,12 @@ fn run() -> Result<(), Box<Error>> {
         file.read_to_string(&mut content)?;
         let config: Config = toml::from_str(&content)?;
         config.build()?;
+
+    } else {
+
+        // Nothing to do, print help
+        app.print_help()?;
+        println!();
 
     }
 

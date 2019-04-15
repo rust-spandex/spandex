@@ -5,18 +5,23 @@
 use std::f64;
 use std::fmt;
 
+use serde::{Serialize, Deserialize};
+
 /// Scaled point, equal to 1/65,536 of a point. Defining this unit is useful
 /// because the wavelength of visible light is around 100 sp. This makes
 /// rounding errors invisible to the eye, which allows to perform uniquely
 /// integer arithmetics by treating all dimensions as integer multiples of
 /// this tiny unit. This ensures consistent computations, and thus output,
 /// across a wide variety of computers.
+#[derive(Copy, Clone, Serialize, Deserialize)]
 pub struct Sp(pub i64);
 
 /// Millimeters.
+#[derive(Copy, Clone, Serialize, Deserialize)]
 pub struct Mm(pub f64);
 
 /// Points.
+#[derive(Copy, Clone, Serialize, Deserialize)]
 pub struct Pt(pub f64);
 
 impl fmt::Debug for Sp {
