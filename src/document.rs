@@ -251,7 +251,7 @@ impl Document {
 
                 let remaining = words.pop().unwrap();
                 let remaining_width = self.window.width - font.text_width(&words.join(" "), size);
-                self.write_line(&words, font, size, 3.2 + remaining_width / (words.len() as f64));
+                self.write_line(&words, font, size, 3.2 + remaining_width / ((words.len() - 1) as f64));
 
                 words.clear();
                 words.push(remaining);
