@@ -45,6 +45,9 @@ pub enum Error {
     /// The specified font has no name or no style.
     FontWithoutName(PathBuf),
 
+    /// An error occured while loading an hyphenation dictionnary.
+    HyphenationLoadError(hyphenation::load::Error),
+
     /// Another io error occured.
     IoError(io::Error),
 }
@@ -52,6 +55,7 @@ pub enum Error {
 impl_from_error!(Error, Error::FreetypeError, freetype::Error);
 impl_from_error!(Error, Error::PrintpdfError, printpdf::errors::Error);
 impl_from_error!(Error, Error::IoError, io::Error);
+impl_from_error!(Error, Error::HyphenationLoadError, hyphenation::load::Error);
 
 impl fmt::Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
@@ -64,6 +68,7 @@ impl fmt::Display for Error {
             Error::FontWithoutName(path) => {
                 write!(fmt, "font has no name or style \"{}\"", path.display())
             }
+            Error::HyphenationLoadError(e) => write!(fmt, "Problem with hyphenation: {}", e),
             Error::IoError(e) => write!(fmt, "an io error occured: {}", e),
         }
     }
