@@ -51,8 +51,9 @@ impl Config {
         }
     }
 
-    /// Triggers the build of the document.
-    pub fn build(&self) -> Result<()> {
+    /// Creates a document and a font maanger from the config.
+    pub fn init(&self) -> Result<(Document, FontManager)> {
+
         let page_width: Pt = self.page_size.0.into();
         let page_height: Pt = self.page_size.1.into();
 
@@ -70,8 +71,17 @@ impl Config {
         };
 
         let mut document = Document::new("Hello", page_width.0, page_height.0, window);
-
         let font_manager = FontManager::init(&mut document)?;
+
+        Ok((document, font_manager))
+
+    }
+
+    /// Triggers the build of the document.
+    pub fn build(&self) -> Result<()> {
+
+        let (mut document, font_manager) = self.init()?;
+
         let regular_font_name = "CMU Serif Roman";
         let bold_font_name = "CMU Serif Bold";
 
