@@ -70,6 +70,12 @@ impl Item {
             },
         }
     }
+
+    /// Creates a penalty.
+    pub fn penalty(width: Sp, value: i32, flagged: bool) -> Item {
+        Item {
+            width,
+            content: Content::Penalty { value, flagged },
+        }
+    }
 }
-
-
