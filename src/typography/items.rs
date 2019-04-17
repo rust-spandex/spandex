@@ -18,6 +18,7 @@ pub struct Item {
 #[derive(Debug)]
 pub enum Content {
     /// A bounding box refers to something that is meant to be typeset.
+    ///
     /// It is essentially a black box as the only revelant information about it
     /// is its width.
     BoundingBox {

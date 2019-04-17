@@ -1,25 +1,26 @@
 //! Set of all dimension units used by SpanDeX, along with conversion rules
-/// to go from one to another easily.
-///
-/// The main conversion rules used so far are that 1 in = 72.27 pt = 2.54 cm and 1 pt = 65,536 sp.
+//! to go from one to another easily.
+//!
+//! The main conversion rules used so far are that 1 in = 72.27 pt = 2.54 cm and 1 pt = 65,536 sp.
 use std::{fmt, f64};
 use std::ops::{Add, AddAssign};
 
 use serde::{Deserialize, Serialize};
 
 /// Measure of what is supposed to be positive infinity.
+///
 /// Any measure exceeding this value will be considered infinite.
 pub const PLUS_INFINITY: Sp = Sp(10_000_000_000);
 
 /// Measure of what is supposed to be negative infinity.
 pub const MINUS_INFINITY: Sp = Sp(-10_000_000_000);
 
-/// Scaled point, equal to 1/65,536 of a point. Defining this unit is useful
-/// because the wavelength of visible light is around 100 sp. This makes
-/// rounding errors invisible to the eye, which allows to perform uniquely
-/// integer arithmetics by treating all dimensions as integer multiples of
-/// this tiny unit. This ensures consistent computations, and thus output,
-/// across a wide variety of computers.
+/// Scaled point, equal to 1/65,536 of a point.
+///
+/// Defining this unit is useful because the wavelength of visible light is around 100 sp. This
+/// makes rounding errors invisible to the eye, which allows to perform uniquely integer
+/// arithmetics by treating all dimensions as integer multiples of this tiny unit. This ensures
+/// consistent computations, and thus output, across a wide variety of computers.
 #[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Sp(pub i64);
 
@@ -110,6 +111,7 @@ impl Into<Pt> for Mm {
 
 /// Compares two float numbers to check if they're close enough to be
 /// considered equal.
+///
 /// Inspired by [this post](https://users.rust-lang.org/t/assert-eq-for-float-numbers/7034/3).
 ///
 /// # Examples
