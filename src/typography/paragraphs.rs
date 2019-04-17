@@ -2,7 +2,7 @@
 //! semantics of "paragraph". That is, the logic to split a sequence of
 //! words into lines.
 use crate::font::Font;
-use crate::typography::items::{get_box_for_glyph, Item};
+use crate::typography::items::Item;
 use crate::units::{Sp, PLUS_INFINITY};
 use std::vec::Vec;
 
@@ -43,7 +43,7 @@ pub fn itemize_paragraph(words: &str, indentation: Sp, font: &Font, font_size: f
         if glyph.is_whitespace() {
             paragraph.push(get_glue_from_context(previous_glyph, ideal_spacing));
         } else {
-            paragraph.push(get_box_for_glyph(glyph, font, font_size));
+            paragraph.push(Item::from_glyph(glyph, font, font_size));
         }
 
         previous_glyph = glyph;

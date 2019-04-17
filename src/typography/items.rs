@@ -43,6 +43,14 @@ pub enum Content {
 }
 
 impl Item {
+    /// Creates a box for a particular glyph.
+    pub fn from_glyph(glyph: char, font: &Font, font_size: f64) -> Item {
+        Item {
+            width: Sp::from(Pt(font.char_width(glyph, font_size))),
+            content: Content::BoundingBox { glyph },
+        }
+    }
+
     /// Creates a bounding box from its width in scaled points and its glyph.
     pub fn bounding_box(width: Sp, glyph: char) -> Item {
         Item {
@@ -63,10 +71,4 @@ impl Item {
     }
 }
 
-/// Creates a box for a particular glyph.
-pub fn get_box_for_glyph(glyph: char, font: &Font, font_size: f64) -> Item {
-    Item {
-        width: Sp::from(Pt(font.char_width(glyph, font_size))),
-        content: Content::BoundingBox { glyph },
-    }
-}
+
