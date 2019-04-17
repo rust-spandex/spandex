@@ -4,6 +4,7 @@
 use crate::font::Font;
 use crate::typography::items::Item;
 use crate::units::{Sp, PLUS_INFINITY};
+use hyphenation::*;
 use std::vec::Vec;
 
 /// Holds a list of items describing a paragraph.
@@ -26,7 +27,13 @@ impl Paragraph {
 }
 
 /// Parses a string into a sequence of items.
-pub fn itemize_paragraph(words: &str, indentation: Sp, font: &Font, font_size: f64) -> Paragraph {
+pub fn itemize_paragraph(
+    words: &str,
+    indentation: Sp,
+    font: &Font,
+    font_size: f64,
+    dictionary: &Standard,
+) -> Paragraph {
     let mut paragraph = Paragraph::new();
 
     if indentation != Sp(0) {
@@ -34,7 +41,9 @@ pub fn itemize_paragraph(words: &str, indentation: Sp, font: &Font, font_size: f
     }
 
     let ideal_spacing = Sp(90_000);
+    let hyphenation_width = Sp(80_000);
     let mut previous_glyph = 'c';
+    let mut current_word = String::from("");
 
     // Turn each word of the paragraph into a sequence of boxes for
     // the caracters of the word. This includes potential punctuation
@@ -42,8 +51,22 @@ pub fn itemize_paragraph(words: &str, indentation: Sp, font: &Font, font_size: f
     for glyph in words.chars() {
         if glyph.is_whitespace() {
             paragraph.push(get_glue_from_context(previous_glyph, ideal_spacing));
+
+            // Reached end of current word, handle hyphenation.
+            let hyphenated = dictionary.hyphenate(&*current_word);
+            let break_indices = &hyphenated.breaks;
+
+            for (i, c) in current_word.chars().enumerate() {
+                if break_indices.contains(&i) {
+                    paragraph.push(Item::penalty(hyphenation_width, 20, true))
+                }
+
+                paragraph.push(Item::from_glyph(c, font, font_size));
+            }
+
+            current_word = String::from("");
         } else {
-            paragraph.push(Item::from_glyph(glyph, font, font_size));
+            current_word.push(glyph);
         }
 
         previous_glyph = glyph;
@@ -71,11 +94,14 @@ mod tests {
     use crate::typography::paragraphs::itemize_paragraph;
     use crate::units::Sp;
     use crate::{Error, Result};
+    use hyphenation::*;
     use std::path::PathBuf;
 
     #[test]
     fn test_paragraph_itemization() -> Result<()> {
         let words = "Lorem ipsum dolor sit amet.";
+
+        let en_us = Standard::from_embedded(Language::EnglishUS)?;
 
         let (_, font_manager) = Config::with_title("Test").init()?;
 
@@ -87,11 +113,11 @@ mod tests {
             .ok_or(Error::FontNotFound(PathBuf::from(regular_font_name)))?;
 
         // No indentation, meaning no leading empty box.
-        let paragraph = itemize_paragraph(words, Sp(0), &font, 12.0);
-        assert_eq!(paragraph.items.len(), 28);
+        let paragraph = itemize_paragraph(words, Sp(0), &font, 12.0, &en_us);
+        assert_eq!(paragraph.items.len(), 27);
 
         // Indentated paragraph, implying the presence of a leading empty box.
-        let paragraph = itemize_paragraph(words, Sp(120_000), &font, 12.0);
+        let paragraph = itemize_paragraph(words, Sp(120_000), &font, 12.0, &en_us);
         assert_eq!(paragraph.items.len(), 29);
 
         Ok(())
