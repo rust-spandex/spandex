@@ -2,7 +2,7 @@
 name = "spandex"
 version = "0.1.0"
 description = "A modern LaTeX alternative"
-authors = ["Thomas Forgione <thomas@forgione.fr>"]
+authors = ["Thomas Forgione <thomas@forgione.fr>", "Matthieu Le Boucher <matt.leboucher@gmail.com"]
 edition = "2018"
 
 [dependencies]
@@ -14,3 +14,4 @@ serde = { version = "1.0", features = ["derive"] }
 log = "0.4.6"
 beautylog = "0.1.0"
 pulldown-cmark = "0.4.1"
+hyphenation = { version = "0.7.1", features = ["embed_all"] }
