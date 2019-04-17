@@ -2,9 +2,8 @@
 /// to go from one to another easily.
 ///
 /// The main conversion rules used so far are that 1 in = 72.27 pt = 2.54 cm and 1 pt = 65,536 sp.
-use std::f64;
-use std::fmt;
-use std::ops::Add;
+use std::{fmt, f64};
+use std::ops::{Add, AddAssign};
 
 use serde::{Deserialize, Serialize};
 
@@ -57,6 +56,12 @@ macro_rules! impl_add {
 
             fn add(self, other: $the_type) -> $the_type {
                 $constructor(self.0 + other.0)
+            }
+        }
+
+        impl AddAssign for $the_type {
+            fn add_assign(&mut self, other: $the_type) {
+                self.0 += other.0;
             }
         }
     }
