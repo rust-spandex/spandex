@@ -43,6 +43,27 @@ impl Font {
         })
     }
 
+    /// Computes the width of a char of the font at a specified size.
+    pub fn char_width(&self, c: char, scale: f64) -> f64 {
+        // vertical scale for the space character
+        let vert_scale = {
+            if let Ok(_) = self.freetype.load_char(0x0020, face::LoadFlag::NO_SCALE) {
+                self.freetype.glyph().metrics().vertAdvance
+            } else {
+                1000
+            }
+        };
+
+        // calculate the width of the text in unscaled units
+        let width = if let Ok(_) = self.freetype.load_char(c as usize, face::LoadFlag::NO_SCALE) {
+            self.freetype.glyph().metrics().horiAdvance
+        } else {
+            0
+        };
+
+        width as f64 / (vert_scale as f64 / scale)
+    }
+
     /// Computes the text width of the font at a specified size.
     pub fn text_width(&self, text: &str, scale: f64) -> f64 {
         // vertical scale for the space character
