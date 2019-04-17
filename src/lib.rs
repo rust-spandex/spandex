@@ -5,13 +5,14 @@
 #[macro_use]
 extern crate log;
 
+pub mod config;
 pub mod document;
 pub mod font;
+pub mod typography;
 pub mod units;
-pub mod config;
 
 use std::path::PathBuf;
-use std::{io, fmt, error, result};
+use std::{error, fmt, io, result};
 
 macro_rules! impl_from_error {
     ($type: ty, $variant: path, $from: ty) => {
