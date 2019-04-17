@@ -115,8 +115,7 @@ impl Into<Pt> for Mm {
 /// # Examples
 ///
 /// ```
-/// use spandex::units::nearly_equal;
-///
+/// # use spandex::units::nearly_equal;
 /// assert_eq!(nearly_equal(3.0, 2.99999), true);
 /// assert_eq!(nearly_equal(4.0, 3.999), false);
 /// ```
