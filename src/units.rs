@@ -5,7 +5,14 @@
 use std::f64;
 use std::fmt;
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+
+/// Measure of what is supposed to be positive infinity.
+/// Any measure exceeding this value will be considered infinite.
+pub const PLUS_INFINITY: Sp = Sp(10_000_000_000);
+
+/// Measure of what is supposed to be negative infinity.
+pub const MINUS_INFINITY: Sp = Sp(-10_000_000_000);
 
 /// Scaled point, equal to 1/65,536 of a point. Defining this unit is useful
 /// because the wavelength of visible light is around 100 sp. This makes
