@@ -3,6 +3,12 @@
 use crate::font::Font;
 use crate::units::{Pt, Sp};
 
+/// Value of the most negative penalty possible. This is considered infinite.
+pub const INFINITELY_NEGATIVE_PENALTY: i32 = i32::min_value();
+
+/// Value of the most positive penalty possible. This is considered infinite. g
+pub const INFINITELY_POSITIVE_PENALTY: i32 = i32::max_value();
+
 /// Top abstraction of an item, which is a specification for a box, a glue
 /// or a penalty.
 #[derive(Debug)]
@@ -19,8 +25,8 @@ pub struct Item {
 pub enum Content {
     /// A bounding box refers to something that is meant to be typeset.
     ///
-    /// Though it holds the glyph it's representing, this item is 
-    /// essentially a black box as the only revelant information 
+    /// Though it holds the glyph it's representing, this item is
+    /// essentially a black box as the only revelant information
     /// about it for splitting a paragraph into lines is its width.
     BoundingBox {
         /// The glyph that is meant to be typeset.
