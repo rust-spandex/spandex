@@ -87,6 +87,25 @@ fn get_glue_from_context(_previous_glyph: char, ideal_spacing: Sp) -> Item {
     Item::glue(ideal_spacing, Sp(0), Sp(0))
 }
 
+/// Computes the adjusment ratio of a line of items, based on their combined
+/// width, stretchability and shrinkability. This essentially tells how much
+/// effort has to be produce to fit the line to the desired width.
+#[allow(dead_code)]
+fn compute_adjustment_ratio(
+    actual_length: Sp,
+    desired_length: Sp,
+    total_stretchability: Sp,
+    total_shrinkability: Sp,
+) -> f64 {
+    if actual_length == desired_length {
+        0.0
+    } else if actual_length < desired_length {
+        (desired_length.0 as f64 - actual_length.0 as f64) / total_stretchability.0 as f64
+    } else {
+        (desired_length.0 as f64 - actual_length.0 as f64) / total_shrinkability.0 as f64
+    }
+}
+
 /// Unit tests for the paragraphs typesetting.
 #[cfg(test)]
 mod tests {
@@ -114,11 +133,35 @@ mod tests {
 
         // No indentation, meaning no leading empty box.
         let paragraph = itemize_paragraph(words, Sp(0), &font, 12.0, &en_us);
-        assert_eq!(paragraph.items.len(), 27);
+        assert_eq!(paragraph.items.len(), 25);
 
         // Indentated paragraph, implying the presence of a leading empty box.
         let paragraph = itemize_paragraph(words, Sp(120_000), &font, 12.0, &en_us);
-        assert_eq!(paragraph.items.len(), 29);
+        assert_eq!(paragraph.items.len(), 26);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_adjustment_ratio_computation() -> Result<()> {
+        let words = "Lorem ipsum dolor sit amet.";
+
+        let en_us = Standard::from_embedded(Language::EnglishUS)?;
+
+        let (_, font_manager) = Config::with_title("Test").init()?;
+
+        let regular_font_name = "CMU Serif Roman";
+        // let bold_font_name = "CMU Serif Bold";
+
+        let font = font_manager
+            .get(regular_font_name)
+            .ok_or(Error::FontNotFound(PathBuf::from(regular_font_name)))?;
+
+        // Indentated paragraph, implying the presence of a leading empty box.
+        let paragraph = itemize_paragraph(words, Sp(120_000), &font, 12.0, &en_us);
+        assert_eq!(paragraph.items.len(), 26);
+
+        // TODO: compute the ratio by hand.
 
         Ok(())
     }
