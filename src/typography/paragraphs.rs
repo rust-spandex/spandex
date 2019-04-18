@@ -2,7 +2,9 @@
 //! semantics of "paragraph". That is, the logic to split a sequence of
 //! words into lines.
 use crate::font::Font;
-use crate::typography::items::{Item, INFINITELY_NEGATIVE_PENALTY};
+use crate::typography::items::{
+    Content, Item, INFINITELY_NEGATIVE_PENALTY, INFINITELY_POSITIVE_PENALTY,
+};
 use crate::units::{Sp, PLUS_INFINITY};
 use hyphenation::*;
 use std::vec::Vec;
@@ -93,6 +95,38 @@ fn get_glue_from_context(_previous_glyph: char, ideal_spacing: Sp) -> Item {
     Item::glue(ideal_spacing, Sp(0), Sp(0))
 }
 
+/// Finds all the legal breakpoints within a paragraph. A legal breakpoint
+/// is an item index such that this item is either a peanalty which isn't
+/// infinite or a glue following a bounding box.
+pub fn find_legal_breakpoints(paragraph: &Paragraph) -> Vec<usize> {
+    let mut legal_breakpoints: Vec<usize> = Vec::new();
+    legal_breakpoints.push(0);
+
+    let mut last_item_was_box = false;
+
+    for (i, item) in paragraph.items.iter().enumerate() {
+        match item.content {
+            Content::Penalty { value, .. } => {
+                if value < INFINITELY_POSITIVE_PENALTY {
+                    legal_breakpoints.push(i);
+                }
+
+                last_item_was_box = false;
+            }
+            Content::Glue { .. } => {
+                if last_item_was_box {
+                    legal_breakpoints.push(i)
+                }
+
+                last_item_was_box = false;
+            }
+            Content::BoundingBox { .. } => last_item_was_box = true,
+        }
+    }
+
+    legal_breakpoints
+}
+
 /// Computes the adjusment ratio of a line of items, based on their combined
 /// width, stretchability and shrinkability. This essentially tells how much
 /// effort has to be produce to fit the line to the desired width.
@@ -116,7 +150,7 @@ fn compute_adjustment_ratio(
 #[cfg(test)]
 mod tests {
     use crate::config::Config;
-    use crate::typography::paragraphs::itemize_paragraph;
+    use crate::typography::paragraphs::{find_legal_breakpoints, itemize_paragraph};
     use crate::units::Sp;
     use crate::{Error, Result};
     use hyphenation::*;
@@ -139,17 +173,17 @@ mod tests {
 
         // No indentation, meaning no leading empty box.
         let paragraph = itemize_paragraph(words, Sp(0), &font, 12.0, &en_us);
-        assert_eq!(paragraph.items.len(), 25);
+        assert_eq!(paragraph.items.len(), 26);
 
         // Indentated paragraph, implying the presence of a leading empty box.
         let paragraph = itemize_paragraph(words, Sp(120_000), &font, 12.0, &en_us);
-        assert_eq!(paragraph.items.len(), 26);
+        assert_eq!(paragraph.items.len(), 27);
 
         Ok(())
     }
 
     #[test]
-    fn test_adjustment_ratio_computation() -> Result<()> {
+    fn test_legal_breakpoints() -> Result<()> {
         let words = "Lorem ipsum dolor sit amet.";
 
         let en_us = Standard::from_embedded(Language::EnglishUS)?;
@@ -165,10 +199,34 @@ mod tests {
 
         // Indentated paragraph, implying the presence of a leading empty box.
         let paragraph = itemize_paragraph(words, Sp(120_000), &font, 12.0, &en_us);
-        // assert_eq!(paragraph.items.len(), 26);
 
-        // TODO: compute the ratio by hand.
+        let legal_breakpoints = find_legal_breakpoints(&paragraph);
+        assert_eq!(legal_breakpoints, [0, 1, 7, 10, 14, 17, 21, 25, 26]);
 
         Ok(())
     }
+
+    // #[test]
+    // fn test_adjustment_ratio_computation() -> Result<()> {
+    //     let words = "Lorem ipsum dolor sit amet.";
+
+    //     let en_us = Standard::from_embedded(Language::EnglishUS)?;
+
+    //     let (_, font_manager) = Config::with_title("Test").init()?;
+
+    //     let regular_font_name = "CMU Serif Roman";
+    //     // let bold_font_name = "CMU Serif Bold";
+
+    //     let font = font_manager
+    //         .get(regular_font_name)
+    //         .ok_or(Error::FontNotFound(PathBuf::from(regular_font_name)))?;
+
+    //     // Indentated paragraph, implying the presence of a leading empty box.
+    //     let paragraph = itemize_paragraph(words, Sp(120_000), &font, 12.0, &en_us);
+    //     // assert_eq!(paragraph.items.len(), 26);
+
+    //     // TODO: compute the ratio by hand.
+
+    //     Ok(())
+    // }
 }
