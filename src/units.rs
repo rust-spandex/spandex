@@ -2,10 +2,11 @@
 //! to go from one to another easily.
 //!
 //! The main conversion rules used so far are that 1 in = 72.27 pt = 2.54 cm and 1 pt = 65,536 sp.
-use std::{fmt, f64};
-use std::ops::{Add, AddAssign};
+use std::ops::{Add, AddAssign, Sub, SubAssign};
+use std::{f64, fmt};
 
 use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
 
 /// Measure of what is supposed to be positive infinity.
 ///
@@ -65,12 +66,45 @@ macro_rules! impl_add {
                 self.0 += other.0;
             }
         }
-    }
+    };
+}
+
+macro_rules! impl_sub {
+    ($the_type: ty, $constructor: expr) => {
+        impl Sub for $the_type {
+            type Output = $the_type;
+
+            fn sub(self, other: $the_type) -> $the_type {
+                $constructor(self.0 - other.0)
+            }
+        }
+
+        impl SubAssign for $the_type {
+            fn sub_assign(&mut self, other: $the_type) {
+                self.0 -= other.0;
+            }
+        }
+    };
 }
 
 impl_add!(Sp, Sp);
 impl_add!(Mm, Mm);
 impl_add!(Pt, Pt);
+impl_sub!(Sp, Sp);
+impl_sub!(Mm, Mm);
+impl_sub!(Pt, Pt);
+
+impl PartialOrd for Sp {
+    fn partial_cmp(&self, other: &Sp) -> Option<Ordering> {
+        self.0.partial_cmp(&other.0)
+    }
+}
+
+impl Ord for Sp {
+    fn cmp(&self, other: &Sp) -> Ordering {
+        self.0.cmp(&other.0)
+    }
+}
 
 impl From<Mm> for Sp {
     fn from(mm: Mm) -> Sp {
@@ -141,7 +175,7 @@ pub fn nearly_equal(a: f64, b: f64) -> bool {
 /// Unit tests for SpanDeX.
 #[cfg(test)]
 mod tests {
-    use crate::units::{Mm, Pt, Sp, nearly_equal};
+    use crate::units::{nearly_equal, Mm, Pt, Sp};
 
     #[test]
     fn convert_mm_to_sp() {
