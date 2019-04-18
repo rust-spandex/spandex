@@ -34,6 +34,7 @@ fn main() {
 fn run() -> Result<(), Box<Error>> {
 
     let mut app = App::new("SpanDeX")
+        .bin_name("spandex")
         .version(crate_version!())
         .author(crate_authors!("\n"))
         .about(crate_description!())
