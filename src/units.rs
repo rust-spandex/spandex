@@ -2,7 +2,7 @@
 //! to go from one to another easily.
 //!
 //! The main conversion rules used so far are that 1 in = 72.27 pt = 2.54 cm and 1 pt = 65,536 sp.
-use std::ops::{Add, AddAssign, Sub, SubAssign};
+use std::ops::{Add, AddAssign, Div, DivAssign, Sub, SubAssign};
 use std::{f64, fmt};
 
 use serde::{Deserialize, Serialize};
@@ -78,6 +78,20 @@ macro_rules! impl_operators {
         impl SubAssign for $the_type {
             fn sub_assign(&mut self, other: $the_type) {
                 self.0 -= other.0;
+            }
+        }
+
+        impl Div for $the_type {
+            type Output = $the_type;
+
+            fn div(self, other: $the_type) -> $the_type {
+                $constructor(self.0 / other.0)
+            }
+        }
+
+        impl DivAssign for $the_type {
+            fn div_assign(&mut self, other: $the_type) {
+                self.0 /= other.0;
             }
         }
     };
