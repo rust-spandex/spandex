@@ -2,7 +2,7 @@
 //! semantics of "paragraph". That is, the logic to split a sequence of
 //! words into lines.
 use crate::font::Font;
-use crate::typography::items::Item;
+use crate::typography::items::{Item, INFINITELY_NEGATIVE_PENALTY};
 use crate::units::{Sp, PLUS_INFINITY};
 use hyphenation::*;
 use std::vec::Vec;
@@ -77,6 +77,7 @@ pub fn itemize_paragraph(
     // at the right of the last tine, and a penalty item to
     // force a line break.
     paragraph.push(Item::glue(Sp(0), PLUS_INFINITY, Sp(0)));
+    paragraph.push(Item::penalty(Sp(0), INFINITELY_NEGATIVE_PENALTY, false));
 
     paragraph
 }
