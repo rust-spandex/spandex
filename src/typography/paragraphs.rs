@@ -40,6 +40,9 @@ pub fn itemize_paragraph(
 ) -> Paragraph {
     let mut paragraph = Paragraph::new();
 
+    // Add trailing space to ensure the last word is treated.
+    let words = format!("{}{}", words, " ");
+
     if indentation != Sp(0) {
         paragraph.push(Item::bounding_box(indentation, ' '));
     }
@@ -173,11 +176,11 @@ mod tests {
 
         // No indentation, meaning no leading empty box.
         let paragraph = itemize_paragraph(words, Sp(0), &font, 12.0, &en_us);
-        assert_eq!(paragraph.items.len(), 26);
+        assert_eq!(paragraph.items.len(), 32);
 
         // Indentated paragraph, implying the presence of a leading empty box.
         let paragraph = itemize_paragraph(words, Sp(120_000), &font, 12.0, &en_us);
-        assert_eq!(paragraph.items.len(), 27);
+        assert_eq!(paragraph.items.len(), 33);
 
         Ok(())
     }
@@ -201,7 +204,8 @@ mod tests {
         let paragraph = itemize_paragraph(words, Sp(120_000), &font, 12.0, &en_us);
 
         let legal_breakpoints = find_legal_breakpoints(&paragraph);
-        assert_eq!(legal_breakpoints, [0, 1, 7, 10, 14, 17, 21, 25, 26]);
+        // [ ] Lorem ip-sum do-lor sit amet.
+        assert_eq!(legal_breakpoints, [0, 1, 7, 10, 14, 17, 21, 25, 31, 32]);
 
         Ok(())
     }
