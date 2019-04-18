@@ -51,7 +51,7 @@ impl fmt::Debug for Pt {
     }
 }
 
-macro_rules! impl_add {
+macro_rules! impl_operators {
     ($the_type: ty, $constructor: expr) => {
         impl Add for $the_type {
             type Output = $the_type;
@@ -66,11 +66,7 @@ macro_rules! impl_add {
                 self.0 += other.0;
             }
         }
-    };
-}
 
-macro_rules! impl_sub {
-    ($the_type: ty, $constructor: expr) => {
         impl Sub for $the_type {
             type Output = $the_type;
 
@@ -87,12 +83,9 @@ macro_rules! impl_sub {
     };
 }
 
-impl_add!(Sp, Sp);
-impl_add!(Mm, Mm);
-impl_add!(Pt, Pt);
-impl_sub!(Sp, Sp);
-impl_sub!(Mm, Mm);
-impl_sub!(Pt, Pt);
+impl_operators!(Sp, Sp);
+impl_operators!(Mm, Mm);
+impl_operators!(Pt, Pt);
 
 impl PartialOrd for Sp {
     fn partial_cmp(&self, other: &Sp) -> Option<Ordering> {
