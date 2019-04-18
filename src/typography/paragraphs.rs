@@ -58,7 +58,7 @@ pub fn itemize_paragraph(
 
             for (i, c) in current_word.chars().enumerate() {
                 if break_indices.contains(&i) {
-                    paragraph.push(Item::penalty(hyphenation_width, 20, true))
+                    paragraph.push(Item::penalty(Sp(0), 50, true))
                 }
 
                 paragraph.push(Item::from_glyph(c, font, font_size));
