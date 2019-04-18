@@ -14,10 +14,10 @@ pub const INFINITELY_POSITIVE_PENALTY: i32 = i32::max_value();
 #[derive(Debug)]
 pub struct Item {
     /// The width of the item in scaled units.
-    width: Sp,
+    pub width: Sp,
 
     /// The type of the item.
-    content: Content,
+    pub content: Content,
 }
 
 /// Possible available types for an item.
