@@ -21,7 +21,7 @@ pub enum Content {
     ///
     /// Though it holds the glyph it's representing, this item is 
     /// essentially a black box as the only revelant information 
-    /// about it is its width for splitting a paragraph into lines.
+    /// about it for splitting a paragraph into lines is its width.
     BoundingBox {
         /// The glyph that is meant to be typeset.
         glyph: char,
