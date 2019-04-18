@@ -19,21 +19,27 @@ pub struct Item {
 pub enum Content {
     /// A bounding box refers to something that is meant to be typeset.
     ///
-    /// It is essentially a black box as the only revelant information about it
-    /// is its width.
+    /// Though it holds the glyph it's representing, this item is 
+    /// essentially a black box as the only revelant information 
+    /// about it is its width for splitting a paragraph into lines.
     BoundingBox {
         /// The glyph that is meant to be typeset.
         glyph: char,
     },
     /// Glue is a blank space which can see its width altered in specified ways.
+    ///
+    /// It can either stretch or shrink up to a certain limit, and is used as
+    /// mortar to leverage to reach a target column width.
     Glue {
-        /// How inclined the glue is to stretch, in scaled points.
+        /// How inclined the glue is to stretch from its natural width, in scaled points.
         stretchability: Sp,
 
-        /// How inclined the glue is to shrink, in scaled points.
+        /// How inclined the glue is to shrink from its natural width, in scaled points.
         shrinkability: Sp,
     },
-    /// Penalty is a potential place to end a line and step to another.
+    /// Penalty is a potential place to end a line and step to another. It's helpful
+    /// to cut a line in the middle of a word (hyphenation) or to enforce a break
+    /// at the end of paragraphs.
     Penalty {
         /// The "cost" of the penalty.
         value: i32,
@@ -44,7 +50,7 @@ pub enum Content {
 }
 
 impl Item {
-    /// Creates a box for a particular glyph.
+    /// Creates a box for a particular glyph and font.
     pub fn from_glyph(glyph: char, font: &Font, font_size: f64) -> Item {
         Item {
             width: Sp::from(Pt(font.char_width(glyph, font_size))),
