@@ -10,6 +10,7 @@ use freetype::{Face, Library, face};
 use printpdf::types::plugins::graphics::two_dimensional::font::IndirectFontRef;
 
 use crate::{Error, Result};
+use crate::units::{Pt, Sp};
 use crate::document::Document;
 
 /// A font that contains the printpdf object font needed to render text and the freetype font
@@ -65,7 +66,11 @@ impl Font {
     }
 
     /// Computes the text width of the font at a specified size.
-    pub fn text_width(&self, text: &str, scale: f64) -> f64 {
+    pub fn text_width(&self, text: &str, scale: Sp) -> Sp {
+
+        let scale: Pt = scale.into();
+        let scale = scale.0;
+
         // vertical scale for the space character
         let vert_scale = {
             if let Ok(_) = self.freetype.load_char(0x0020, face::LoadFlag::NO_SCALE) {
@@ -83,7 +88,7 @@ impl Font {
             } else { acc }
         });
 
-        sum_width as f64 / (vert_scale as f64 / scale)
+        Pt(sum_width as f64 / (vert_scale as f64 / scale)).into()
     }
 
     /// Returns a reference to the printpdf font.

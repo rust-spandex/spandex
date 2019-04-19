@@ -54,23 +54,14 @@ impl Config {
     /// Creates a document and a font maanger from the config.
     pub fn init(&self) -> Result<(Document, FontManager)> {
 
-        let page_width: Pt = self.page_size.0.into();
-        let page_height: Pt = self.page_size.1.into();
-
-        let text_width: Pt = self.text_width.into();
-        let text_height: Pt = self.text_height.into();
-
-        let left_margin: Pt = self.left_margin.into();
-        let top_margin: Pt = self.top_margin.into();
-
         let window = Window {
-            x: left_margin.0,
-            y: top_margin.0,
-            width: text_width.0,
-            height: text_height.0,
+            x: self.left_margin,
+            y: self.top_margin,
+            width: self.text_width,
+            height: self.text_height,
         };
 
-        let mut document = Document::new("Hello", page_width.0, page_height.0, window);
+        let mut document = Document::new("Hello", self.page_size.0, self.page_size.1, window);
         let font_manager = FontManager::init(&mut document)?;
 
         Ok((document, font_manager))
@@ -95,9 +86,9 @@ impl Config {
         file.read_to_string(&mut content)?;
 
         if self.input.ends_with(".md") || self.input.ends_with(".mdown") {
-            document.write_markdown(&content, &font_config, 10.0);
+            document.write_markdown(&content, &font_config, Pt(10.0).into());
         } else {
-            document.write_content(&content, font, 10.0);
+            document.write_content(&content, font, Pt(10.0).into());
         }
         document.save("output.pdf");
         Ok(())

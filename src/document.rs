@@ -5,21 +5,12 @@ use std::path::Path;
 use std::fs::File;
 use std::io::BufWriter;
 
-use printpdf::{PdfDocument, PdfDocumentReference, PdfPageReference, PdfLayerReference, Mm, Pt};
+use printpdf::{PdfDocument, PdfDocumentReference, PdfPageReference, PdfLayerReference};
 
 use pulldown_cmark::{Event, Tag, Parser};
 
 use crate::font::{Font, FontConfig};
-
-/// Converts Pts to Mms.
-pub fn mm(pts: f64) -> Mm {
-    Into::<Mm>::into(Pt(pts as f64))
-}
-
-/// Converts Mms to Pts.
-pub fn pt(mms: f64) -> f64 {
-    Into::<Pt>::into(Mm(mms)).0
-}
+use crate::units::{Pt, Sp};
 
 /// The struct that manages the counters for the document.
 #[derive(Copy, Clone)]
@@ -110,16 +101,16 @@ impl fmt::Display for Counters {
 #[derive(Copy, Clone)]
 pub struct Window {
     /// The x coordinate of the window, in pt.
-    pub x: f64,
+    pub x: Sp,
 
     /// The y coordinate of the window, in pt.
-    pub y: f64,
+    pub y: Sp,
 
     /// The width of the window, in pt.
-    pub width: f64,
+    pub width: Sp,
 
     /// The height of the window, in pt.
-    pub height: f64,
+    pub height: Sp,
 }
 
 /// This struct contains the pdf document.
@@ -138,10 +129,10 @@ pub struct Document {
     window: Window,
 
     /// The cursor, the position where we supposed to write next.
-    cursor: (f64, f64),
+    cursor: (Sp, Sp),
 
     /// The current page size, in pt.
-    page_size: (f64, f64),
+    page_size: (Sp, Sp),
 
     /// The counters of the document
     counters: Counters,
@@ -149,9 +140,12 @@ pub struct Document {
 
 impl Document {
     /// Creates a new pdf document from its name and its size in pt.
-    pub fn new(name: &str, width: f64, height: f64, window: Window) -> Document {
+    pub fn new<T: Into<Sp>, U: Into<Sp>>(name: &str, width: T, height: U, window: Window) -> Document {
 
-        let (document, page, layer) = PdfDocument::new(name, mm(width), mm(height), "");
+        let width: Sp = width.into();
+        let height: Sp = height.into();
+
+        let (document, page, layer) = PdfDocument::new(name, width.into(), height.into(), "");
 
         let page = document.get_page(page);
         let layer = page.get_layer(layer);
@@ -162,7 +156,7 @@ impl Document {
             layer,
             window,
             cursor: (window.x, window.height + window.y),
-            page_size: (width, height),
+            page_size: (width.into(), height.into()),
             counters: Counters::new(),
         }
 
@@ -179,7 +173,7 @@ impl Document {
     }
 
     /// Writes markdown content on the document.
-    pub fn write_markdown(&mut self, markdown: &str, font_config: &FontConfig, size: f64) {
+    pub fn write_markdown(&mut self, markdown: &str, font_config: &FontConfig, size: Sp) {
 
         let mut current_size = size;
         let mut content = String::new();
@@ -193,7 +187,7 @@ impl Document {
                         content.push_str(&format!("{}", self.counters));
                     }
 
-                    current_size = size + 3.0 * (4 - i) as f64;
+                    current_size = size + Pt(3.0 * (4 - i) as f64).into();
                 },
 
                 Event::Start(Tag::Item) => {
@@ -228,7 +222,7 @@ impl Document {
     }
 
     /// Writes content on the document.
-    pub fn write_content(&mut self, content: &str, font: &Font, size: f64) {
+    pub fn write_content(&mut self, content: &str, font: &Font, size: Sp) {
         for paragraph in content.split("\n") {
             self.write_paragraph(paragraph, font, size);
             self.new_line(size);
@@ -236,7 +230,7 @@ impl Document {
     }
 
     /// Writes a paragraph on the document.
-    pub fn write_paragraph(&mut self, paragraph: &str, font: &Font, size: f64) {
+    pub fn write_paragraph(&mut self, paragraph: &str, font: &Font, size: Sp) {
         debug!("{}", paragraph);
         let mut words = vec![];
 
@@ -251,7 +245,7 @@ impl Document {
 
                 let remaining = words.pop().unwrap();
                 let remaining_width = self.window.width - font.text_width(&words.join(" "), size);
-                self.write_line(&words, font, size, 3.2 + remaining_width / ((words.len() - 1) as f64));
+                self.write_line(&words, font, size, Into::<Sp>::into(Pt(3.0)) + remaining_width / Sp(words.len() as i64 - 1));
 
                 words.clear();
                 words.push(remaining);
@@ -264,7 +258,7 @@ impl Document {
         }
 
         if ! words.is_empty() {
-            self.write_line(&words, font, size, 3.0);
+            self.write_line(&words, font, size, Pt(3.0).into());
             if self.cursor.1 <= size + self.window.y {
                 self.new_page();
             }
@@ -272,14 +266,16 @@ impl Document {
     }
 
     /// Writes a line in the document.
-    pub fn write_line(&mut self, words: &[&str], font: &Font, size: f64, spacing: f64) {
+    pub fn write_line(&mut self, words: &[&str], font: &Font, size: Sp, spacing: Sp) {
+
+        let size_i64 = Into::<Pt>::into(size).0 as i64;
         let mut current_width = self.window.x;
 
         for word in words {
-            let width = mm(current_width);
-            let height = mm(self.cursor.1);
+            let width = current_width;
+            let height = self.cursor.1;
 
-            self.layer.use_text(word.to_owned(), size as i64, width, height - mm(size), font.printpdf());
+            self.layer.use_text(word.to_owned(), size_i64, width.into(), (height - size).into(), font.printpdf());
             current_width += font.text_width(word, size) + spacing;
         }
 
@@ -287,13 +283,13 @@ impl Document {
     }
 
     /// Goes to the beginning of the next line.
-    pub fn new_line(&mut self, size: f64) {
+    pub fn new_line(&mut self, size: Sp) {
         self.cursor.1 -= size;
     }
 
     /// Creates a new page and append it to the document.
     pub fn new_page(&mut self) {
-        let page = self.document.add_page(mm(self.page_size.0), mm(self.page_size.1), "");
+        let page = self.document.add_page(self.page_size.0.into(), self.page_size.1.into(), "");
         self.page = self.document.get_page(page.0);
         self.layer = self.page.get_layer(page.1);
         self.cursor.1 = self.window.height + self.window.y;

@@ -4,9 +4,11 @@
 //! The main conversion rules used so far are that 1 in = 72.27 pt = 2.54 cm and 1 pt = 65,536 sp.
 use std::ops::{Add, AddAssign, Div, DivAssign, Sub, SubAssign};
 use std::{f64, fmt};
+use std::cmp::Ordering;
 
 use serde::{Deserialize, Serialize};
-use std::cmp::Ordering;
+
+use printpdf::{Mm as PMm, Pt as PPt};
 
 /// Measure of what is supposed to be positive infinity.
 ///
@@ -147,6 +149,46 @@ impl From<Pt> for Mm {
 impl Into<Pt> for Mm {
     fn into(self) -> Pt {
         Pt((72.27 / 25.4) * self.0)
+    }
+}
+
+impl Into<PPt> for Pt {
+    fn into(self) -> PPt {
+        PPt(self.0)
+    }
+}
+
+impl Into<PPt> for Mm {
+    fn into(self) -> PPt {
+        let pt: Pt = self.into();
+        PPt(pt.0)
+    }
+}
+
+impl Into<PPt> for Sp {
+    fn into(self) -> PPt {
+        let pt: Pt = self.into();
+        PPt(pt.0)
+    }
+}
+
+impl Into<PMm> for Mm {
+    fn into(self) -> PMm {
+        PMm(self.0)
+    }
+}
+
+impl Into<PMm> for Pt {
+    fn into(self) -> PMm {
+        let pt: Mm = self.into();
+        PMm(pt.0)
+    }
+}
+
+impl Into<PMm> for Sp {
+    fn into(self) -> PMm {
+        let pt: Mm = self.into();
+        PMm(pt.0)
     }
 }
 
