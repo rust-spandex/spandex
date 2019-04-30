@@ -3,7 +3,7 @@
 //! words into lines.
 use crate::font::Font;
 use crate::typography::items::{
-    Content, Item, INFINITELY_NEGATIVE_PENALTY, INFINITELY_POSITIVE_PENALTY,
+    Content, Item, PositionedItem, INFINITELY_NEGATIVE_PENALTY, INFINITELY_POSITIVE_PENALTY,
 };
 use crate::units::{Sp, PLUS_INFINITY};
 use hyphenation::*;
@@ -17,6 +17,7 @@ const DASH_GLYPH: char = '-';
 const DEFAULT_LINE_LENGTH: i32 = 65;
 const MIN_COST: f64 = 10;
 const ADJACENT_LOOSE_TIGHT_PENALTY: f64 = 50;
+const MIN_ADJUSTMENT_RATIO: f64 = 1.0;
 
 /// Holds a list of items describing a paragraph.
 pub struct Paragraph {
@@ -245,7 +246,7 @@ fn compute_demerits(penalty: f64, badness: f64) -> f64 {
 fn compute_fitness(adjustment_ratio: f64) -> i64 {
     let fitness;
 
-    if adjustement_ratio < -0.5 {
+    if adjustment_ratio < -0.5 {
         fitness = 0;
     } else if adjustment_ratio < 0.5 {
         fitness = 1;
@@ -460,6 +461,51 @@ fn compute_adjustment_ratio(
         (desired_length.0 as f64 - actual_length.0 as f64) / total_stretchability.0 as f64
     } else {
         (desired_length.0 as f64 - actual_length.0 as f64) / total_shrinkability.0 as f64
+    }
+}
+
+/// Generates a list of positioned items from a list of items making up a paragraph.
+/// The generated list is ready to be rendered.
+fn positionate_items(items: Vec<Item>, line_lengths: Vec<i32>, breakpoints: Vec<i32>) -> Vec<PositionedItem> {
+    let adjustment_ratios = compute_adjustment_ratios_with_breakpoints(items, line_lengths, breakpoints);
+    let positioned_items: Vec<PositionedItem> = Vec::new();
+
+    for (breakpoint_line, breakpoint_index) in breakpoints.enumerate().iter() {
+        let adjustment_ratio = adjustment_ratios[breakpoint_line].max(MIN_ADJUSTMENT_RATIO);
+        let horizontal_offset = Sp(0);
+        let beginning = if breakpoint_line == 0 { breakpoint_index } else { breakpoint_index + 1 };
+
+        for p in beginning..breakpoints[breakpoint_line + 1] {
+            match items[p].content {
+                Content::BoundingBox { width, .. } => {
+                    positioned_items.push(PositionedItem {
+                        index: p,
+                        line: breakpoint_line,
+                        horizontal_offset,
+                        width
+                    })
+                },
+                Content::Glue { width, shrinkability, stretchability } => {
+                    if p != beginning && p != breakpoints[breakpoint_line + 1] {
+                        let gap = if adjustment_ratio < 0.0 { width + adjustment_ratio * shrinkability } else { width + adjustment_ratio * stretchability };
+
+                        // TODO: add an option to handle the inclusion of glue.
+
+                        horizontal_offset += gap;
+                    }
+                },
+                Content::Penalty { width, .. } => {
+                    if p == breakpoints[breakpoint_line + 1] && width > Sp(0) {
+                        positioned_items.push(PositionedItem {
+                            index: p,
+                            line: breakpoint_line,
+                            horizontal_offset,
+                            width
+                        })
+                    }
+                }
+            }
+        }
     }
 }
 
