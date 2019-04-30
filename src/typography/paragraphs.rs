@@ -210,6 +210,9 @@ impl Hash for Node {
     }
 }
 
+/// Returns the length of the line of given index, from a list of
+/// potential line lengths. If the list is too short, the line
+/// length will default to `DEFAULT_LINE_LENGTH`.
 fn get_line_length(lines_length: Vec<i32>, index: usize) -> i32 {
     if index < lines_length.len() {
         lines_length[index]
