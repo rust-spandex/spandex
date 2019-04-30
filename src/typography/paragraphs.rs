@@ -412,7 +412,7 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<i32>) {
 
 /// Computes the adjustment ratios of all lines given a set of line lengths and breakpoint indices.
 fn compute_adjustment_ratios_with_breakpoints(items: Vec<Item>, line_lengths: Vec<i32>, breakpoints: Vec<i32>) -> Vec<f64> {
-    let ratios: Vec<f64> = Vec::new();
+    let adjustment_ratios: Vec<f64> = Vec::new();
 
     for (breakpoint_line, breakpoint_index) in breakpoints.enumerate().iter() {
         let desired_length = get_line_length(line_lengths, breakpoint_line);
