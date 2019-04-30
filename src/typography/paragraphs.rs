@@ -241,6 +241,23 @@ fn compute_demerits(penalty: f64, badness: f64) -> f64 {
     demerits
 }
 
+/// Computes the fitness class of a line based on its adjustment ratio.
+fn compute_fitness(adjustment_ratio: f64) -> i64 {
+    let fitness;
+
+    if adjustement_ratio < -0.5 {
+        fitness = 0;
+    } else if adjustment_ratio < 0.5 {
+        fitness = 1;
+    } else if adjustment_ratio < 1.0 {
+        fitness = 2;
+    } else {
+        fitness = 3;
+    }
+
+    fitness
+}
+
 fn algorithm(paragraph: &Paragraph, lines_length: Vec<i32>) {
     let mut graph = StableGraph::<_, ()>::new();
     let mut sum_width = Sp(0);
@@ -318,29 +335,29 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<i32>) {
                 let line_stretch = sum_stretch - a.total_stretch;
                 let actual_width = sum_width - a.total_width;
 
-                let adjustement_ratio = compute_adjustment_ratio(
+                let adjustment_ratio = compute_adjustment_ratio(
                     Sp(actual_width),
                     Sp(get_line_length(lines_length, a.line)),
                     line_stretch,
                     line_shrink,
                 );
 
-                if adjustement_ratio > current_maximum_adjustment_ratio {
+                if adjustment_ratio > current_maximum_adjustment_ratio {
                     best_adjustment_ratio_above_threshold =
-                        min(adjustement_ratio, best_adjustment_ratio_above_threshold)
+                        min(adjustment_ratio, best_adjustment_ratio_above_threshold)
                 }
 
-                if adjustement_ratio < MIN_ADJUSTMENT_RATIO {
+                if adjustment_ratio < MIN_ADJUSTMENT_RATIO {
                     // Items from a to b cannot fit on the same line.
                     graph.remove_node(a);
                     last_active_node = a;
                 }
 
-                if adjustement_ratio > MIN_ADJUSTMENT_RATIO
-                    && adjustement_ratio <= current_maximum_adjustment_ratio
+                if adjustment_ratio > MIN_ADJUSTMENT_RATIO
+                    && adjustment_ratio <= current_maximum_adjustment_ratio
                 {
                     // This is a feasible breakpoint.
-                    let badness = 100.0 * adjustement_ratio.abs().powi(3);
+                    let badness = 100.0 * adjustment_ratio.abs().powi(3);
                     let penalty = match item.content {
                         Content::Penalty { value, .. } => value,
                         _ => 0.0,
@@ -351,17 +368,7 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<i32>) {
                     // TODO: support double hyphenation penalty.
 
                     // Compute fitness class.
-                    let fitness;
 
-                    if adjustement_ratio < -0.5 {
-                        fitness = 0;
-                    } else if adjustement_ratio < 0.5 {
-                        fitness = 1;
-                    } else if adjustement_ratio < 1.0 {
-                        fitness = 2;
-                    } else {
-                        fitness = 3;
-                    }
 
                     if a.index > 0 && (fitness - a.fitness).abs() > 1.0 {
                         demerits += ADJACENT_LOOSE_TIGHT_PENALTY;
