@@ -368,7 +368,7 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<i32>) {
                     // TODO: support double hyphenation penalty.
 
                     // Compute fitness class.
-
+                    let fitness = compute_fitness(adjustment_ratio);
 
                     if a.index > 0 && (fitness - a.fitness).abs() > 1.0 {
                         demerits += ADJACENT_LOOSE_TIGHT_PENALTY;
@@ -404,6 +404,44 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<i32>) {
             }
         }
     }
+}
+
+// fn positionate_items(items: Vec<Item>, lines_length: Vec<i32>, breakpoints: Vec<i32>) -> PositionedItem {
+//     let adjustment_ratio = compute_adjustment_ratio(actual_length: Sp, desired_length: Sp, total_stretchability: Sp, total_shrinkability: Sp, )
+// }
+
+/// Computes the adjustment ratios of all lines given a set of line lengths and breakpoint indices.
+fn compute_adjustment_ratios_with_breakpoints(items: Vec<Item>, line_lengths: Vec<i32>, breakpoints: Vec<i32>) -> Vec<f64> {
+    let ratios: Vec<f64> = Vec::new();
+
+    for (breakpoint_line, breakpoint_index) in breakpoints.enumerate().iter() {
+        let desired_length = get_line_length(line_lengths, breakpoint_line);
+        let actual_length = 0;
+        let line_shrink = 0;
+        let line_stretch = 0;
+        let next_breakpoint = breakpoints[breakpoint_line + 1];
+
+        let beginning = if breakpoint_line == 0 { breakpoint_index } else { breakpoint_index + 1 };
+
+        for p in beginning..next_breakpoint {
+
+            match items[p].content {
+                Content::BoundingBox { width } => actual_length += width,
+                Content::Glue { width, shrinkability, stretchability } => if p != beginning && p != next_breakpoint {
+                    actual_length += width;
+                    line_shrink += shrinkability;
+                    line_stretch += stretchability;
+                },
+                Content::Penalty { width, .. } => if p == next_breakpoint {
+                    actual_length += width;
+                }
+            }
+        }
+
+        adjustment_ratios.push(compute_adjustment_ratio(actual_length, desired_length, line_stretch, line_shrink));
+    }
+
+    adjustment_ratios
 }
 
 /// Computes the adjusment ratio of a line of items, based on their combined
