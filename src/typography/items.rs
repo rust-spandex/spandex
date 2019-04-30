@@ -93,7 +93,7 @@ impl Item {
 }
 
 /// Holds the information of an item that's ready to be rendered.
-struct PositionedItem {
+pub struct PositionedItem {
     // The index of the item within the list of items that make up
     // the paragraph in which is stands.
     index: i32,
