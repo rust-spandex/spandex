@@ -8,7 +8,7 @@ use std::process::exit;
 use std::fs::{File, create_dir_all};
 use std::io::{Read, Write};
 
-use clap::{App, Arg, SubCommand, crate_version, crate_authors, crate_description};
+use clap::{App, Arg, AppSettings, SubCommand, crate_version, crate_authors, crate_description};
 
 use spandex::config::Config;
 use spandex::Error as SError;
@@ -38,6 +38,7 @@ fn run() -> Result<(), Box<Error>> {
         .version(crate_version!())
         .author(crate_authors!("\n"))
         .about(crate_description!())
+        .setting(AppSettings::ColoredHelp)
         .subcommand(SubCommand::with_name("init")
             .about("Creates a new default SpanDeX project")
             .arg(Arg::with_name("TITLE")
