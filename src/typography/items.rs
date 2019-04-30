@@ -91,3 +91,19 @@ impl Item {
         }
     }
 }
+
+/// Holds the information of an item that's ready to be rendered.
+struct PositionedItem {
+    // The index of the item within the list of items that make up
+    // the paragraph in which is stands.
+    index: i32,
+
+    // The index of the line on which this item is to be rendered.
+    line: i32,
+
+    // The horizontal offset of the item.
+    horizontal_offset: Sp,
+
+    // The (potentially adjusted) width this item should be rendered with.
+    width: Sp
+}
