@@ -225,6 +225,22 @@ fn get_line_length(lines_length: Vec<i32>, index: usize) -> i32 {
     }
 }
 
+/// Computes the demerits of a line based on its accumulated penalty
+/// and badness.
+fn compute_demerits(penalty: f64, badness: f64) -> f64 {
+    let demerits;
+
+    if penalty >= 0 {
+        demerits = (1.0 + badness + penalty).powi(2);
+    } else if penalty > MIN_COST {
+        demerits = (1.0 + badness).powi(2) - penalty.powi(2);
+    } else {
+        demerits = (1.0 + badness).powi(2);
+    }
+
+    demerits
+}
+
 fn algorithm(paragraph: &Paragraph, lines_length: Vec<i32>) {
     let mut graph = StableGraph::<_, ()>::new();
     let mut sum_width = Sp(0);
@@ -330,15 +346,7 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<i32>) {
                         _ => 0.0,
                     };
 
-                    let demerits;
-
-                    if penalty >= 0 {
-                        demerits = (1.0 + badness + penalty).powi(2);
-                    } else if penalty > MIN_COST {
-                        demerits = (1.0 + badness).powi(2) - penalty.powi(2);
-                    } else {
-                        demerits = (1.0 + badness).powi(2);
-                    }
+                    let demerits = compute_demerits(penalty, badness);
 
                     // TODO: support double hyphenation penalty.
 
