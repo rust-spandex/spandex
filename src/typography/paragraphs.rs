@@ -164,7 +164,7 @@ fn compute_adjustment_ratio(
 mod tests {
     use crate::config::Config;
     use crate::typography::paragraphs::{find_legal_breakpoints, itemize_paragraph};
-    use crate::units::Sp;
+    use crate::units::{Pt, Sp};
     use crate::{Error, Result};
     use hyphenation::*;
     use std::path::PathBuf;
@@ -185,11 +185,11 @@ mod tests {
             .ok_or(Error::FontNotFound(PathBuf::from(regular_font_name)))?;
 
         // No indentation, meaning no leading empty box.
-        let paragraph = itemize_paragraph(words, Sp(0), &font, 12.0, &en_us);
+        let paragraph = itemize_paragraph(words, Sp(0), &font, Pt(12.0).into(), &en_us);
         assert_eq!(paragraph.items.len(), 32);
 
         // Indentated paragraph, implying the presence of a leading empty box.
-        let paragraph = itemize_paragraph(words, Sp(120_000), &font, 12.0, &en_us);
+        let paragraph = itemize_paragraph(words, Sp(120_000), &font, Pt(12.0).into(), &en_us);
         assert_eq!(paragraph.items.len(), 33);
 
         Ok(())
@@ -211,7 +211,7 @@ mod tests {
             .ok_or(Error::FontNotFound(PathBuf::from(regular_font_name)))?;
 
         // Indentated paragraph, implying the presence of a leading empty box.
-        let paragraph = itemize_paragraph(words, Sp(120_000), &font, 12.0, &en_us);
+        let paragraph = itemize_paragraph(words, Sp(120_000), &font, Pt(12.0).into(), &en_us);
 
         let legal_breakpoints = find_legal_breakpoints(&paragraph);
         // [ ] Lorem ip-sum do-lor sit amet.
