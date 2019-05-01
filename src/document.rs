@@ -9,6 +9,7 @@ use printpdf::{PdfDocument, PdfDocumentReference, PdfPageReference, PdfLayerRefe
 
 use pulldown_cmark::{Event, Tag, Parser};
 
+use crate::typography::justification::{Justifier, NaiveJustifier};
 use crate::font::{Font, FontConfig};
 use crate::units::{Pt, Sp};
 
@@ -200,7 +201,7 @@ impl Document {
                 },
 
                 Event::End(Tag::Paragraph) | Event::End(Tag::Item) => {
-                    self.write_paragraph(&content, font_config.regular, current_size);
+                    self.write_paragraph::<NaiveJustifier>(&content, font_config.regular, current_size);
                     self.new_line(current_size);
 
                     content.clear();
@@ -208,7 +209,7 @@ impl Document {
                 },
 
                 Event::End(Tag::Header(_)) => {
-                    self.write_paragraph(&content, font_config.bold, current_size);
+                    self.write_paragraph::<NaiveJustifier>(&content, font_config.bold, current_size);
                     self.new_line(current_size);
 
                     content.clear();
@@ -224,41 +225,32 @@ impl Document {
     /// Writes content on the document.
     pub fn write_content(&mut self, content: &str, font: &Font, size: Sp) {
         for paragraph in content.split("\n") {
-            self.write_paragraph(paragraph, font, size);
+            self.write_paragraph::<NaiveJustifier>(paragraph, font, size);
             self.new_line(size);
         }
     }
 
     /// Writes a paragraph on the document.
-    pub fn write_paragraph(&mut self, paragraph: &str, font: &Font, size: Sp) {
-        debug!("{}", paragraph);
-        let mut words = vec![];
+    pub fn write_paragraph<J: Justifier>(&mut self, paragraph: &str, font: &Font, size: Sp) {
+        let size_i64 = Into::<Pt>::into(size).0 as i64;
 
-        for word in paragraph.split_whitespace() {
-            words.push(word);
+        let justified = J::justify(paragraph, self.window.width, font, size);
 
-            let line = words.join(" ");
+        for line in justified {
+            for glyph in line {
 
-            let text_width = font.text_width(&line, size);
-
-            if text_width >= self.window.width {
-
-                let remaining = words.pop().unwrap();
-                let remaining_width = self.window.width - font.text_width(&words.join(" "), size);
-                self.write_line(&words, font, size, Into::<Sp>::into(Pt(3.0)) + remaining_width / Sp(words.len() as i64 - 1));
-
-                words.clear();
-                words.push(remaining);
-
-                if self.cursor.1 <= size + self.window.y {
-                    self.new_page();
-                }
+                self.layer.use_text(
+                    glyph.0.to_string(),
+                    size_i64,
+                    (self.window.x + glyph.1).into(),
+                    self.cursor.1.into(),
+                    font.printpdf());
 
             }
-        }
 
-        if ! words.is_empty() {
-            self.write_line(&words, font, size, Pt(3.0).into());
+            self.new_line(size);
+            self.cursor.0 = self.window.x;
+
             if self.cursor.1 <= size + self.window.y {
                 self.new_page();
             }

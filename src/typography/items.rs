@@ -1,7 +1,7 @@
 //! Various blocks holding information and specifications about the structure
 //! of a paragraph.
 use crate::font::Font;
-use crate::units::{Pt, Sp};
+use crate::units::Sp;
 
 /// Value of the most negative penalty possible. This is considered infinite.
 pub const INFINITELY_NEGATIVE_PENALTY: i32 = i32::min_value();
@@ -57,9 +57,9 @@ pub enum Content {
 
 impl Item {
     /// Creates a box for a particular glyph and font.
-    pub fn from_glyph(glyph: char, font: &Font, font_size: f64) -> Item {
+    pub fn from_glyph(glyph: char, font: &Font, font_size: Sp) -> Item {
         Item {
-            width: Sp::from(Pt(font.char_width(glyph, font_size))),
+            width: font.char_width(glyph, font_size),
             content: Content::BoundingBox { glyph },
         }
     }

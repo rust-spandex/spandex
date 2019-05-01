@@ -1,13 +1,19 @@
 //! Mathematical logic for typesetting a sequence of words which have a
 //! semantics of "paragraph". That is, the logic to split a sequence of
 //! words into lines.
-use crate::font::Font;
-use crate::typography::items::{
-    Content, Item, INFINITELY_NEGATIVE_PENALTY, INFINITELY_POSITIVE_PENALTY,
-};
-use crate::units::{Sp, PLUS_INFINITY};
+
+use std::slice::Iter;
+
 use hyphenation::*;
-use std::vec::Vec;
+
+use crate::font::Font;
+use crate::units::{Sp, PLUS_INFINITY};
+use crate::typography::items::{
+    Content,
+    Item,
+    INFINITELY_NEGATIVE_PENALTY,
+    INFINITELY_POSITIVE_PENALTY,
+};
 
 const DASH_GLYPH: char = '-';
 
@@ -25,8 +31,12 @@ impl Paragraph {
 
     /// Pushes an item at the end of the paragraph.
     pub fn push(&mut self, item: Item) {
-        println!("{:?}", item);
         self.items.push(item)
+    }
+
+    /// Returns an iterator to the items of the paragraph.
+    pub fn iter(&self) -> Iter<Item> {
+        self.items.iter()
     }
 }
 
@@ -35,7 +45,7 @@ pub fn itemize_paragraph(
     words: &str,
     indentation: Sp,
     font: &Font,
-    font_size: f64,
+    font_size: Sp,
     dictionary: &Standard,
 ) -> Paragraph {
     let mut paragraph = Paragraph::new();

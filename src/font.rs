@@ -45,7 +45,10 @@ impl Font {
     }
 
     /// Computes the width of a char of the font at a specified size.
-    pub fn char_width(&self, c: char, scale: f64) -> f64 {
+    pub fn char_width(&self, c: char, scale: Sp) -> Sp {
+        let scale: Pt = scale.into();
+        let scale = scale.0;
+
         // vertical scale for the space character
         let vert_scale = {
             if let Ok(_) = self.freetype.load_char(0x0020, face::LoadFlag::NO_SCALE) {
@@ -62,7 +65,7 @@ impl Font {
             0
         };
 
-        width as f64 / (vert_scale as f64 / scale)
+        Pt(width as f64 / (vert_scale as f64 / scale)).into()
     }
 
     /// Computes the text width of the font at a specified size.
