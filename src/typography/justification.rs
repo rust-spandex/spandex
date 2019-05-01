@@ -10,14 +10,14 @@ use crate::units::Sp;
 
 /// An algorithm that justifies a paragraph.
 pub trait Justifier {
-    /// Something.
+    /// Computes the paragraph decomposition of the string and justifies it.
     fn justify(content: &str, text_width: Sp, font: &Font, size: Sp) -> Vec<Vec<(char, Sp)>> {
         let en = Standard::from_embedded(Language::EnglishUS).unwrap();
         let paragraph = itemize_paragraph(content, Sp(0), font, size, &en);
         Self::justify_paragraph(&paragraph, text_width)
     }
 
-    /// Justify the paragraph passed as parameter.
+    /// Justifies the paragraph passed as parameter.
     fn justify_paragraph(paragraph: &Paragraph, text_width: Sp) -> Vec<Vec<(char, Sp)>>;
 }
 
