@@ -15,9 +15,9 @@ use std::vec::Vec;
 
 const DASH_GLYPH: char = '-';
 const DEFAULT_LINE_LENGTH: i32 = 65;
-const MIN_COST: f64 = 10;
-const ADJACENT_LOOSE_TIGHT_PENALTY: f64 = 50;
-const MIN_ADJUSTMENT_RATIO: f64 = 1.0;
+const MIN_COST: f64 = 10.;
+const ADJACENT_LOOSE_TIGHT_PENALTY: f64 = 50.;
+const MIN_ADJUSTMENT_RATIO: f64 = 1.;
 
 /// Holds a list of items describing a paragraph.
 pub struct Paragraph {
@@ -204,6 +204,8 @@ impl PartialEq for Node {
         self.index == other.index
     }
 }
+
+impl Eq for Node {}
 
 impl Hash for Node {
     fn hash<H: Hasher>(&self, state: &mut H) {
@@ -412,7 +414,11 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<i32>) {
 // }
 
 /// Computes the adjustment ratios of all lines given a set of line lengths and breakpoint indices.
-fn compute_adjustment_ratios_with_breakpoints(items: Vec<Item>, line_lengths: Vec<i32>, breakpoints: Vec<i32>) -> Vec<f64> {
+fn compute_adjustment_ratios_with_breakpoints(
+    items: Vec<Item>,
+    line_lengths: Vec<i32>,
+    breakpoints: Vec<i32>,
+) -> Vec<f64> {
     let adjustment_ratios: Vec<f64> = Vec::new();
 
     for (breakpoint_line, breakpoint_index) in breakpoints.enumerate().iter() {
@@ -422,24 +428,40 @@ fn compute_adjustment_ratios_with_breakpoints(items: Vec<Item>, line_lengths: Ve
         let line_stretch = 0;
         let next_breakpoint = breakpoints[breakpoint_line + 1];
 
-        let beginning = if breakpoint_line == 0 { breakpoint_index } else { breakpoint_index + 1 };
+        let beginning = if breakpoint_line == 0 {
+            breakpoint_index
+        } else {
+            breakpoint_index + 1
+        };
 
         for p in beginning..next_breakpoint {
-
             match items[p].content {
                 Content::BoundingBox { width } => actual_length += width,
-                Content::Glue { width, shrinkability, stretchability } => if p != beginning && p != next_breakpoint {
-                    actual_length += width;
-                    line_shrink += shrinkability;
-                    line_stretch += stretchability;
-                },
-                Content::Penalty { width, .. } => if p == next_breakpoint {
-                    actual_length += width;
+                Content::Glue {
+                    width,
+                    shrinkability,
+                    stretchability,
+                } => {
+                    if p != beginning && p != next_breakpoint {
+                        actual_length += width;
+                        line_shrink += shrinkability;
+                        line_stretch += stretchability;
+                    }
+                }
+                Content::Penalty { width, .. } => {
+                    if p == next_breakpoint {
+                        actual_length += width;
+                    }
                 }
             }
         }
 
-        adjustment_ratios.push(compute_adjustment_ratio(actual_length, desired_length, line_stretch, line_shrink));
+        adjustment_ratios.push(compute_adjustment_ratio(
+            actual_length,
+            desired_length,
+            line_stretch,
+            line_shrink,
+        ));
     }
 
     adjustment_ratios
@@ -466,41 +488,56 @@ fn compute_adjustment_ratio(
 
 /// Generates a list of positioned items from a list of items making up a paragraph.
 /// The generated list is ready to be rendered.
-fn positionate_items(items: Vec<Item>, line_lengths: Vec<i32>, breakpoints: Vec<i32>) -> Vec<PositionedItem> {
-    let adjustment_ratios = compute_adjustment_ratios_with_breakpoints(items, line_lengths, breakpoints);
+fn positionate_items(
+    items: Vec<Item>,
+    line_lengths: Vec<i32>,
+    breakpoints: Vec<i32>,
+) -> Vec<PositionedItem> {
+    let adjustment_ratios =
+        compute_adjustment_ratios_with_breakpoints(items, line_lengths, breakpoints);
     let positioned_items: Vec<PositionedItem> = Vec::new();
 
     for (breakpoint_line, breakpoint_index) in breakpoints.enumerate().iter() {
         let adjustment_ratio = adjustment_ratios[breakpoint_line].max(MIN_ADJUSTMENT_RATIO);
         let horizontal_offset = Sp(0);
-        let beginning = if breakpoint_line == 0 { breakpoint_index } else { breakpoint_index + 1 };
+        let beginning = if breakpoint_line == 0 {
+            breakpoint_index
+        } else {
+            breakpoint_index + 1
+        };
 
         for p in beginning..breakpoints[breakpoint_line + 1] {
             match items[p].content {
-                Content::BoundingBox { width, .. } => {
-                    positioned_items.push(PositionedItem {
-                        index: p,
-                        line: breakpoint_line,
-                        horizontal_offset,
-                        width
-                    })
-                },
-                Content::Glue { width, shrinkability, stretchability } => {
+                Content::BoundingBox { width, .. } => positioned_items.push(PositionedItem {
+                    index: p,
+                    line: breakpoint_line,
+                    horizontal_offset,
+                    width,
+                }),
+                Content::Glue {
+                    width,
+                    shrinkability,
+                    stretchability,
+                } => {
                     if p != beginning && p != breakpoints[breakpoint_line + 1] {
-                        let gap = if adjustment_ratio < 0.0 { width + adjustment_ratio * shrinkability } else { width + adjustment_ratio * stretchability };
+                        let gap = if adjustment_ratio < 0.0 {
+                            width + adjustment_ratio * shrinkability
+                        } else {
+                            width + adjustment_ratio * stretchability
+                        };
 
                         // TODO: add an option to handle the inclusion of glue.
 
                         horizontal_offset += gap;
                     }
-                },
+                }
                 Content::Penalty { width, .. } => {
                     if p == breakpoints[breakpoint_line + 1] && width > Sp(0) {
                         positioned_items.push(PositionedItem {
                             index: p,
                             line: breakpoint_line,
                             horizontal_offset,
-                            width
+                            width,
                         })
                     }
                 }
