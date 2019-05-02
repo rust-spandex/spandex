@@ -10,6 +10,7 @@ use hyphenation::*;
 use petgraph::stable_graph::StableGraph;
 use std::cmp::{min, Ordering};
 use std::collections::BinaryHeap;
+use std::f64;
 use std::hash::{Hash, Hasher};
 use std::vec::Vec;
 
@@ -343,7 +344,7 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<i32>) {
 
                 if adjustment_ratio > current_maximum_adjustment_ratio {
                     best_adjustment_ratio_above_threshold =
-                        min(adjustment_ratio, best_adjustment_ratio_above_threshold)
+                        adjustment_ratio.min(best_adjustment_ratio_above_threshold)
                 }
 
                 if adjustment_ratio < MIN_ADJUSTMENT_RATIO {
