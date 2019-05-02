@@ -138,10 +138,6 @@ pub fn find_legal_breakpoints(paragraph: &Paragraph) -> Vec<usize> {
     legal_breakpoints
 }
 
-/// A beginning of line is the smallest index such that this item is either
-/// a box or a penalty which is infinite.
-fn find_beginning_of_lines(paragraphs: &Paragraph, legal_breakpoints: Vec<usize>) -> Vec<usize> {}
-
 fn find_beginning_of_line(paragraph: &Paragraph, index: usize) -> usize {
     if index == 0 {
         0
@@ -195,7 +191,7 @@ impl PartialOrd for Node {
 
 impl Ord for Node {
     fn cmp(&self, other: &Node) -> Ordering {
-        self.indexEnt.cmp(&other.index)
+        self.index.cmp(&other.index)
     }
 }
 
