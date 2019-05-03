@@ -390,7 +390,7 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<i64>) {
 
                     // Add feasible breakpoint with lowest score to active set.
                     if feasible_breakpoints.len() > 0 {
-                        let best_node = feasible_breakpoints[0];
+                        let mut best_node = feasible_breakpoints[0];
 
                         for node in feasible_breakpoints.iter() {
                             if node.total_demerits < best_node.total_demerits {
@@ -398,7 +398,7 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<i64>) {
                             }
                         }
 
-                        graph.add_node(best_node);
+                        graph.add_node(*best_node);
                     }
                 }
             }
