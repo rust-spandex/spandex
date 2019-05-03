@@ -415,8 +415,8 @@ fn compute_adjustment_ratios_with_breakpoints(
     items: Vec<Item>,
     line_lengths: Vec<i64>,
     breakpoints: Vec<usize>,
-) -> Vec<f64> {
-    let adjustment_ratios: Vec<f64> = Vec::new();
+) -> Vec<i64> {
+    let adjustment_ratios: Vec<i64> = Vec::new();
 
     for (breakpoint_line, breakpoint_index) in breakpoints.iter().enumerate() {
         let desired_length = Sp(get_line_length(line_lengths, breakpoint_line));
@@ -472,13 +472,13 @@ fn compute_adjustment_ratio(
     desired_length: Sp,
     total_stretchability: Sp,
     total_shrinkability: Sp,
-) -> f64 {
+) -> i64 {
     if actual_length == desired_length {
-        0.0
+        0
     } else if actual_length < desired_length {
-        (desired_length.0 as f64 - actual_length.0 as f64) / total_stretchability.0 as f64
+        (desired_length.0 - actual_length.0) / total_stretchability.0
     } else {
-        (desired_length.0 as f64 - actual_length.0 as f64) / total_shrinkability.0 as f64
+        (desired_length.0 - actual_length.0) / total_shrinkability.0
     }
 }
 
@@ -486,40 +486,39 @@ fn compute_adjustment_ratio(
 /// The generated list is ready to be rendered.
 fn positionate_items(
     items: Vec<Item>,
-    line_lengths: Vec<i32>,
-    breakpoints: Vec<i32>,
+    line_lengths: Vec<i64>,
+    breakpoints: Vec<usize>,
 ) -> Vec<PositionedItem> {
     let adjustment_ratios =
         compute_adjustment_ratios_with_breakpoints(items, line_lengths, breakpoints);
     let positioned_items: Vec<PositionedItem> = Vec::new();
 
-    for (breakpoint_line, breakpoint_index) in breakpoints.enumerate().iter() {
+    for (breakpoint_line, breakpoint_index) in breakpoints.iter().enumerate() {
         let adjustment_ratio = adjustment_ratios[breakpoint_line].max(MIN_ADJUSTMENT_RATIO);
         let horizontal_offset = Sp(0);
         let beginning = if breakpoint_line == 0 {
-            breakpoint_index
+            *breakpoint_index
         } else {
-            breakpoint_index + 1
+            *breakpoint_index + 1
         };
 
         for p in beginning..breakpoints[breakpoint_line + 1] {
             match items[p].content {
-                Content::BoundingBox { width, .. } => positioned_items.push(PositionedItem {
+                Content::BoundingBox { .. } => positioned_items.push(PositionedItem {
                     index: p,
                     line: breakpoint_line,
                     horizontal_offset,
-                    width,
+                    width: items[p].width,
                 }),
                 Content::Glue {
-                    width,
                     shrinkability,
                     stretchability,
                 } => {
                     if p != beginning && p != breakpoints[breakpoint_line + 1] {
-                        let gap = if adjustment_ratio < 0.0 {
-                            width + adjustment_ratio * shrinkability
+                        let gap: Sp = if adjustment_ratio < 0.0 {
+                            items[p].width + adjustment_ratio * shrinkability
                         } else {
-                            width + adjustment_ratio * stretchability
+                            items[p].width + adjustment_ratio * stretchability
                         };
 
                         // TODO: add an option to handle the inclusion of glue.
@@ -527,19 +526,21 @@ fn positionate_items(
                         horizontal_offset += gap;
                     }
                 }
-                Content::Penalty { width, .. } => {
-                    if p == breakpoints[breakpoint_line + 1] && width > Sp(0) {
+                Content::Penalty { .. } => {
+                    if p == breakpoints[breakpoint_line + 1] && items[p].width > Sp(0) {
                         positioned_items.push(PositionedItem {
                             index: p,
                             line: breakpoint_line,
                             horizontal_offset,
-                            width,
+                            width: items[p].width,
                         })
                     }
                 }
             }
         }
     }
+
+    positioned_items
 }
 
 /// Unit tests for the paragraphs typesetting.
