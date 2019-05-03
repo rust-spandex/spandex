@@ -176,8 +176,8 @@ struct Node {
     /// Line at which the item lives within the paragraph.
     pub line: usize,
 
-    /// The fitness score of the item represented by the node.
-    pub fitness: f32,
+    /// The fitness class of the item represented by the node.
+    pub fitness: i64,
     pub total_width: Sp,
     pub total_stretch: Sp,
     pub total_shrink: Sp,
@@ -359,7 +359,7 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<i64>) {
                     // This is a feasible breakpoint.
                     let badness = 100.0 * adjustment_ratio.abs().powi(3);
                     let penalty = match item.content {
-                        Content::Penalty { value, .. } => value,
+                        Content::Penalty { value, .. } => value as f64,
                         _ => 0.0,
                     };
 
@@ -378,7 +378,7 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<i64>) {
                     // non-breakable penalty item to avoid rendering glue or
                     // penalties at the beginning of lines.
 
-                    feasible_breakpoints.push(Node {
+                    feasible_breakpoints.push(&Node {
                         index: b,
                         line: a.line + 1,
                         fitness,
