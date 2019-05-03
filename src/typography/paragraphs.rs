@@ -15,7 +15,7 @@ use std::hash::{Hash, Hasher};
 use std::vec::Vec;
 
 const DASH_GLYPH: char = '-';
-const DEFAULT_LINE_LENGTH: i32 = 65;
+const DEFAULT_LINE_LENGTH: i64 = 65;
 const MIN_COST: f64 = 10.;
 const ADJACENT_LOOSE_TIGHT_PENALTY: f64 = 50.;
 const MIN_ADJUSTMENT_RATIO: f64 = 1.;
@@ -213,7 +213,7 @@ impl Hash for Node {
 /// Returns the length of the line of given index, from a list of
 /// potential line lengths. If the list is too short, the line
 /// length will default to `DEFAULT_LINE_LENGTH`.
-fn get_line_length(lines_length: Vec<i32>, index: usize) -> i32 {
+fn get_line_length(lines_length: Vec<i64>, index: usize) -> i64 {
     if index < lines_length.len() {
         lines_length[index]
     } else {
@@ -258,7 +258,7 @@ fn compute_fitness(adjustment_ratio: f64) -> i64 {
     fitness
 }
 
-fn algorithm(paragraph: &Paragraph, lines_length: Vec<i32>) {
+fn algorithm(paragraph: &Paragraph, lines_length: Vec<i64>) {
     let mut graph = StableGraph::<_, ()>::new();
     let mut sum_width = Sp(0);
     let mut sum_stretch = Sp(0);
@@ -336,7 +336,7 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<i32>) {
                 let actual_width = sum_width - a.total_width;
 
                 let adjustment_ratio = compute_adjustment_ratio(
-                    Sp(actual_width),
+                    actual_width,
                     Sp(get_line_length(lines_length, a.line)),
                     line_stretch,
                     line_shrink,
