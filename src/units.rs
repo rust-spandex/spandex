@@ -2,7 +2,7 @@
 //! to go from one to another easily.
 //!
 //! The main conversion rules used so far are that 1 in = 72.27 pt = 2.54 cm and 1 pt = 65,536 sp.
-use std::ops::{Add, AddAssign, Div, DivAssign, Sub, SubAssign};
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, Sub, SubAssign};
 use std::{f64, fmt};
 
 use serde::{Deserialize, Serialize};
@@ -100,6 +100,22 @@ macro_rules! impl_operators {
 impl_operators!(Sp, Sp);
 impl_operators!(Mm, Mm);
 impl_operators!(Pt, Pt);
+
+impl Mul<i64> for Sp {
+    type Output = Sp;
+
+    fn mul(self, rhs: i64) -> Sp {
+        Sp(self.0 * rhs)
+    }
+}
+
+impl Mul<Sp> for i64 {
+    type Output = Sp;
+
+    fn mul(self, rhs: Sp) -> Sp {
+        Sp(self * rhs.0)
+    }
+}
 
 impl PartialOrd for Sp {
     fn partial_cmp(&self, other: &Sp) -> Option<Ordering> {
