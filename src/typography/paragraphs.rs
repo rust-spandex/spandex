@@ -18,7 +18,7 @@ const DASH_GLYPH: char = '-';
 const DEFAULT_LINE_LENGTH: i64 = 65;
 const MIN_COST: f64 = 10.;
 const ADJACENT_LOOSE_TIGHT_PENALTY: f64 = 50.;
-const MIN_ADJUSTMENT_RATIO: AdjustmentRatio(1, 1);
+const MIN_ADJUSTMENT_RATIO: AdjustmentRatio = AdjustmentRatio(1, 1);
 
 /// Holds the numerator and denominator of an adjustment ratio.
 /// This allows to perform integer-only arithmetics.
@@ -377,7 +377,7 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<i64>) {
                     && adjustment_ratio <= current_maximum_adjustment_ratio
                 {
                     // This is a feasible breakpoint.
-                    let badness = 100.0 * adjustment_ratio.abs().powi(3);
+                    let badness = 100 * adjustment_ratio.abs().powi(3);
                     let penalty = match item.content {
                         Content::Penalty { value, .. } => value as f64,
                         _ => 0.0,
