@@ -18,7 +18,31 @@ const DASH_GLYPH: char = '-';
 const DEFAULT_LINE_LENGTH: i64 = 65;
 const MIN_COST: f64 = 10.;
 const ADJACENT_LOOSE_TIGHT_PENALTY: f64 = 50.;
-const MIN_ADJUSTMENT_RATIO: f64 = 1.;
+const MIN_ADJUSTMENT_RATIO: AdjustmentRatio(1, 1);
+
+/// Holds the numerator and denominator of an adjustment ratio.
+/// This allows to perform integer-only arithmetics.
+struct AdjustmentRatio(pub i64, pub i64);
+
+impl PartialEq for AdjustmentRatio {
+    fn eq(&self, other: &AdjustmentRatio) -> bool {
+        self.0 == other.0 && self.1 == other.1
+    }
+}
+
+impl Eq for AdjustmentRatio {}
+
+impl Ord for AdjustmentRatio {
+    fn cmp(&self, other: &AdjustmentRatio) -> Ordering {
+        (self.0 * other.1).cmp(&(other.0 * self.1))
+    }
+}
+
+impl PartialOrd for AdjustmentRatio {
+    fn partial_cmp(&self, other: &AdjustmentRatio) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
 
 /// Holds a list of items describing a paragraph.
 pub struct Paragraph {
@@ -242,20 +266,16 @@ fn compute_demerits(penalty: f64, badness: f64) -> f64 {
 }
 
 /// Computes the fitness class of a line based on its adjustment ratio.
-fn compute_fitness(adjustment_ratio: f64) -> i64 {
-    let fitness;
-
-    if adjustment_ratio < -0.5 {
-        fitness = 0;
-    } else if adjustment_ratio < 0.5 {
-        fitness = 1;
-    } else if adjustment_ratio < 1.0 {
-        fitness = 2;
+fn compute_fitness(adjustment_ratio: AdjustmentRatio) -> i64 {
+    if adjustment_ratio.0 * 2 < -adjustment_ratio.1 {
+        0
+    } else if adjustment_ratio.0 * 2 < adjustment_ratio.1 {
+        1
+    } else if adjustment_ratio.0 < adjustment_ratio.1 {
+        2
     } else {
-        fitness = 3;
+        3
     }
-
-    fitness
 }
 
 fn algorithm(paragraph: &Paragraph, lines_length: Vec<i64>) {
@@ -263,11 +283,11 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<i64>) {
     let mut sum_width = Sp(0);
     let mut sum_stretch = Sp(0);
     let mut sum_shrink = Sp(0);
-    let mut best_adjustment_ratio_above_threshold = f64::INFINITY;
-    let mut current_maximum_adjustment_ratio = f64::INFINITY;
+    let mut best_adjustment_ratio_above_threshold = AdjustmentRatio(i64::max_value(), 1);
+    let mut current_maximum_adjustment_ratio = AdjustmentRatio(i64::max_value(), 1);
     let mut last_item_is_box = false;
 
-    const MIN_ADJUSTMENT_RATIO: f64 = -1.0;
+    const MIN_ADJUSTMENT_RATIO: AdjustmentRatio = AdjustmentRatio(-1, 1);
 
     // Add an initial active node for the beginning of the paragraph.
     let beginning = Node {
@@ -415,8 +435,8 @@ fn compute_adjustment_ratios_with_breakpoints(
     items: Vec<Item>,
     line_lengths: Vec<i64>,
     breakpoints: Vec<usize>,
-) -> Vec<i64> {
-    let adjustment_ratios: Vec<i64> = Vec::new();
+) -> Vec<AdjustmentRatio> {
+    let adjustment_ratios: Vec<AdjustmentRatio> = Vec::new();
 
     for (breakpoint_line, breakpoint_index) in breakpoints.iter().enumerate() {
         let desired_length = Sp(get_line_length(line_lengths, breakpoint_line));
@@ -472,13 +492,13 @@ fn compute_adjustment_ratio(
     desired_length: Sp,
     total_stretchability: Sp,
     total_shrinkability: Sp,
-) -> i64 {
+) -> AdjustmentRatio {
     if actual_length == desired_length {
-        0
+        AdjustmentRatio(0, 1)
     } else if actual_length < desired_length {
-        (desired_length.0 - actual_length.0) / total_stretchability.0
+        AdjustmentRatio(desired_length.0 - actual_length.0, total_stretchability.0)
     } else {
-        (desired_length.0 - actual_length.0) / total_shrinkability.0
+        AdjustmentRatio(desired_length.0 - actual_length.0, total_shrinkability.0)
     }
 }
 
@@ -515,7 +535,7 @@ fn positionate_items(
                     stretchability,
                 } => {
                     if p != beginning && p != breakpoints[breakpoint_line + 1] {
-                        let gap: Sp = if adjustment_ratio < 0.0 {
+                        let gap: Sp = if adjustment_ratio < 0 {
                             items[p].width + adjustment_ratio * shrinkability
                         } else {
                             items[p].width + adjustment_ratio * stretchability
