@@ -48,7 +48,7 @@ pub enum Content {
     /// at the end of paragraphs.
     Penalty {
         /// The "cost" of the penalty.
-        value: i32,
+        value: i64,
 
         /// Whether or not the penalty is considered as flagged.
         flagged: bool,
@@ -96,14 +96,14 @@ impl Item {
 pub struct PositionedItem {
     // The index of the item within the list of items that make up
     // the paragraph in which is stands.
-    index: i32,
+    index: usize,
 
     // The index of the line on which this item is to be rendered.
-    line: i32,
+    line: usize,
 
     // The horizontal offset of the item.
     horizontal_offset: Sp,
 
     // The (potentially adjusted) width this item should be rendered with.
-    width: Sp
+    width: Sp,
 }
