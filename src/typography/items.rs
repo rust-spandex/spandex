@@ -4,10 +4,10 @@ use crate::font::Font;
 use crate::units::{Pt, Sp};
 
 /// Value of the most negative penalty possible. This is considered infinite.
-pub const INFINITELY_NEGATIVE_PENALTY: i32 = i32::min_value();
+pub const INFINITELY_NEGATIVE_PENALTY: i64 = i64::min_value();
 
 /// Value of the most positive penalty possible. This is considered infinite. g
-pub const INFINITELY_POSITIVE_PENALTY: i32 = i32::max_value();
+pub const INFINITELY_POSITIVE_PENALTY: i64 = i64::max_value();
 
 /// Top abstraction of an item, which is a specification for a box, a glue
 /// or a penalty.
@@ -84,7 +84,7 @@ impl Item {
     }
 
     /// Creates a penalty.
-    pub fn penalty(width: Sp, value: i32, flagged: bool) -> Item {
+    pub fn penalty(width: Sp, value: i64, flagged: bool) -> Item {
         Item {
             width,
             content: Content::Penalty { value, flagged },
