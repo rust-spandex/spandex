@@ -2,9 +2,10 @@
 //! to go from one to another easily.
 //!
 //! The main conversion rules used so far are that 1 in = 72.27 pt = 2.54 cm and 1 pt = 65,536 sp.
+use core::ops::Neg;
 use num_integer::Integer;
 use num_traits::identities::{One, Zero};
-use num_traits::Num;
+use num_traits::{Num, Signed};
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, Rem, Sub, SubAssign};
 use std::{f64, fmt};
 
@@ -110,6 +111,36 @@ impl Integer for Sp {
         let (div, rem) = self.0.div_mod_floor(&other.0);
 
         (Sp(div), Sp(rem))
+    }
+}
+
+impl Neg for Sp {
+    type Output = Self;
+    #[inline]
+    fn neg(self) -> Self {
+        Sp(0) - self
+    }
+}
+
+impl Signed for Sp {
+    fn abs(&self) -> Self {
+        Sp(self.0.abs())
+    }
+
+    fn abs_sub(&self, other: &Self) -> Self {
+        Sp(self.0.abs_sub(&other.0))
+    }
+
+    fn signum(&self) -> Self {
+        Sp(self.0.signum())
+    }
+
+    fn is_positive(&self) -> bool {
+        self.0.is_positive()
+    }
+
+    fn is_negative(&self) -> bool {
+        self.0.is_negative()
     }
 }
 
