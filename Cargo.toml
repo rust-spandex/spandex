@@ -18,3 +18,4 @@ hyphenation = { version = "0.7.1", features = ["embed_all"] }
 petgraph = "0.4.13"
 num-rational = "0.2.1"
 num-integer = "0.1.39"
+num-traits = "0.2.6"
