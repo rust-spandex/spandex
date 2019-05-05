@@ -5,7 +5,7 @@
 use core::ops::Neg;
 use num_integer::Integer;
 use num_traits::identities::{One, Zero};
-use num_traits::{Num, Signed};
+use num_traits::{Num, Pow, Signed};
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, Rem, Sub, SubAssign};
 use std::{f64, fmt};
 
@@ -144,6 +144,14 @@ impl Signed for Sp {
     }
 }
 
+impl Pow<u32> for Sp {
+    type Output = Sp;
+
+    fn pow(self, rhs: u32) -> Self::Output {
+        Sp(self.0.pow(rhs))
+    }
+}
+
 impl fmt::Debug for Sp {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{} sp", self.0)
@@ -218,7 +226,7 @@ macro_rules! impl_operators {
             type Output = $the_type;
 
             fn rem(self, other: $the_type) -> $the_type {
-                self.0 % other.0
+                $constructor(self.0 % other.0)
             }
         }
     };
