@@ -2,7 +2,10 @@
 //! to go from one to another easily.
 //!
 //! The main conversion rules used so far are that 1 in = 72.27 pt = 2.54 cm and 1 pt = 65,536 sp.
-use std::ops::{Add, AddAssign, Div, DivAssign, Mul, Sub, SubAssign};
+use num_integer::Integer;
+use num_traits::identities::{One, Zero};
+use num_traits::Num;
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, Rem, Sub, SubAssign};
 use std::{f64, fmt};
 
 use serde::{Deserialize, Serialize};
@@ -32,6 +35,83 @@ pub struct Mm(pub f64);
 /// Points.
 #[derive(Copy, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Pt(pub f64);
+
+impl Zero for Sp {
+    fn zero() -> Self {
+        Sp(0)
+    }
+
+    fn is_zero(&self) -> bool {
+        self.0 == 0
+    }
+}
+
+impl One for Sp {
+    fn one() -> Self {
+        Sp(1)
+    }
+
+    fn is_one(&self) -> bool {
+        self.0 == 1
+    }
+}
+
+impl Num for Sp {
+    type FromStrRadixErr = std::num::ParseIntError;
+
+    fn from_str_radix(str: &str, radix: u32) -> Result<Self, Self::FromStrRadixErr> {
+        match i64::from_str_radix(str, radix) {
+            Ok(parsed) => Ok(Sp(parsed)),
+            Err(e) => Err(e),
+        }
+    }
+}
+
+impl Integer for Sp {
+    fn div_floor(&self, other: &Self) -> Self {
+        Sp(self.0.div_floor(&other.0))
+    }
+
+    fn mod_floor(&self, other: &Self) -> Self {
+        Sp(self.0.mod_floor(&other.0))
+    }
+
+    fn gcd(&self, other: &Self) -> Self {
+        Sp(self.0.gcd(&other.0))
+    }
+
+    fn lcm(&self, other: &Self) -> Self {
+        Sp(self.0.lcm(&other.0))
+    }
+
+    fn divides(&self, other: &Self) -> bool {
+        self.0.divides(&other.0)
+    }
+
+    fn is_multiple_of(&self, other: &Self) -> bool {
+        self.0.is_multiple_of(&other.0)
+    }
+
+    fn is_even(&self) -> bool {
+        self.0.is_even()
+    }
+
+    fn is_odd(&self) -> bool {
+        self.0.is_odd()
+    }
+
+    fn div_rem(&self, other: &Self) -> (Self, Self) {
+        let (div, rem) = self.0.div_rem(&other.0);
+
+        (Sp(div), Sp(rem))
+    }
+
+    fn div_mod_floor(&self, other: &Self) -> (Self, Self) {
+        let (div, rem) = self.0.div_mod_floor(&other.0);
+
+        (Sp(div), Sp(rem))
+    }
+}
 
 impl fmt::Debug for Sp {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -92,6 +172,22 @@ macro_rules! impl_operators {
         impl DivAssign for $the_type {
             fn div_assign(&mut self, other: $the_type) {
                 self.0 /= other.0;
+            }
+        }
+
+        impl Mul for $the_type {
+            type Output = $the_type;
+
+            fn mul(self, other: $the_type) -> $the_type {
+                $constructor(self.0 * other.0)
+            }
+        }
+
+        impl Rem for $the_type {
+            type Output = $the_type;
+
+            fn rem(self, other: $the_type) -> $the_type {
+                self.0 % other.0
             }
         }
     };
