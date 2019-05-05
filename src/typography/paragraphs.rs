@@ -1,48 +1,33 @@
 //! Mathematical logic for typesetting a sequence of words which have a
 //! semantics of "paragraph". That is, the logic to split a sequence of
 //! words into lines.
+
 use crate::font::Font;
 use crate::typography::items::{
     Content, Item, PositionedItem, INFINITELY_NEGATIVE_PENALTY, INFINITELY_POSITIVE_PENALTY,
 };
 use crate::units::{Sp, PLUS_INFINITY};
 use hyphenation::*;
+use num_rational::Ratio;
+use num_traits::sign::Signed;
 use petgraph::stable_graph::StableGraph;
-use std::cmp::{min, Ordering};
+use petgraph::visit::EdgeRef;
+use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::f64;
 use std::hash::{Hash, Hasher};
 use std::vec::Vec;
 
+type Rational = Ratio<Sp>;
+
 const DASH_GLYPH: char = '-';
 const DEFAULT_LINE_LENGTH: i64 = 65;
-const MIN_COST: f64 = 10.;
-const ADJACENT_LOOSE_TIGHT_PENALTY: f64 = 50.;
-const MIN_ADJUSTMENT_RATIO: AdjustmentRatio = AdjustmentRatio(1, 1);
-
-/// Holds the numerator and denominator of an adjustment ratio.
-/// This allows to perform integer-only arithmetics.
-struct AdjustmentRatio(pub i64, pub i64);
-
-impl PartialEq for AdjustmentRatio {
-    fn eq(&self, other: &AdjustmentRatio) -> bool {
-        self.0 == other.0 && self.1 == other.1
-    }
-}
-
-impl Eq for AdjustmentRatio {}
-
-impl Ord for AdjustmentRatio {
-    fn cmp(&self, other: &AdjustmentRatio) -> Ordering {
-        (self.0 * other.1).cmp(&(other.0 * self.1))
-    }
-}
-
-impl PartialOrd for AdjustmentRatio {
-    fn partial_cmp(&self, other: &AdjustmentRatio) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
+const MIN_COST: Rational = Rational::new(Sp(50), Sp(1));
+const ADJACENT_LOOSE_TIGHT_PENALTY: Rational = Rational::new(Sp(50), Sp(1));
+const MIN_ADJUSTMENT_RATIO: Rational = ONE;
+const ONE: Rational = Rational::new_raw(Sp(1), Sp(1));
+const ZERO: Rational = Rational::new_raw(Sp(0), Sp(0));
+const ONE_HALF: Rational = Rational::new_raw(Sp(1), Sp(2));
 
 /// Holds a list of items describing a paragraph.
 pub struct Paragraph {
@@ -205,7 +190,7 @@ struct Node {
     pub total_width: Sp,
     pub total_stretch: Sp,
     pub total_shrink: Sp,
-    pub total_demerits: f64,
+    pub total_demerits: Rational,
 }
 
 impl PartialOrd for Node {
@@ -251,27 +236,23 @@ fn get_line_length(lines_length: Vec<i64>, index: usize) -> i64 {
 
 /// Computes the demerits of a line based on its accumulated penalty
 /// and badness.
-fn compute_demerits(penalty: f64, badness: f64) -> f64 {
-    let demerits;
-
-    if penalty >= 0 {
-        demerits = (1.0 + badness + penalty).powi(2);
+fn compute_demerits(penalty: Rational, badness: Rational) -> Rational {
+    if penalty >= ZERO {
+        (ONE + badness + penalty).pow(2)
     } else if penalty > MIN_COST {
-        demerits = (1.0 + badness).powi(2) - penalty.powi(2);
+        (ONE + badness).pow(2) - penalty.pow(2)
     } else {
-        demerits = (1.0 + badness).powi(2);
+        (ONE + badness).pow(2)
     }
-
-    demerits
 }
 
 /// Computes the fitness class of a line based on its adjustment ratio.
-fn compute_fitness(adjustment_ratio: AdjustmentRatio) -> i64 {
-    if adjustment_ratio.0 * 2 < -adjustment_ratio.1 {
+fn compute_fitness(adjustment_ratio: Rational) -> i64 {
+    if adjustment_ratio < -ONE_HALF {
         0
-    } else if adjustment_ratio.0 * 2 < adjustment_ratio.1 {
+    } else if adjustment_ratio < ONE_HALF {
         1
-    } else if adjustment_ratio.0 < adjustment_ratio.1 {
+    } else if adjustment_ratio < ONE {
         2
     } else {
         3
@@ -283,23 +264,22 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<i64>) {
     let mut sum_width = Sp(0);
     let mut sum_stretch = Sp(0);
     let mut sum_shrink = Sp(0);
-    let mut best_adjustment_ratio_above_threshold = AdjustmentRatio(i64::max_value(), 1);
-    let mut current_maximum_adjustment_ratio = AdjustmentRatio(i64::max_value(), 1);
+    let mut best_adjustment_ratio_above_threshold = Rational::new(PLUS_INFINITY, Sp(1));
+    let mut current_maximum_adjustment_ratio = Rational::new(PLUS_INFINITY, Sp(1));
     let mut last_item_is_box = false;
 
-    const MIN_ADJUSTMENT_RATIO: AdjustmentRatio = AdjustmentRatio(-1, 1);
+    const MIN_ADJUSTMENT_RATIO: Rational = -ONE;
 
     // Add an initial active node for the beginning of the paragraph.
-    let beginning = Node {
+    let beginning = graph.add_node(Node {
         index: 0,
         line: 0,
-        fitness: 0.0,
+        fitness: 0,
         total_width: Sp(0),
         total_stretch: Sp(0),
         total_shrink: Sp(0),
-        total_demerits: 0.0,
-    };
-    graph.add_node(beginning);
+        total_demerits: ZERO,
+    });
 
     for (b, item) in paragraph.items.iter().enumerate() {
         if item.width < Sp(0) {
@@ -349,77 +329,83 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<i64>) {
 
         while let Some(node) = to_visit.pop() {
             for edge in graph.edges(node) {
-                let a = edge.target();
+                match graph.node_weight(edge.target()) {
+                    Some(a) => {
+                        let line_shrink = sum_shrink - a.total_shrink;
+                        let line_stretch = sum_stretch - a.total_stretch;
+                        let actual_width = sum_width - a.total_width;
 
-                let line_shrink = sum_shrink - a.total_shrink;
-                let line_stretch = sum_stretch - a.total_stretch;
-                let actual_width = sum_width - a.total_width;
+                        let adjustment_ratio = compute_adjustment_ratio(
+                            actual_width,
+                            Sp(get_line_length(lines_length, a.line)),
+                            line_stretch,
+                            line_shrink,
+                        );
 
-                let adjustment_ratio = compute_adjustment_ratio(
-                    actual_width,
-                    Sp(get_line_length(lines_length, a.line)),
-                    line_stretch,
-                    line_shrink,
-                );
-
-                if adjustment_ratio > current_maximum_adjustment_ratio {
-                    best_adjustment_ratio_above_threshold =
-                        adjustment_ratio.min(best_adjustment_ratio_above_threshold)
-                }
-
-                if adjustment_ratio < MIN_ADJUSTMENT_RATIO {
-                    // Items from a to b cannot fit on the same line.
-                    graph.remove_node(a);
-                    last_active_node = a;
-                }
-
-                if adjustment_ratio > MIN_ADJUSTMENT_RATIO
-                    && adjustment_ratio <= current_maximum_adjustment_ratio
-                {
-                    // This is a feasible breakpoint.
-                    let badness = 100 * adjustment_ratio.abs().powi(3);
-                    let penalty = match item.content {
-                        Content::Penalty { value, .. } => value as f64,
-                        _ => 0.0,
-                    };
-
-                    let demerits = compute_demerits(penalty, badness);
-
-                    // TODO: support double hyphenation penalty.
-
-                    // Compute fitness class.
-                    let fitness = compute_fitness(adjustment_ratio);
-
-                    if a.index > 0 && (fitness - a.fitness).abs() > 1.0 {
-                        demerits += ADJACENT_LOOSE_TIGHT_PENALTY;
-                    }
-
-                    // TODO: Ignore the width of potential subsequent glue or
-                    // non-breakable penalty item to avoid rendering glue or
-                    // penalties at the beginning of lines.
-
-                    feasible_breakpoints.push(&Node {
-                        index: b,
-                        line: a.line + 1,
-                        fitness,
-                        total_width: sum_width,
-                        total_shrink: sum_shrink,
-                        total_stretch: sum_stretch,
-                        total_demerits: a.total_demerits + demerits,
-                    });
-
-                    // Add feasible breakpoint with lowest score to active set.
-                    if feasible_breakpoints.len() > 0 {
-                        let mut best_node = feasible_breakpoints[0];
-
-                        for node in feasible_breakpoints.iter() {
-                            if node.total_demerits < best_node.total_demerits {
-                                best_node = node;
-                            }
+                        if adjustment_ratio > current_maximum_adjustment_ratio {
+                            best_adjustment_ratio_above_threshold =
+                                adjustment_ratio.min(best_adjustment_ratio_above_threshold)
                         }
 
-                        graph.add_node(*best_node);
+                        if adjustment_ratio < MIN_ADJUSTMENT_RATIO {
+                            // Items from a to b cannot fit on the same line.
+                            graph.remove_node(edge.target());
+                            last_active_node = Some(a);
+                        }
+
+                        if adjustment_ratio > MIN_ADJUSTMENT_RATIO
+                            && adjustment_ratio <= current_maximum_adjustment_ratio
+                        {
+                            // This is a feasible breakpoint.
+                            let badness = adjustment_ratio.abs().pow(3) * Sp(100);
+                            let penalty = Rational::new(
+                                Sp(match item.content {
+                                    Content::Penalty { value, .. } => value,
+                                    _ => 0,
+                                }),
+                                Sp(1),
+                            );
+
+                            let mut demerits = compute_demerits(penalty, badness);
+
+                            // TODO: support double hyphenation penalty.
+
+                            // Compute fitness class.
+                            let fitness = compute_fitness(adjustment_ratio);
+
+                            if a.index > 0 && (fitness - a.fitness).abs() > 1 {
+                                demerits = demerits + ADJACENT_LOOSE_TIGHT_PENALTY;
+                            }
+
+                            // TODO: Ignore the width of potential subsequent glue or
+                            // non-breakable penalty item to avoid rendering glue or
+                            // penalties at the beginning of lines.
+
+                            feasible_breakpoints.push(&Node {
+                                index: b,
+                                line: a.line + 1,
+                                fitness,
+                                total_width: sum_width,
+                                total_shrink: sum_shrink,
+                                total_stretch: sum_stretch,
+                                total_demerits: a.total_demerits + demerits,
+                            });
+
+                            // Add feasible breakpoint with lowest score to active set.
+                            if feasible_breakpoints.len() > 0 {
+                                let mut best_node = feasible_breakpoints[0];
+
+                                for node in feasible_breakpoints.iter() {
+                                    if node.total_demerits < best_node.total_demerits {
+                                        best_node = node;
+                                    }
+                                }
+
+                                graph.add_node(*best_node);
+                            }
+                        }
                     }
+                    _ => {}
                 }
             }
         }
@@ -435,8 +421,8 @@ fn compute_adjustment_ratios_with_breakpoints(
     items: Vec<Item>,
     line_lengths: Vec<i64>,
     breakpoints: Vec<usize>,
-) -> Vec<AdjustmentRatio> {
-    let adjustment_ratios: Vec<AdjustmentRatio> = Vec::new();
+) -> Vec<Rational> {
+    let adjustment_ratios: Vec<Rational> = Vec::new();
 
     for (breakpoint_line, breakpoint_index) in breakpoints.iter().enumerate() {
         let desired_length = Sp(get_line_length(line_lengths, breakpoint_line));
@@ -492,13 +478,13 @@ fn compute_adjustment_ratio(
     desired_length: Sp,
     total_stretchability: Sp,
     total_shrinkability: Sp,
-) -> AdjustmentRatio {
+) -> Rational {
     if actual_length == desired_length {
-        AdjustmentRatio(0, 1)
+        ZERO
     } else if actual_length < desired_length {
-        AdjustmentRatio(desired_length.0 - actual_length.0, total_stretchability.0)
+        Rational::new(desired_length - actual_length, total_stretchability)
     } else {
-        AdjustmentRatio(desired_length.0 - actual_length.0, total_shrinkability.0)
+        Rational::new(desired_length - actual_length, total_shrinkability)
     }
 }
 
@@ -515,7 +501,7 @@ fn positionate_items(
 
     for (breakpoint_line, breakpoint_index) in breakpoints.iter().enumerate() {
         let adjustment_ratio = adjustment_ratios[breakpoint_line].max(MIN_ADJUSTMENT_RATIO);
-        let horizontal_offset = Sp(0);
+        let horizontal_offset = ZERO;
         let beginning = if breakpoint_line == 0 {
             *breakpoint_index
         } else {
@@ -527,7 +513,7 @@ fn positionate_items(
                 Content::BoundingBox { .. } => positioned_items.push(PositionedItem {
                     index: p,
                     line: breakpoint_line,
-                    horizontal_offset,
+                    horizontal_offset: horizontal_offset.round().to_integer(),
                     width: items[p].width,
                 }),
                 Content::Glue {
@@ -535,15 +521,17 @@ fn positionate_items(
                     stretchability,
                 } => {
                     if p != beginning && p != breakpoints[breakpoint_line + 1] {
-                        let gap: Sp = if adjustment_ratio < 0 {
-                            items[p].width + adjustment_ratio * shrinkability
+                        let width = Rational::new(items[p].width, Sp(1));
+
+                        let gap: Rational = if adjustment_ratio < ZERO {
+                            width + adjustment_ratio * Rational::new(shrinkability, Sp(1))
                         } else {
-                            items[p].width + adjustment_ratio * stretchability
+                            width + adjustment_ratio * Rational::new(stretchability, Sp(1))
                         };
 
                         // TODO: add an option to handle the inclusion of glue.
 
-                        horizontal_offset += gap;
+                        horizontal_offset = horizontal_offset + gap;
                     }
                 }
                 Content::Penalty { .. } => {
@@ -551,7 +539,7 @@ fn positionate_items(
                         positioned_items.push(PositionedItem {
                             index: p,
                             line: breakpoint_line,
-                            horizontal_offset,
+                            horizontal_offset: horizontal_offset.round().to_integer(),
                             width: items[p].width,
                         })
                     }
