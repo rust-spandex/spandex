@@ -187,9 +187,12 @@ pub enum Ast {
     /// Some text.
     Text(String),
 
-    /// A group of content.
+    /// A paragraph.
     ///
-    /// It can represent a paragraph.
+    /// It contains many elements but must be rendered on a single paragraph.
+    Paragraph(Vec<Ast>),
+
+    /// A group of content.
     Group(Vec<Ast>),
 
     /// An empty line.
@@ -223,6 +226,12 @@ impl Ast {
             },
 
             Ast::Group(children) => {
+                for child in children {
+                    errors.extend(child.errors());
+                }
+            },
+
+            Ast::Paragraph(children) => {
                 for child in children {
                     errors.extend(child.errors());
                 }
@@ -262,6 +271,11 @@ impl fmt::Display for Ast {
             Ast::InlineMath(content) => write!(fmt, "${}$", content)?,
             Ast::Text(content) => write!(fmt, "{}", content)?,
             Ast::Group(children) => {
+                for child in children {
+                    write!(fmt, "{}", child)?;
+                }
+            },
+            Ast::Paragraph(children) => {
                 for child in children {
                     write!(fmt, "{}", child)?;
                 }

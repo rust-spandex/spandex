@@ -176,18 +176,29 @@ impl Document {
 
     /// Renders an AST to the document.
     pub fn render(&mut self, ast: &Ast, font_config: &FontConfig, size: Sp) {
+        println!("{:?}", ast);
+        self.render_aux(ast, font_config, size, vec![]);
+    }
+
+    /// Renders an ast to the document with a certain buffer.
+    fn render_aux(&mut self, ast: &Ast, font_config: &FontConfig, size: Sp, buffer: Vec<String>) -> Vec<String>{
+
+        let mut buffer = buffer;
+
         match ast {
             Ast::Title { level, content } => {
                 let size = size + Pt(3.0 * (4 - level) as f64).into();
-                self.render(content, font_config, size);
+                let buffer = self.render_aux(content, font_config, size, vec![]);
+                self.write_paragraph::<NaiveJustifier>(&buffer.join(" "), font_config.regular, size);
+                self.new_line(size);
             },
 
             Ast::Bold(content) => {
-                self.render(content, font_config, size);
+                buffer = self.render_aux(content, font_config, size, buffer);
             },
 
             Ast::Italic(content) => {
-                self.render(content, font_config, size);
+                buffer = self.render_aux(content, font_config, size, buffer);
             },
 
             Ast::InlineMath(_content) => {
@@ -195,18 +206,28 @@ impl Document {
             },
 
             Ast::Text(content) => {
-                self.write_paragraph::<NaiveJustifier>(&content, font_config.regular, size);
-                self.new_line(size);
+                buffer.push(content.to_owned());
             },
 
             Ast::Group(children) => {
                 for child in children {
-                    self.render(child, font_config, size);
+                    buffer = self.render_aux(child, font_config, size, buffer);
                 }
             },
 
+            Ast::Paragraph(children) => {
+                for child in children {
+                    buffer = self.render_aux(child, font_config, size, buffer);
+                }
+                self.write_paragraph::<NaiveJustifier>(&buffer.join(" "), font_config.regular, size);
+                buffer = vec![];
+                self.new_line(size);
+            }
+
             Ast::Newline | Ast::Error(_) => (),
         }
+
+        buffer
     }
 
     /// Writes markdown content on the document.

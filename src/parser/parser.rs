@@ -23,7 +23,7 @@ pub fn error(span: Span, ty: ErrorType) -> Ast {
 /// Parses some bold content.
 named!(pub parse_bold<Span, Ast>,
     map!(
-        map_res!(preceded!(tag!("*"), take_until_and_consume!("*")), parse_paragraph),
+        map_res!(preceded!(tag!("*"), take_until_and_consume!("*")), parse_group),
         { |(_,x)| Ast::Bold(Box::new(x)) }
     )
 );
@@ -31,7 +31,7 @@ named!(pub parse_bold<Span, Ast>,
 /// Parses some italic content.
 named!(pub parse_italic<Span, Ast>,
     map!(
-        map_res!(preceded!(tag!("/"), take_until_and_consume!("/")), parse_paragraph),
+        map_res!(preceded!(tag!("/"), take_until_and_consume!("/")), parse_group),
         { |(_,x)| Ast::Italic(Box::new(x)) }
     )
 );
@@ -60,9 +60,14 @@ named!(pub parse_any<Span, Ast>,
     )
 );
 
+/// Parses some text content.
+named!(pub parse_group<Span, Ast>,
+    map!(many0!(parse_any), |x| Ast::Group(x))
+);
+
 /// Parses a paragraph of text content.
 named!(pub parse_paragraph<Span, Ast>,
-    map!(many0!(parse_any), |x| Ast::Group(x))
+    map!(many0!(parse_any), |x| Ast::Paragraph(x))
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -114,7 +119,7 @@ named!(pub get_bloc<Span, Span>,
 /// Parses a bloc of content.
 named!(pub parse_bloc_content<Span, Ast>,
     alt!(
-        parse_title | parse_paragraph | map!(call!(rest), |_| Ast::Text("toto".into()))
+        parse_title | parse_paragraph
     )
 );
 
