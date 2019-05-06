@@ -6,8 +6,9 @@ use std::slice::Iter;
 
 use hyphenation::*;
 
-use crate::font::Font;
+use crate::font::{FontConfig, FontStyle};
 use crate::units::{Sp, PLUS_INFINITY};
+use crate::typography::Word;
 use crate::typography::items::{
     Content,
     Item,
@@ -42,54 +43,63 @@ impl Paragraph {
 
 /// Parses a string into a sequence of items.
 pub fn itemize_paragraph(
-    words: &str,
+    words: &[Word],
     indentation: Sp,
-    font: &Font,
+    font_config: &FontConfig,
     font_size: Sp,
     dictionary: &Standard,
 ) -> Paragraph {
     let mut paragraph = Paragraph::new();
 
     // Add trailing space to ensure the last word is treated.
-    let words = format!("{}{}", words, " ");
+    // let words = format!("{}{}", words, " ");
 
     if indentation != Sp(0) {
-        paragraph.push(Item::bounding_box(indentation, ' '));
+        paragraph.push(Item::bounding_box(indentation, ' ', FontStyle::regular()));
     }
 
     let ideal_spacing = Sp(90_000);
     let mut previous_glyph = 'c';
-    let mut current_word = String::from("");
+    let mut current_word = vec![];
 
     // Turn each word of the paragraph into a sequence of boxes for
     // the caracters of the word. This includes potential punctuation
     // marks.
-    for glyph in words.chars() {
-        if glyph.is_whitespace() {
-            paragraph.push(get_glue_from_context(previous_glyph, ideal_spacing));
+    for word in words {
+        for glyph in word.string.chars() {
+            if glyph.is_whitespace() {
+                paragraph.push(get_glue_from_context(previous_glyph, ideal_spacing));
 
-            // Reached end of current word, handle hyphenation.
-            let hyphenated = dictionary.hyphenate(&*current_word);
-            let break_indices = &hyphenated.breaks;
+                // Reached end of current word, handle hyphenation.
+                let to_hyphenate = current_word
+                    .iter()
+                    .map(|x: &(char, FontStyle)| x.0.to_string())
+                    .collect::<Vec<_>>().join("");
 
-            for (i, c) in current_word.chars().enumerate() {
-                if break_indices.contains(&i) {
-                    paragraph.push(Item::penalty(Sp(0), 50, true))
+                let hyphenated = dictionary.hyphenate(&to_hyphenate);
+
+                let break_indices = &hyphenated.breaks;
+
+                for (i, c) in current_word.iter().enumerate() {
+                    if break_indices.contains(&i) {
+                        paragraph.push(Item::penalty(Sp(0), 50, true))
+                    }
+
+                    let font = font_config.for_style(word.font_style);
+                    paragraph.push(Item::from_glyph(c.0, font, font_size, c.1));
+
+                    if c.0 == DASH_GLYPH {
+                        paragraph.push(Item::penalty(Sp(0), 50, true))
+                    }
                 }
 
-                paragraph.push(Item::from_glyph(c, font, font_size));
-
-                if c == DASH_GLYPH {
-                    paragraph.push(Item::penalty(Sp(0), 50, true))
-                }
+                current_word = vec![];
+            } else {
+                current_word.push((glyph, word.font_style));
             }
 
-            current_word = String::from("");
-        } else {
-            current_word.push(glyph);
+            previous_glyph = glyph;
         }
-
-        previous_glyph = glyph;
     }
 
     // Appends two items to ensure the end of any paragraph is

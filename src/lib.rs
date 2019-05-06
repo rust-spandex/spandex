@@ -97,11 +97,14 @@ pub fn build(config: &Config) -> Result<()> {
 
     let regular_font_name = "CMU Serif Roman";
     let bold_font_name = "CMU Serif Bold";
+    let italic_font_name = "CMU Serif Italic";
+    let bold_italic_font_name = "CMU Serif BoldItalic";
 
-    let font_config = font_manager.config(regular_font_name, bold_font_name)?;
-
-    let font = font_manager.get(regular_font_name)
-        .ok_or(Error::FontNotFound(PathBuf::from(regular_font_name)))?;
+    let font_config = font_manager.config(
+        regular_font_name,
+        bold_font_name,
+        italic_font_name,
+        bold_italic_font_name)?;
 
     let mut content = String::new();
     let mut file = File::open(&config.input)?;
@@ -113,7 +116,7 @@ pub fn build(config: &Config) -> Result<()> {
         let parsed = parse(&config.input)?;
         document.render(&parsed.ast, &font_config, Pt(10.0).into());
     } else {
-        document.write_content(&content, font, Pt(10.0).into());
+        document.write_content(&content, &font_config, Pt(10.0).into());
     }
     document.save("output.pdf");
     Ok(())

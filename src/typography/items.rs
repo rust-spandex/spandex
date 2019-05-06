@@ -2,6 +2,7 @@
 //! of a paragraph.
 use crate::font::Font;
 use crate::units::Sp;
+use crate::font::FontStyle;
 
 /// Value of the most negative penalty possible. This is considered infinite.
 pub const INFINITELY_NEGATIVE_PENALTY: i32 = i32::min_value();
@@ -31,6 +32,9 @@ pub enum Content {
     BoundingBox {
         /// The glyph that is meant to be typeset.
         glyph: char,
+
+        /// The font style of the glyph.
+        font_style: FontStyle,
     },
     /// Glue is a blank space which can see its width altered in specified ways.
     ///
@@ -57,18 +61,18 @@ pub enum Content {
 
 impl Item {
     /// Creates a box for a particular glyph and font.
-    pub fn from_glyph(glyph: char, font: &Font, font_size: Sp) -> Item {
+    pub fn from_glyph(glyph: char, font: &Font, font_size: Sp, font_style: FontStyle) -> Item {
         Item {
             width: font.char_width(glyph, font_size),
-            content: Content::BoundingBox { glyph },
+            content: Content::BoundingBox { glyph, font_style },
         }
     }
 
     /// Creates a bounding box from its width in scaled points and its glyph.
-    pub fn bounding_box(width: Sp, glyph: char) -> Item {
+    pub fn bounding_box(width: Sp, glyph: char, font_style: FontStyle) -> Item {
         Item {
             width,
-            content: Content::BoundingBox { glyph },
+            content: Content::BoundingBox { glyph, font_style },
         }
     }
 

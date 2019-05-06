@@ -9,8 +9,9 @@ use printpdf::{PdfDocument, PdfDocumentReference, PdfPageReference, PdfLayerRefe
 
 use pulldown_cmark::{Event, Tag, Parser};
 
+use crate::typography::Word;
 use crate::typography::justification::{Justifier, NaiveJustifier};
-use crate::font::{Font, FontConfig};
+use crate::font::{Font, FontConfig, FontStyle};
 use crate::units::{Pt, Sp};
 use crate::parser::Ast;
 
@@ -176,29 +177,28 @@ impl Document {
 
     /// Renders an AST to the document.
     pub fn render(&mut self, ast: &Ast, font_config: &FontConfig, size: Sp) {
-        println!("{:?}", ast);
-        self.render_aux(ast, font_config, size, vec![]);
+        self.render_aux(ast, font_config, size, FontStyle::regular(), vec![]);
     }
 
     /// Renders an ast to the document with a certain buffer.
-    fn render_aux(&mut self, ast: &Ast, font_config: &FontConfig, size: Sp, buffer: Vec<String>) -> Vec<String>{
+    fn render_aux(&mut self, ast: &Ast, font_config: &FontConfig, size: Sp, current_style: FontStyle, buffer: Vec<Word>) -> Vec<Word>{
 
         let mut buffer = buffer;
 
         match ast {
             Ast::Title { level, content } => {
                 let size = size + Pt(3.0 * (4 - level) as f64).into();
-                let buffer = self.render_aux(content, font_config, size, vec![]);
-                self.write_paragraph::<NaiveJustifier>(&buffer.join(" "), font_config.regular, size);
+                let buffer = self.render_aux(content, font_config, size, current_style.bold(), vec![]);
+                self.write_paragraph::<NaiveJustifier>(&buffer, font_config, size);
                 self.new_line(size);
             },
 
             Ast::Bold(content) => {
-                buffer = self.render_aux(content, font_config, size, buffer);
+                buffer = self.render_aux(content, font_config, size, current_style.bold(), buffer);
             },
 
             Ast::Italic(content) => {
-                buffer = self.render_aux(content, font_config, size, buffer);
+                buffer = self.render_aux(content, font_config, size, current_style.italic(), buffer);
             },
 
             Ast::InlineMath(_content) => {
@@ -206,20 +206,20 @@ impl Document {
             },
 
             Ast::Text(content) => {
-                buffer.push(content.to_owned());
+                buffer.push(Word { string: content.clone(), font_style: current_style });
             },
 
             Ast::Group(children) => {
                 for child in children {
-                    buffer = self.render_aux(child, font_config, size, buffer);
+                    buffer = self.render_aux(child, font_config, size, current_style, buffer);
                 }
             },
 
             Ast::Paragraph(children) => {
                 for child in children {
-                    buffer = self.render_aux(child, font_config, size, buffer);
+                    buffer = self.render_aux(child, font_config, size, current_style, buffer);
                 }
-                self.write_paragraph::<NaiveJustifier>(&buffer.join(" "), font_config.regular, size);
+                self.write_paragraph::<NaiveJustifier>(&buffer, font_config, size);
                 buffer = vec![];
                 self.new_line(size);
             }
@@ -234,31 +234,49 @@ impl Document {
     pub fn write_markdown(&mut self, markdown: &str, font_config: &FontConfig, size: Sp) {
 
         let mut current_size = size;
-        let mut content = String::new();
+        let mut content = vec![];
+        let mut current_style = FontStyle::regular();
 
         let parser = Parser::new(markdown);
 
         for event in parser {
             match event {
                 Event::Start(Tag::Header(i)) => {
+                    current_style = current_style.bold();
                     if self.counters.increment(i).is_some() {
-                        content.push_str(&format!("{}", self.counters));
+                        content.push(Word::new(format!("{}", self.counters), current_style));
                     }
 
                     current_size = size + Pt(3.0 * (4 - i) as f64).into();
                 },
 
                 Event::Start(Tag::Item) => {
-                    content.push_str(" - ");
+                    content.push(Word::new(" - ".to_owned(), current_style));
                 },
 
+                Event::Start(Tag::Emphasis) => {
+                    current_style = current_style.italic();
+                },
+
+                Event::End(Tag::Emphasis) => {
+                    current_style = current_style.unitalic();
+                }
+
+                Event::Start(Tag::Strong) => {
+                    current_style = current_style.bold();
+                },
+
+                Event::End(Tag::Strong) => {
+                    current_style = current_style.unbold();
+                }
+
                 Event::Text(ref text) => {
-                    content.push(' ');
-                    content.push_str(text);
+                    content.push(Word::new(" ".to_owned(), current_style));
+                    content.push(Word::new(text.to_string(), current_style));
                 },
 
                 Event::End(Tag::Paragraph) | Event::End(Tag::Item) => {
-                    self.write_paragraph::<NaiveJustifier>(&content, font_config.regular, current_size);
+                    self.write_paragraph::<NaiveJustifier>(&content, font_config, current_size);
                     self.new_line(current_size);
 
                     content.clear();
@@ -266,7 +284,8 @@ impl Document {
                 },
 
                 Event::End(Tag::Header(_)) => {
-                    self.write_paragraph::<NaiveJustifier>(&content, font_config.bold, current_size);
+                    current_style = current_style.unbold();
+                    self.write_paragraph::<NaiveJustifier>(&content, font_config, current_size);
                     self.new_line(current_size);
 
                     content.clear();
@@ -275,31 +294,36 @@ impl Document {
 
                 _ => (),
             }
-            trace!("{:?}", event);
         }
     }
 
     /// Writes content on the document.
-    pub fn write_content(&mut self, content: &str, font: &Font, size: Sp) {
+    pub fn write_content(&mut self, content: &str, font_config: &FontConfig, size: Sp) {
         for paragraph in content.split("\n") {
-            self.write_paragraph::<NaiveJustifier>(paragraph, font, size);
+            let words = paragraph
+                .split_whitespace()
+                .map(|x| Word::new(x.to_string(), FontStyle::regular()))
+                .collect::<Vec<_>>();
+
+            self.write_paragraph::<NaiveJustifier>(&words, font_config, size);
             self.new_line(size);
         }
     }
 
     /// Writes a paragraph on the document.
-    pub fn write_paragraph<J: Justifier>(&mut self, paragraph: &str, font: &Font, size: Sp) {
+    pub fn write_paragraph<J: Justifier>(&mut self, paragraph: &[Word], font_config: &FontConfig, size: Sp) {
         let size_i64 = Into::<Pt>::into(size).0 as i64;
 
-        let justified = J::justify(paragraph, self.window.width, font, size);
+        let justified = J::justify(paragraph, self.window.width, font_config, size);
 
         for line in justified {
             for glyph in line {
 
+                let font = font_config.for_style(glyph.1);
                 self.layer.use_text(
                     glyph.0.to_string(),
                     size_i64,
-                    (self.window.x + glyph.1).into(),
+                    (self.window.x + glyph.2).into(),
                     self.cursor.1.into(),
                     font.printpdf());
 

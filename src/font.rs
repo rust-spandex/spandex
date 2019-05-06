@@ -107,6 +107,24 @@ pub struct FontConfig<'a> {
 
     /// The bold font.
     pub bold: &'a Font,
+
+    /// The italic font.
+    pub italic: &'a Font,
+
+    /// The bold italic font.
+    pub bold_italic: &'a Font,
+}
+
+impl<'a> FontConfig<'a> {
+    /// Returns the font corresponding to the style.
+    pub fn for_style(&self, style: FontStyle) -> &Font {
+        match (style.bold, style.italic) {
+            (false, false) => self.regular,
+            (true, false) => self.bold,
+            (false, true) => self.italic,
+            (true, true) => self.bold_italic,
+        }
+    }
 }
 
 /// This struct holds the different fonts.
@@ -120,10 +138,14 @@ pub struct FontManager {
 
 impl FontManager {
     /// Creates a font config.
-    pub fn config<'a>(&'a self, regular: &str, bold: &str) -> Result<FontConfig<'a>> {
+    pub fn config<'a>(&'a self, regular: &str, bold: &str, italic: &str, bold_italic: &str)
+        -> Result<FontConfig<'a>> {
+
         Ok(FontConfig {
             regular: self.fonts.get(regular).ok_or(Error::FontNotFound(PathBuf::from(regular)))?,
             bold: self.fonts.get(bold).ok_or(Error::FontNotFound(PathBuf::from(bold)))?,
+            italic: self.fonts.get(italic).ok_or(Error::FontNotFound(PathBuf::from(italic)))?,
+            bold_italic: self.fonts.get(bold_italic).ok_or(Error::FontNotFound(PathBuf::from(bold_italic)))?,
         })
     }
 }
@@ -194,3 +216,54 @@ impl FontManager {
 
 }
 
+/// A style for a font. It can be bold, italic, both or none.
+#[derive(Copy, Clone, Debug)]
+pub struct FontStyle {
+    /// Whether the bold is activated or not.
+    pub bold: bool,
+
+    /// Whether the italic is activated or not.
+    pub italic: bool,
+}
+
+impl FontStyle {
+    /// Creates a new regular font style.
+    pub fn regular() -> FontStyle {
+        FontStyle {
+            bold: false,
+            italic: false,
+        }
+    }
+
+    /// Adds the bold style to the font.
+    pub fn bold(self) -> FontStyle {
+        FontStyle {
+            bold: true,
+            italic: self.italic,
+        }
+    }
+
+    /// Adds the italic style to the font.
+    pub fn italic(self) -> FontStyle {
+        FontStyle {
+            bold: self.bold,
+            italic: true,
+        }
+    }
+
+    /// Removes the bold style from the font.
+    pub fn unbold(self) -> FontStyle {
+        FontStyle {
+            bold: false,
+            italic: self.italic,
+        }
+    }
+
+    /// Removes the italic style from the font.
+    pub fn unitalic(self) -> FontStyle {
+        FontStyle {
+            bold: self.bold,
+            italic: false,
+        }
+    }
+}
