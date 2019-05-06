@@ -1,16 +1,12 @@
 //! This module contains the configuration struct for the spandex.toml file.
 
-use std::fs::File;
-use std::io::Read;
-use std::path::PathBuf;
-
 use serde::{Serialize, Deserialize};
 
-use crate::units::{Sp, Pt, Mm};
+use crate::units::{Sp, Mm};
 use crate::document::Window;
 use crate::document::Document;
 use crate::font::FontManager;
-use crate::{Error, Result};
+use crate::Result;
 
 /// This structure holds all the configuration information.
 #[derive(Clone, Serialize, Deserialize)]
@@ -47,7 +43,7 @@ impl Config {
             left_margin: Sp::from(Mm(30.0)),
             text_width: Sp::from(Mm(150.0)),
             text_height: Sp::from(Mm(237.0)),
-            input: String::from("main.md"),
+            input: String::from("main.dex"),
         }
     }
 
@@ -66,32 +62,6 @@ impl Config {
 
         Ok((document, font_manager))
 
-    }
-
-    /// Triggers the build of the document.
-    pub fn build(&self) -> Result<()> {
-
-        let (mut document, font_manager) = self.init()?;
-
-        let regular_font_name = "CMU Serif Roman";
-        let bold_font_name = "CMU Serif Bold";
-
-        let font_config = font_manager.config(regular_font_name, bold_font_name)?;
-
-        let font = font_manager.get(regular_font_name)
-            .ok_or(Error::FontNotFound(PathBuf::from(regular_font_name)))?;
-
-        let mut content = String::new();
-        let mut file = File::open(&self.input)?;
-        file.read_to_string(&mut content)?;
-
-        if self.input.ends_with(".md") || self.input.ends_with(".mdown") {
-            document.write_markdown(&content, &font_config, Pt(10.0).into());
-        } else {
-            document.write_content(&content, font, Pt(10.0).into());
-        }
-        document.save("output.pdf");
-        Ok(())
     }
 
 }

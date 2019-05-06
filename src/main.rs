@@ -1,7 +1,6 @@
 #[macro_use]
 extern crate log;
 
-use std::error::Error;
 use std::env::current_dir;
 use std::path::PathBuf;
 use std::process::exit;
@@ -11,13 +10,13 @@ use std::io::{Read, Write};
 use clap::{App, Arg, AppSettings, SubCommand, crate_version, crate_authors, crate_description};
 
 use spandex::config::Config;
-use spandex::Error as SError;
+use spandex::{Error, build};
 
 macro_rules! unwrap {
     ($e: expr, $error: expr) => {
         match $e {
             Some(e) => e,
-            None => return Err(Box::new($error)),
+            None => return Err($error),
         }
     }
 }
@@ -26,12 +25,15 @@ fn main() {
     beautylog::init(log::LevelFilter::Trace).ok();
 
     if let Err(e) = run() {
-        error!("{}", e);
+        match e {
+            Error::DexError(e) => println!("{}", e),
+            _ => error!("{}", e),
+        }
         exit(1);
     }
 }
 
-fn run() -> Result<(), Box<Error>> {
+fn run() -> Result<(), Error> {
 
     let mut app = App::new("SpanDeX")
         .bin_name("spandex")
@@ -50,10 +52,10 @@ fn run() -> Result<(), Box<Error>> {
 
     if let Some(init) = matches.subcommand_matches("init") {
 
-        let mut current_dir = PathBuf::from(unwrap!(current_dir().ok(), SError::CannotReadCurrentDir));
+        let mut current_dir = PathBuf::from(unwrap!(current_dir().ok(), Error::CannotReadCurrentDir));
         let current_dir_name = current_dir.clone();
-        let current_dir_name = unwrap!(current_dir_name.file_name(), SError::CannotReadCurrentDir);
-        let current_dir_name = unwrap!(current_dir_name.to_str(), SError::CannotReadCurrentDir);
+        let current_dir_name = unwrap!(current_dir_name.file_name(), Error::CannotReadCurrentDir);
+        let current_dir_name = unwrap!(current_dir_name.to_str(), Error::CannotReadCurrentDir);
 
         // Initialize the project
         let title = match init.value_of("TITLE") {
@@ -72,7 +74,8 @@ fn run() -> Result<(), Box<Error>> {
 
         // Create the default config and save it
         let config = Config::with_title(title);
-        let toml =toml::to_string(&config)?;
+        let toml = toml::to_string(&config)
+            .expect("Failed to generate toml");
 
         current_dir.push("spandex.toml");
         let mut file = File::create(&current_dir)?;
@@ -80,7 +83,7 @@ fn run() -> Result<(), Box<Error>> {
 
         // Write an hello world file
         current_dir.pop();
-        current_dir.push("main.md");
+        current_dir.push("main.dex");
 
         let mut file = File::create(&current_dir)?;
         file.write("# Hello world".as_bytes())?;
@@ -88,7 +91,7 @@ fn run() -> Result<(), Box<Error>> {
     } else if let Some(_) = matches.subcommand_matches("build") {
 
         // Look up for spandex config file
-        let mut current_dir = PathBuf::from(unwrap!(current_dir().ok(), SError::CannotReadCurrentDir));
+        let mut current_dir = PathBuf::from(unwrap!(current_dir().ok(), Error::CannotReadCurrentDir));
         let config_path = loop {
             current_dir.push("spandex.toml");
 
@@ -103,7 +106,7 @@ fn run() -> Result<(), Box<Error>> {
 
                 // Go to the parent directory
                 if ! current_dir.pop() {
-                    return Err(Box::new(SError::NoConfigFile));
+                    return Err(Error::NoConfigFile);
                 }
             }
         };
@@ -112,13 +115,14 @@ fn run() -> Result<(), Box<Error>> {
         let mut file = File::open(&config_path)?;
         let mut content = String::new();
         file.read_to_string(&mut content)?;
-        let config: Config = toml::from_str(&content)?;
-        config.build()?;
+        let config: Config = toml::from_str(&content)
+            .expect("Failed to parse toml");
+        build(&config)?;
 
     } else {
 
         // Nothing to do, print help
-        app.print_help()?;
+        app.print_help().ok();
         println!();
 
     }

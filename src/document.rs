@@ -12,6 +12,7 @@ use pulldown_cmark::{Event, Tag, Parser};
 use crate::typography::justification::{Justifier, NaiveJustifier};
 use crate::font::{Font, FontConfig};
 use crate::units::{Pt, Sp};
+use crate::parser::Ast;
 
 /// The struct that manages the counters for the document.
 #[derive(Copy, Clone)]
@@ -171,6 +172,41 @@ impl Document {
     /// Returns a mutable reference to the inner pdf document.
     pub fn inner_mut(&mut self) -> &mut PdfDocumentReference {
         &mut self.document
+    }
+
+    /// Renders an AST to the document.
+    pub fn render(&mut self, ast: &Ast, font_config: &FontConfig, size: Sp) {
+        match ast {
+            Ast::Title { level, content } => {
+                let size = size + Pt(3.0 * (4 - level) as f64).into();
+                self.render(content, font_config, size);
+            },
+
+            Ast::Bold(content) => {
+                self.render(content, font_config, size);
+            },
+
+            Ast::Italic(content) => {
+                self.render(content, font_config, size);
+            },
+
+            Ast::InlineMath(_content) => {
+                unimplemented!();
+            },
+
+            Ast::Text(content) => {
+                self.write_paragraph::<NaiveJustifier>(&content, font_config.regular, size);
+                self.new_line(size);
+            },
+
+            Ast::Group(children) => {
+                for child in children {
+                    self.render(child, font_config, size);
+                }
+            },
+
+            Ast::Newline | Ast::Error(_) => (),
+        }
     }
 
     /// Writes markdown content on the document.
