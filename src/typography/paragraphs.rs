@@ -20,14 +20,31 @@ use std::vec::Vec;
 
 type Rational = Ratio<Sp>;
 
+fn minus_one() -> Rational {
+    Rational::new_raw(Sp(-1), Sp(1))
+}
+
+fn one() -> Rational {
+    Rational::new_raw(Sp(1), Sp(1))
+}
+
+fn zero() -> Rational {
+    Rational::new_raw(Sp(0), Sp(1))
+}
+
+fn one_half() -> Rational {
+    Rational::new_raw(Sp(1), Sp(2))
+}
+
+fn min_adjustment_ratio() -> Rational {
+    Rational::new(MIN_ADJUSTMENT_RATIO, Sp(1))
+}
+
 const DASH_GLYPH: char = '-';
 const DEFAULT_LINE_LENGTH: i64 = 65;
-const MIN_COST: Rational = Rational::new(Sp(50), Sp(1));
-const ADJACENT_LOOSE_TIGHT_PENALTY: Rational = Rational::new(Sp(50), Sp(1));
-const MIN_ADJUSTMENT_RATIO: Rational = ONE;
-const ONE: Rational = Rational::new_raw(Sp(1), Sp(1));
-const ZERO: Rational = Rational::new_raw(Sp(0), Sp(0));
-const ONE_HALF: Rational = Rational::new_raw(Sp(1), Sp(2));
+const MIN_COST: Sp = Sp(50);
+const ADJACENT_LOOSE_TIGHT_PENALTY: Sp = Sp(50);
+const MIN_ADJUSTMENT_RATIO: Sp = Sp(1);
 
 /// Holds a list of items describing a paragraph.
 pub struct Paragraph {
@@ -237,22 +254,24 @@ fn get_line_length(lines_length: Vec<i64>, index: usize) -> i64 {
 /// Computes the demerits of a line based on its accumulated penalty
 /// and badness.
 fn compute_demerits(penalty: Rational, badness: Rational) -> Rational {
-    if penalty >= ZERO {
-        (ONE + badness + penalty).pow(2)
-    } else if penalty > MIN_COST {
-        (ONE + badness).pow(2) - penalty.pow(2)
+    let one = Rational::new_raw(Sp(1), Sp(1));
+
+    if penalty >= zero() {
+        (one + badness + penalty).pow(2)
+    } else if penalty > Rational::new_raw(MIN_COST, Sp(1)) {
+        (one + badness).pow(2) - penalty.pow(2)
     } else {
-        (ONE + badness).pow(2)
+        (one + badness).pow(2)
     }
 }
 
 /// Computes the fitness class of a line based on its adjustment ratio.
 fn compute_fitness(adjustment_ratio: Rational) -> i64 {
-    if adjustment_ratio < -ONE_HALF {
+    if adjustment_ratio < -one_half() {
         0
-    } else if adjustment_ratio < ONE_HALF {
+    } else if adjustment_ratio < -one_half() {
         1
-    } else if adjustment_ratio < ONE {
+    } else if adjustment_ratio < one() {
         2
     } else {
         3
@@ -268,8 +287,6 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<i64>) {
     let mut current_maximum_adjustment_ratio = Rational::new(PLUS_INFINITY, Sp(1));
     let mut last_item_is_box = false;
 
-    const MIN_ADJUSTMENT_RATIO: Rational = -ONE;
-
     // Add an initial active node for the beginning of the paragraph.
     let beginning = graph.add_node(Node {
         index: 0,
@@ -278,7 +295,7 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<i64>) {
         total_width: Sp(0),
         total_stretch: Sp(0),
         total_shrink: Sp(0),
-        total_demerits: ZERO,
+        total_demerits: zero(),
     });
 
     for (b, item) in paragraph.items.iter().enumerate() {
@@ -347,13 +364,13 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<i64>) {
                                 adjustment_ratio.min(best_adjustment_ratio_above_threshold)
                         }
 
-                        if adjustment_ratio < MIN_ADJUSTMENT_RATIO {
+                        if adjustment_ratio < min_adjustment_ratio() {
                             // Items from a to b cannot fit on the same line.
                             graph.remove_node(edge.target());
                             last_active_node = Some(a);
                         }
 
-                        if adjustment_ratio > MIN_ADJUSTMENT_RATIO
+                        if adjustment_ratio > min_adjustment_ratio()
                             && adjustment_ratio <= current_maximum_adjustment_ratio
                         {
                             // This is a feasible breakpoint.
@@ -480,7 +497,7 @@ fn compute_adjustment_ratio(
     total_shrinkability: Sp,
 ) -> Rational {
     if actual_length == desired_length {
-        ZERO
+        zero()
     } else if actual_length < desired_length {
         Rational::new(desired_length - actual_length, total_stretchability)
     } else {
@@ -500,8 +517,8 @@ fn positionate_items(
     let positioned_items: Vec<PositionedItem> = Vec::new();
 
     for (breakpoint_line, breakpoint_index) in breakpoints.iter().enumerate() {
-        let adjustment_ratio = adjustment_ratios[breakpoint_line].max(MIN_ADJUSTMENT_RATIO);
-        let horizontal_offset = ZERO;
+        let adjustment_ratio = adjustment_ratios[breakpoint_line].max(min_adjustment_ratio());
+        let horizontal_offset = zero();
         let beginning = if breakpoint_line == 0 {
             *breakpoint_index
         } else {
@@ -523,7 +540,7 @@ fn positionate_items(
                     if p != beginning && p != breakpoints[breakpoint_line + 1] {
                         let width = Rational::new(items[p].width, Sp(1));
 
-                        let gap: Rational = if adjustment_ratio < ZERO {
+                        let gap: Rational = if adjustment_ratio < zero() {
                             width + adjustment_ratio * Rational::new(shrinkability, Sp(1))
                         } else {
                             width + adjustment_ratio * Rational::new(stretchability, Sp(1))
