@@ -231,7 +231,7 @@ impl Document {
                 self.new_line(size);
             }
 
-            Ast::Newline | Ast::Error(_) => (),
+            Ast::Newline | Ast::Error(_) | Ast::Warning(_) => (),
         }
 
         buffer

@@ -5,7 +5,7 @@
 
 use nom::rest;
 
-use crate::parser::{Span, Ast, ToPosition, EmptyError, ErrorType};
+use crate::parser::{Span, Ast, ToPosition, EmptyError, ErrorType, EmptyWarning, WarningType};
 
 /// Returns true if the character passed as parameter changes the type of parsing we're going to do.
 pub fn should_stop(c: char) -> bool {
@@ -19,6 +19,15 @@ pub fn error(span: Span, ty: ErrorType) -> Ast {
         ty,
     })
 }
+
+/// Creates a warning.
+pub fn warning(span: Span, ty: WarningType) -> Ast {
+    Ast::Warning(EmptyWarning {
+        position: span.position(),
+        ty,
+    })
+}
+
 
 /// Parses some bold content.
 named!(pub parse_bold<Span, Ast>,
@@ -52,7 +61,8 @@ named!(pub parse_styled<Span, Ast>,
 /// Parses some multiline inline content.
 named!(pub parse_any<Span, Ast>,
     alt!(
-        parse_styled
+        map!(tag!("**"), |x| warning(x, WarningType::ConsecutiveStars))
+        | parse_styled
         | map!(tag!("*"), |x| error(x, ErrorType::UnmatchedStar))
         | map!(tag!("/"), |x| error(x, ErrorType::UnmatchedSlash))
         | map!(tag!("$"), |x| error(x, ErrorType::UnmatchedDollar))

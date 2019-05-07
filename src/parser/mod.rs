@@ -76,7 +76,7 @@ impl ErrorType {
             ErrorType::UnmatchedStar => "unmatched *",
             ErrorType::UnmatchedSlash => "unmactched /",
             ErrorType::UnmatchedDollar => "unmactched $",
-            ErrorType::MultipleLinesTitle => "titles must be followed by an empty line"
+            ErrorType::MultipleLinesTitle => "titles must be followed by an empty line",
         }
     }
 
@@ -89,6 +89,16 @@ impl ErrorType {
             ErrorType::MultipleLinesTitle => "expected empty line here",
         }
     }
+
+    /// Returns an optional note.
+    pub fn note(self) -> Option<&'static str> {
+        match self {
+            ErrorType::UnmatchedStar => None,
+            ErrorType::UnmatchedSlash => None,
+            ErrorType::UnmatchedDollar => None,
+            ErrorType::MultipleLinesTitle => None,
+        }
+    }
 }
 
 /// An error that occured during the parsing.
@@ -99,16 +109,6 @@ pub struct EmptyError {
 
     /// The type of the error.
     pub ty: ErrorType,
-}
-
-/// A struct that can contain many errors.
-#[derive(Debug)]
-pub struct UnnammedErrors {
-    /// The content that produced the errors.
-    pub content: String,
-
-    /// The errors that were produced.
-    pub errors: Vec<EmptyError>,
 }
 
 /// A struct that contains many errors that references a file.
@@ -146,7 +146,7 @@ impl fmt::Display for Errors {
             writeln!(fmt, "{}{} {}:{}:{}",
                      space,
                      "-->".bold().blue(),
-                     self.path.display(),
+                      self.path.display(),
                      line,
                      column)?;
 
@@ -154,6 +154,9 @@ impl fmt::Display for Errors {
             writeln!(fmt, "{} {}", &format!("{}|", line_number).blue().bold(), &self.content[start .. end])?;
             writeln!(fmt, "{} {}{}{} {}", space, "|".blue().bold(), margin, hats.bold().red(), error.ty.detail().bold().red())?;
             writeln!(fmt, "{} {}", space, "|".blue().bold())?;
+            if let Some(note) = error.ty.note() {
+                writeln!(fmt, "{} {} {}{}", space, "=".blue().bold(), "note: ".bold(), note)?;
+            }
 
         }
 
@@ -162,6 +165,102 @@ impl fmt::Display for Errors {
 }
 
 impl Error for Errors { }
+
+/// The different types of warning that can occur.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum WarningType {
+    /// Two consecutive stars only seperated by whitespaces.
+    ConsecutiveStars
+}
+
+impl WarningType {
+    /// Returns the title of the warning.
+    pub fn title(self) -> &'static str {
+        match self {
+            WarningType::ConsecutiveStars => "empty bold section",
+        }
+    }
+
+    /// Returns the defail of the warning.
+    pub fn detail(self) -> &'static str {
+        match self {
+            WarningType::ConsecutiveStars => "this will be ignored",
+        }
+    }
+
+
+    /// Returns a potential note.
+    pub fn note(self) -> Option<&'static str> {
+        match self {
+            WarningType::ConsecutiveStars => Some("to use bold, you should use single stars, e.g. '*this is bold*'"),
+        }
+    }
+}
+
+/// An warning that occured during the parsing.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EmptyWarning {
+    /// The position of the warning.
+    pub position: Position,
+
+    /// The type of the warning.
+    pub ty: WarningType,
+}
+
+/// A struct that contains many warnings that references a file.
+#[derive(Debug)]
+pub struct Warnings {
+    /// The path to the corresponding file.
+    pub path: PathBuf,
+
+    /// The content that produced the warnings.
+    pub content: String,
+
+    /// The warnings produced.
+    pub warnings: Vec<EmptyWarning>,
+}
+
+impl fmt::Display for Warnings {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+
+        for warning in &self.warnings {
+
+            let start = previous_new_line(&self.content, warning.position.offset);
+            let end = next_new_line(&self.content, warning.position.offset);
+
+            let line = warning.position.line;
+            let column = warning.position.column;
+
+            let line_number = format!("{} ", line);
+            let space = replicate(' ', line_number.len() - 1);
+            let margin = replicate(' ', column);
+            let hats = replicate('^', 1);
+
+            writeln!(fmt, "{}{}", "warning: ".bold().yellow(), warning.ty.title().bold())?;
+
+            writeln!(fmt, "{}{} {}:{}:{}",
+                     space,
+                     "-->".bold().blue(),
+                      self.path.display(),
+                     line,
+                     column)?;
+
+            writeln!(fmt, "{} {}", space, "|".blue().bold())?;
+            writeln!(fmt, "{} {}", &format!("{}|", line_number).blue().bold(), &self.content[start .. end])?;
+            writeln!(fmt, "{} {}{}{} {}", space, "|".blue().bold(), margin, hats.bold().yellow(), warning.ty.detail().bold().yellow())?;
+            writeln!(fmt, "{} {}", space, "|".blue().bold())?;
+
+            if let Some(note) = warning.ty.note() {
+                writeln!(fmt, "{} {} {}{}", space, "=".blue().bold(), "note: ".bold(), note)?;
+            }
+
+        }
+
+        Ok(())
+    }
+}
+
+
 
 /// The abstract syntax tree representing the parsed file.
 #[derive(Debug, PartialEq, Eq)]
@@ -203,16 +302,21 @@ pub enum Ast {
     /// Error will be stored in the abstract syntax tree so we can keep parsing what's parsable and
     /// print many errors instead of crashing immediately.
     Error(EmptyError),
+
+    /// A warning.
+    ///
+    /// Warning will be stored in the Ast and we will print them in the main function.
+    Warning(EmptyWarning),
 }
 
 /// An ast that was successfully parsed.
 #[derive(Debug)]
 pub struct Parsed {
-    /// The original content of the parsed string.
-    pub content: String,
-
     /// The parsed ast.
     pub ast: Ast,
+
+    /// The warnings that were produced.
+    pub warnings: Warnings,
 }
 
 impl Ast {
@@ -223,6 +327,10 @@ impl Ast {
         match self {
             Ast::Error(e) => {
                 errors.push(e.clone())
+            },
+
+            Ast::Warning(_) => {
+
             },
 
             Ast::Group(children) => {
@@ -254,6 +362,49 @@ impl Ast {
 
         errors
     }
+
+    /// Returns all the warnings contained in the ast.
+    pub fn warnings(&self) -> Vec<EmptyWarning> {
+        let mut warnings = vec![];
+
+        match self {
+            Ast::Warning(e) => {
+                warnings.push(e.clone())
+            },
+
+            Ast::Error(_) => {
+
+            },
+
+            Ast::Group(children) => {
+                for child in children {
+                    warnings.extend(child.warnings());
+                }
+            },
+
+            Ast::Paragraph(children) => {
+                for child in children {
+                    warnings.extend(child.warnings());
+                }
+            },
+
+            Ast::Title { content: ast, .. } => {
+                warnings.extend(ast.warnings());
+            },
+
+            Ast::Bold(ast) => {
+                warnings.extend(ast.warnings());
+            },
+
+            Ast::Italic(ast) => {
+                warnings.extend(ast.warnings());
+            },
+
+            Ast::Text(_) | Ast::Newline | Ast::InlineMath(_) => (),
+        }
+
+        warnings
+    }
 }
 
 impl fmt::Display for Ast {
@@ -283,6 +434,7 @@ impl fmt::Display for Ast {
 
             Ast::Error(_) => writeln!(fmt, "?")?,
             Ast::Newline => writeln!(fmt)?,
+            Ast::Warning(_) => (),
         }
         Ok(())
     }
@@ -304,11 +456,16 @@ pub fn parse<'a, P: AsRef<Path>>(path: P) -> Result<Parsed, Errors> {
     };
 
     let errors = ast.errors();
+    let warnings = ast.warnings();
 
     if errors.is_empty() {
         Ok(Parsed {
-            content,
             ast,
+            warnings: Warnings {
+                path: PathBuf::from(&path),
+                warnings,
+                content,
+            },
         })
     } else {
         Err(Errors {
