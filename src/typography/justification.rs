@@ -1,32 +1,21 @@
 //! This module contains the trait and implementation of justification algorithms.
 
-use hyphenation::load::Load;
-use hyphenation::{Standard, Language};
-
 use crate::units::Sp;
-use crate::font::{FontStyle, FontConfig};
-use crate::typography::Word;
+use crate::font::Font;
 use crate::typography::items::Content;
-use crate::typography::paragraphs::{Paragraph, itemize_paragraph};
+use crate::typography::paragraphs::Paragraph;
 
 /// An algorithm that justifies a paragraph.
 pub trait Justifier {
-    /// Computes the paragraph decomposition of the string and justifies it.
-    fn justify(content: &[Word], text_width: Sp, font_config: &FontConfig, size: Sp) -> Vec<Vec<(char, FontStyle, Sp)>> {
-        let en = Standard::from_embedded(Language::EnglishUS).unwrap();
-        let paragraph = itemize_paragraph(&content, Sp(0), font_config, size, &en);
-        Self::justify_paragraph(&paragraph, text_width)
-    }
-
     /// Justifies the paragraph passed as parameter.
-    fn justify_paragraph(paragraph: &Paragraph, text_width: Sp) -> Vec<Vec<(char, FontStyle, Sp)>>;
+    fn justify<'a>(paragraph: &'a Paragraph<'a>, text_width: Sp) -> Vec<Vec<(char, &'a Font, Sp)>>;
 }
 
 /// A naive justifier, that goes to the next line once a word overtakes the text width.
 pub struct NaiveJustifier;
 
 impl Justifier for NaiveJustifier {
-    fn justify_paragraph(paragraph: &Paragraph, text_width: Sp) -> Vec<Vec<(char, FontStyle, Sp)>> {
+    fn justify<'a>(paragraph: &'a Paragraph<'a>, text_width: Sp) -> Vec<Vec<(char, &'a Font, Sp)>> {
         let mut ret = vec![];
         let mut current_line = vec![];
         let mut current_word = vec![];
@@ -37,6 +26,9 @@ impl Justifier for NaiveJustifier {
                 Content::BoundingBox { .. } => {
                     current_x += item.width;
                     current_word.push(item);
+                },
+                Content::Space => {
+                    current_x += item.width;
                 },
                 Content::Glue { .. } => {
                     current_line.push(current_word);
@@ -69,8 +61,8 @@ impl Justifier for NaiveJustifier {
                 for word in current_line {
                     for item in &word {
                         match item.content {
-                            Content::BoundingBox { glyph, font_style } => {
-                                final_line.push((glyph, font_style, current_x));
+                            Content::BoundingBox { glyph, font } => {
+                                final_line.push((glyph, font, current_x));
                                 current_x += item.width;
                             },
 
@@ -95,8 +87,8 @@ impl Justifier for NaiveJustifier {
         for word in current_line {
             for item in word {
                 match item.content {
-                    Content::BoundingBox { glyph, font_style } => {
-                        final_line.push((glyph, font_style, current_x));
+                    Content::BoundingBox { glyph, font } => {
+                        final_line.push((glyph, font, current_x));
                         current_x += item.width;
                     },
                     _ => (),

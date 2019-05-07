@@ -9,11 +9,15 @@ use printpdf::{PdfDocument, PdfDocumentReference, PdfPageReference, PdfLayerRefe
 
 use pulldown_cmark::{Event, Tag, Parser};
 
-use crate::typography::Word;
+use hyphenation::load::Load;
+use hyphenation::{Standard, Language};
+
+use crate::typography::Glyph;
 use crate::typography::justification::{Justifier, NaiveJustifier};
 use crate::font::{Font, FontConfig, FontStyle};
 use crate::units::{Pt, Sp};
 use crate::parser::Ast;
+use crate::typography::paragraphs::itemize_paragraph;
 
 /// The struct that manages the counters for the document.
 #[derive(Copy, Clone)]
@@ -181,7 +185,7 @@ impl Document {
     }
 
     /// Renders an ast to the document with a certain buffer.
-    fn render_aux(&mut self, ast: &Ast, font_config: &FontConfig, size: Sp, current_style: FontStyle, buffer: Vec<Word>) -> Vec<Word>{
+    fn render_aux<'a>(&mut self, ast: &Ast, font_config: &'a FontConfig, size: Sp, current_style: FontStyle, buffer: Vec<Glyph<'a>>) -> Vec<Glyph<'a>>{
 
         let mut buffer = buffer;
 
@@ -189,7 +193,7 @@ impl Document {
             Ast::Title { level, content } => {
                 let size = size + Pt(3.0 * (4 - level) as f64).into();
                 let buffer = self.render_aux(content, font_config, size, current_style.bold(), vec![]);
-                self.write_paragraph::<NaiveJustifier>(&buffer, font_config, size);
+                self.write_paragraph::<NaiveJustifier>(&buffer, size);
                 self.new_line(size);
             },
 
@@ -206,7 +210,10 @@ impl Document {
             },
 
             Ast::Text(content) => {
-                buffer.push(Word { string: content.clone(), font_style: current_style });
+                let font = font_config.for_style(current_style);
+                for c in content.chars() {
+                    buffer.push(Glyph::new(c, font, size));
+                }
             },
 
             Ast::Group(children) => {
@@ -219,7 +226,7 @@ impl Document {
                 for child in children {
                     buffer = self.render_aux(child, font_config, size, current_style, buffer);
                 }
-                self.write_paragraph::<NaiveJustifier>(&buffer, font_config, size);
+                self.write_paragraph::<NaiveJustifier>(&buffer, size);
                 buffer = vec![];
                 self.new_line(size);
             }
@@ -243,15 +250,19 @@ impl Document {
             match event {
                 Event::Start(Tag::Header(i)) => {
                     current_style = current_style.bold();
+                    let font = font_config.for_style(current_style);
                     if self.counters.increment(i).is_some() {
-                        content.push(Word::new(format!("{}", self.counters), current_style));
+                        for c in format!("{}", self.counters).chars() {
+                            content.push(Glyph::new(c, font, size));
+                        }
                     }
 
                     current_size = size + Pt(3.0 * (4 - i) as f64).into();
                 },
 
                 Event::Start(Tag::Item) => {
-                    content.push(Word::new(" - ".to_owned(), current_style));
+                    let font = font_config.for_style(current_style);
+                    content.push(Glyph::new('-', font, size));
                 },
 
                 Event::Start(Tag::Emphasis) => {
@@ -271,12 +282,15 @@ impl Document {
                 }
 
                 Event::Text(ref text) => {
-                    content.push(Word::new(" ".to_owned(), current_style));
-                    content.push(Word::new(text.to_string(), current_style));
+                    let font = font_config.for_style(current_style);
+                    content.push(Glyph::new(' ', font, size));
+                    for c in text.chars() {
+                        content.push(Glyph::new(c, font, size));
+                    }
                 },
 
                 Event::End(Tag::Paragraph) | Event::End(Tag::Item) => {
-                    self.write_paragraph::<NaiveJustifier>(&content, font_config, current_size);
+                    self.write_paragraph::<NaiveJustifier>(&content, current_size);
                     self.new_line(current_size);
 
                     content.clear();
@@ -285,7 +299,7 @@ impl Document {
 
                 Event::End(Tag::Header(_)) => {
                     current_style = current_style.unbold();
-                    self.write_paragraph::<NaiveJustifier>(&content, font_config, current_size);
+                    self.write_paragraph::<NaiveJustifier>(&content, current_size);
                     self.new_line(current_size);
 
                     content.clear();
@@ -299,33 +313,38 @@ impl Document {
 
     /// Writes content on the document.
     pub fn write_content(&mut self, content: &str, font_config: &FontConfig, size: Sp) {
-        for paragraph in content.split("\n") {
-            let words = paragraph
-                .split_whitespace()
-                .map(|x| Word::new(x.to_string(), FontStyle::regular()))
-                .collect::<Vec<_>>();
 
-            self.write_paragraph::<NaiveJustifier>(&words, font_config, size);
+        let font = font_config.for_style(FontStyle::regular());
+
+        for paragraph in content.split("\n") {
+
+            let mut glyphs = vec![];
+            for c in paragraph.chars() {
+                glyphs.push(Glyph::new(c, font, size));
+            }
+
+            self.write_paragraph::<NaiveJustifier>(&glyphs, size);
             self.new_line(size);
         }
     }
 
     /// Writes a paragraph on the document.
-    pub fn write_paragraph<J: Justifier>(&mut self, paragraph: &[Word], font_config: &FontConfig, size: Sp) {
+    pub fn write_paragraph<'a, J: Justifier>(&mut self, paragraph: &'a [Glyph<'a>], size: Sp) {
         let size_i64 = Into::<Pt>::into(size).0 as i64;
 
-        let justified = J::justify(paragraph, self.window.width, font_config, size);
+        let en = Standard::from_embedded(Language::EnglishUS).unwrap();
+        let paragraph = itemize_paragraph(paragraph, Sp(0), &en);
+        let justified = J::justify(&paragraph, self.window.width);
 
         for line in justified {
             for glyph in line {
 
-                let font = font_config.for_style(glyph.1);
                 self.layer.use_text(
                     glyph.0.to_string(),
                     size_i64,
                     (self.window.x + glyph.2).into(),
                     self.cursor.1.into(),
-                    font.printpdf());
+                    glyph.1.printpdf());
 
             }
 

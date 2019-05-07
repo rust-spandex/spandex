@@ -2,7 +2,6 @@
 //! of a paragraph.
 use crate::font::Font;
 use crate::units::Sp;
-use crate::font::FontStyle;
 
 /// Value of the most negative penalty possible. This is considered infinite.
 pub const INFINITELY_NEGATIVE_PENALTY: i32 = i32::min_value();
@@ -13,17 +12,17 @@ pub const INFINITELY_POSITIVE_PENALTY: i32 = i32::max_value();
 /// Top abstraction of an item, which is a specification for a box, a glue
 /// or a penalty.
 #[derive(Debug)]
-pub struct Item {
+pub struct Item<'a> {
     /// The width of the item in scaled units.
     pub width: Sp,
 
     /// The type of the item.
-    pub content: Content,
+    pub content: Content<'a>,
 }
 
 /// Possible available types for an item.
 #[derive(Debug)]
-pub enum Content {
+pub enum Content<'a> {
     /// A bounding box refers to something that is meant to be typeset.
     ///
     /// Though it holds the glyph it's representing, this item is
@@ -34,8 +33,11 @@ pub enum Content {
         glyph: char,
 
         /// The font style of the glyph.
-        font_style: FontStyle,
+        font: &'a Font,
     },
+    /// A fixed space, that behaves just like a bounding box with a fixed width, but with no char
+    /// or font.
+    Space,
     /// Glue is a blank space which can see its width altered in specified ways.
     ///
     /// It can either stretch or shrink up to a certain limit, and is used as
@@ -59,25 +61,33 @@ pub enum Content {
     },
 }
 
-impl Item {
+impl<'a> Item<'a> {
     /// Creates a box for a particular glyph and font.
-    pub fn from_glyph(glyph: char, font: &Font, font_size: Sp, font_style: FontStyle) -> Item {
+    pub fn from_glyph(glyph: char, font: &'a Font, font_size: Sp) -> Item<'a> {
         Item {
             width: font.char_width(glyph, font_size),
-            content: Content::BoundingBox { glyph, font_style },
+            content: Content::BoundingBox { glyph, font },
         }
     }
 
     /// Creates a bounding box from its width in scaled points and its glyph.
-    pub fn bounding_box(width: Sp, glyph: char, font_style: FontStyle) -> Item {
+    pub fn bounding_box(width: Sp, glyph: char, font: &'a Font) -> Item<'a> {
         Item {
             width,
-            content: Content::BoundingBox { glyph, font_style },
+            content: Content::BoundingBox { glyph, font },
+        }
+    }
+
+    /// Creates a space from its width.
+    pub fn space(width: Sp) -> Item<'a> {
+        Item {
+            width,
+            content: Content::Space,
         }
     }
 
     /// Creates some glue.
-    pub fn glue(ideal_spacing: Sp, stretchability: Sp, shrinkability: Sp) -> Item {
+    pub fn glue(ideal_spacing: Sp, stretchability: Sp, shrinkability: Sp) -> Item<'a> {
         Item {
             width: ideal_spacing,
             content: Content::Glue {
@@ -88,7 +98,7 @@ impl Item {
     }
 
     /// Creates a penalty.
-    pub fn penalty(width: Sp, value: i32, flagged: bool) -> Item {
+    pub fn penalty(width: Sp, value: i32, flagged: bool) -> Item<'a> {
         Item {
             width,
             content: Content::Penalty { value, flagged },

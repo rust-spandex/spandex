@@ -4,24 +4,29 @@ pub mod items;
 pub mod paragraphs;
 pub mod justification;
 
-use crate::font::FontStyle;
+use crate::units::Sp;
+use crate::font::Font;
 
-/// A word with its font style.
+/// A glyph with its font style.
 #[derive(Clone)]
-pub struct Word {
+pub struct Glyph<'a> {
     /// The content of the word.
-    pub string: String,
+    pub glyph: char,
 
     /// The font style of the word.
-    pub font_style: FontStyle,
+    pub font: &'a Font,
+
+    /// The size of the font.
+    pub scale: Sp,
 }
 
-impl Word {
+impl<'a> Glyph<'a> {
     /// Creates a new word from a string and a font style.
-    pub fn new(string: String, font_style: FontStyle) -> Word {
-        Word {
-            string,
-            font_style,
+    pub fn new(glyph: char, font: &'a Font, scale: Sp) -> Glyph<'a> {
+        Glyph {
+            glyph,
+            font,
+            scale,
         }
     }
 }

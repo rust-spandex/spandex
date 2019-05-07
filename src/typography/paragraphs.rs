@@ -6,9 +6,8 @@ use std::slice::Iter;
 
 use hyphenation::*;
 
-use crate::font::{FontConfig, FontStyle};
 use crate::units::{Sp, PLUS_INFINITY};
-use crate::typography::Word;
+use crate::typography::Glyph;
 use crate::typography::items::{
     Content,
     Item,
@@ -19,19 +18,19 @@ use crate::typography::items::{
 const DASH_GLYPH: char = '-';
 
 /// Holds a list of items describing a paragraph.
-pub struct Paragraph {
+pub struct Paragraph<'a> {
     /// Sequence of items representing the structure of the paragraph.
-    pub items: Vec<Item>,
+    pub items: Vec<Item<'a>>,
 }
 
-impl Paragraph {
+impl<'a> Paragraph<'a> {
     /// Instantiates a new paragraph.
-    pub fn new() -> Paragraph {
+    pub fn new() -> Paragraph<'a> {
         Paragraph { items: Vec::new() }
     }
 
     /// Pushes an item at the end of the paragraph.
-    pub fn push(&mut self, item: Item) {
+    pub fn push(&mut self, item: Item<'a>) {
         self.items.push(item)
     }
 
@@ -42,20 +41,15 @@ impl Paragraph {
 }
 
 /// Parses a string into a sequence of items.
-pub fn itemize_paragraph(
-    words: &[Word],
+pub fn itemize_paragraph<'a>(
+    glyphs: &'a [Glyph<'a>],
     indentation: Sp,
-    font_config: &FontConfig,
-    font_size: Sp,
     dictionary: &Standard,
-) -> Paragraph {
+) -> Paragraph<'a> {
     let mut paragraph = Paragraph::new();
 
-    // Add trailing space to ensure the last word is treated.
-    // let words = format!("{}{}", words, " ");
-
     if indentation != Sp(0) {
-        paragraph.push(Item::bounding_box(indentation, ' ', FontStyle::regular()));
+        paragraph.push(Item::space(indentation));
     }
 
     let ideal_spacing = Sp(90_000);
@@ -65,41 +59,66 @@ pub fn itemize_paragraph(
     // Turn each word of the paragraph into a sequence of boxes for
     // the caracters of the word. This includes potential punctuation
     // marks.
-    for word in words {
-        for glyph in word.string.chars() {
-            if glyph.is_whitespace() {
-                paragraph.push(get_glue_from_context(previous_glyph, ideal_spacing));
+    for glyph in glyphs {
+        if glyph.glyph.is_whitespace() {
+            paragraph.push(get_glue_from_context(previous_glyph, ideal_spacing));
 
-                // Reached end of current word, handle hyphenation.
-                let to_hyphenate = current_word
-                    .iter()
-                    .map(|x: &(char, FontStyle)| x.0.to_string())
-                    .collect::<Vec<_>>().join("");
+            // Reached end of current word, handle hyphenation.
+            let to_hyphenate = current_word
+                .iter()
+                .map(|x: &&Glyph| x.glyph.to_string())
+                .collect::<Vec<_>>().join("");
 
-                let hyphenated = dictionary.hyphenate(&to_hyphenate);
+            let hyphenated = dictionary.hyphenate(&to_hyphenate);
 
-                let break_indices = &hyphenated.breaks;
+            let break_indices = &hyphenated.breaks;
 
-                for (i, c) in current_word.iter().enumerate() {
-                    if break_indices.contains(&i) {
-                        paragraph.push(Item::penalty(Sp(0), 50, true))
-                    }
-
-                    let font = font_config.for_style(word.font_style);
-                    paragraph.push(Item::from_glyph(c.0, font, font_size, c.1));
-
-                    if c.0 == DASH_GLYPH {
-                        paragraph.push(Item::penalty(Sp(0), 50, true))
-                    }
+            for (i, g) in current_word.iter().enumerate() {
+                if break_indices.contains(&i) {
+                    paragraph.push(Item::penalty(Sp(0), 50, true))
                 }
 
-                current_word = vec![];
-            } else {
-                current_word.push((glyph, word.font_style));
+                paragraph.push(Item::from_glyph(g.glyph, g.font, g.scale));
+
+                if g.glyph == DASH_GLYPH {
+                    paragraph.push(Item::penalty(Sp(0), 50, true))
+                }
             }
 
-            previous_glyph = glyph;
+            current_word = vec![];
+        } else {
+            current_word.push(glyph);
         }
+
+        previous_glyph = glyph.glyph;
+    }
+
+    // Ugly code duplication to ensure the last word is treated
+    if ! current_word.is_empty() {
+        paragraph.push(get_glue_from_context(previous_glyph, ideal_spacing));
+
+        // Reached end of current word, handle hyphenation.
+        let to_hyphenate = current_word
+            .iter()
+            .map(|x: &&Glyph| x.glyph.to_string())
+            .collect::<Vec<_>>().join("");
+
+        let hyphenated = dictionary.hyphenate(&to_hyphenate);
+
+        let break_indices = &hyphenated.breaks;
+
+        for (i, g) in current_word.iter().enumerate() {
+            if break_indices.contains(&i) {
+                paragraph.push(Item::penalty(Sp(0), 50, true))
+            }
+
+            paragraph.push(Item::from_glyph(g.glyph, g.font, g.scale));
+
+            if g.glyph == DASH_GLYPH {
+                paragraph.push(Item::penalty(Sp(0), 50, true))
+            }
+        }
+
     }
 
     // Appends two items to ensure the end of any paragraph is
@@ -113,7 +132,7 @@ pub fn itemize_paragraph(
 }
 
 /// Returns the glue based on the spatial context of the cursor.
-fn get_glue_from_context(_previous_glyph: char, ideal_spacing: Sp) -> Item {
+fn get_glue_from_context<'a>(_previous_glyph: char, ideal_spacing: Sp) -> Item<'a> {
     // Todo: make this glue context dependent.
     Item::glue(ideal_spacing, Sp(0), Sp(0))
 }
@@ -144,6 +163,7 @@ pub fn find_legal_breakpoints(paragraph: &Paragraph) -> Vec<usize> {
                 last_item_was_box = false;
             }
             Content::BoundingBox { .. } => last_item_was_box = true,
+            Content::Space => last_item_was_box = true,
         }
     }
 
@@ -173,6 +193,7 @@ fn compute_adjustment_ratio(
 #[cfg(test)]
 mod tests {
     use crate::config::Config;
+    use crate::typography::Glyph;
     use crate::typography::paragraphs::{find_legal_breakpoints, itemize_paragraph};
     use crate::units::{Pt, Sp};
     use crate::{Error, Result};
@@ -194,12 +215,17 @@ mod tests {
             .get(regular_font_name)
             .ok_or(Error::FontNotFound(PathBuf::from(regular_font_name)))?;
 
+        let words = words
+            .chars()
+            .map(|x| Glyph::new(x, font, Pt(12.0).into()))
+            .collect::<Vec<_>>();
+
         // No indentation, meaning no leading empty box.
-        let paragraph = itemize_paragraph(words, Sp(0), &font, Pt(12.0).into(), &en_us);
+        let paragraph = itemize_paragraph(&words, Sp(0), &en_us);
         assert_eq!(paragraph.items.len(), 32);
 
         // Indentated paragraph, implying the presence of a leading empty box.
-        let paragraph = itemize_paragraph(words, Sp(120_000), &font, Pt(12.0).into(), &en_us);
+        let paragraph = itemize_paragraph(&words, Sp(120_000), &en_us);
         assert_eq!(paragraph.items.len(), 33);
 
         Ok(())
@@ -220,8 +246,13 @@ mod tests {
             .get(regular_font_name)
             .ok_or(Error::FontNotFound(PathBuf::from(regular_font_name)))?;
 
+        let words = words
+            .chars()
+            .map(|x| Glyph::new(x, font, Pt(12.0).into()))
+            .collect::<Vec<_>>();
+
         // Indentated paragraph, implying the presence of a leading empty box.
-        let paragraph = itemize_paragraph(words, Sp(120_000), &font, Pt(12.0).into(), &en_us);
+        let paragraph = itemize_paragraph(&words, Sp(120_000), &en_us);
 
         let legal_breakpoints = find_legal_breakpoints(&paragraph);
         // [ ] Lorem ip-sum do-lor sit amet.

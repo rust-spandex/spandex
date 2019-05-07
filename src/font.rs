@@ -15,6 +15,7 @@ use crate::document::Document;
 
 /// A font that contains the printpdf object font needed to render text and the freetype font
 /// needed to measure text.
+#[derive(Debug)]
 pub struct Font {
     /// The freetype face.
     freetype: Face,
