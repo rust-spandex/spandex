@@ -343,7 +343,7 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<i64>) {
         let mut bfs = Bfs::new(&graph, beginning);
 
         let mut last_active_node: Option<&Node> = None;
-        let mut feasible_breakpoints: Vec<&Node> = Vec::new();
+        let mut feasible_breakpoints: Vec<Node> = Vec::new();
         let mut node_to_remove: Option<_> = None;
 
         while let Some(node) = bfs.next(&graph) {
@@ -403,7 +403,7 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<i64>) {
                             // non-breakable penalty item to avoid rendering glue or
                             // penalties at the beginning of lines.
 
-                            let new_node = Node {
+                            feasible_breakpoints.push(Node {
                                 index: b,
                                 line: a.line + 1,
                                 fitness,
@@ -411,8 +411,7 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<i64>) {
                                 total_shrink: sum_shrink,
                                 total_stretch: sum_stretch,
                                 total_demerits: a.total_demerits + demerits,
-                            };
-                            feasible_breakpoints.push(&new_node);
+                            });
 
                             // Add feasible breakpoint with lowest score to active set.
                             if feasible_breakpoints.len() > 0 {
@@ -420,11 +419,11 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<i64>) {
 
                                 for node in feasible_breakpoints.iter() {
                                     if node.total_demerits < best_node.total_demerits {
-                                        best_node = node;
+                                        best_node = *node;
                                     }
                                 }
 
-                                graph.add_node(*best_node);
+                                graph.add_node(best_node);
                             }
                         }
                     }
@@ -445,9 +444,9 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<i64>) {
 
 /// Computes the adjustment ratios of all lines given a set of line lengths and breakpoint indices.
 fn compute_adjustment_ratios_with_breakpoints(
-    items: Vec<Item>,
-    line_lengths: Vec<i64>,
-    breakpoints: Vec<usize>,
+    items: &Vec<Item>,
+    line_lengths: &Vec<i64>,
+    breakpoints: &Vec<usize>,
 ) -> Vec<Rational> {
     let mut adjustment_ratios: Vec<Rational> = Vec::new();
 
@@ -523,12 +522,12 @@ fn positionate_items(
     breakpoints: Vec<usize>,
 ) -> Vec<PositionedItem> {
     let adjustment_ratios =
-        compute_adjustment_ratios_with_breakpoints(items, line_lengths, breakpoints);
-    let positioned_items: Vec<PositionedItem> = Vec::new();
+        compute_adjustment_ratios_with_breakpoints(&items, &line_lengths, &breakpoints);
+    let mut positioned_items: Vec<PositionedItem> = Vec::new();
 
     for (breakpoint_line, breakpoint_index) in breakpoints.iter().enumerate() {
         let adjustment_ratio = adjustment_ratios[breakpoint_line].max(min_adjustment_ratio());
-        let horizontal_offset = zero();
+        let mut horizontal_offset = zero();
         let beginning = if breakpoint_line == 0 {
             *breakpoint_index
         } else {
