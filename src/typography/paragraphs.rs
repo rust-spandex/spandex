@@ -11,6 +11,7 @@ use hyphenation::*;
 use num_rational::Ratio;
 use num_traits::sign::Signed;
 use petgraph::stable_graph::StableGraph;
+use petgraph::visit::Bfs;
 use petgraph::visit::EdgeRef;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
@@ -195,6 +196,7 @@ fn find_beginning_of_line(paragraph: &Paragraph, index: usize) -> usize {
     }
 }
 
+#[derive(Copy, Clone, Debug)]
 struct Node {
     /// Index of the item represented by the node, within the paragraph.
     pub index: usize,
@@ -239,7 +241,7 @@ impl Hash for Node {
 /// Returns the length of the line of given index, from a list of
 /// potential line lengths. If the list is too short, the line
 /// length will default to `DEFAULT_LINE_LENGTH`.
-fn get_line_length(lines_length: Vec<i64>, index: usize) -> i64 {
+fn get_line_length(lines_length: &Vec<i64>, index: usize) -> i64 {
     if index < lines_length.len() {
         lines_length[index]
     } else {
@@ -338,14 +340,17 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<i64>) {
         }
 
         // Update the set of active nodes.
-        let mut to_visit = BinaryHeap::new();
-        to_visit.push(beginning);
+        let mut bfs = Bfs::new(&graph, beginning);
 
         let mut last_active_node: Option<&Node> = None;
         let mut feasible_breakpoints: Vec<&Node> = Vec::new();
+        let mut node_to_remove: Option<_> = None;
 
-        while let Some(node) = to_visit.pop() {
-            for edge in graph.edges(node) {
+        while let Some(node) = bfs.next(&graph) {
+            let graph_clone = graph.clone();
+            let edges = graph_clone.edges(node);
+
+            for edge in edges {
                 match graph.node_weight(edge.target()) {
                     Some(a) => {
                         let line_shrink = sum_shrink - a.total_shrink;
@@ -354,7 +359,7 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<i64>) {
 
                         let adjustment_ratio = compute_adjustment_ratio(
                             actual_width,
-                            Sp(get_line_length(lines_length, a.line)),
+                            Sp(get_line_length(&lines_length, a.line)),
                             line_stretch,
                             line_shrink,
                         );
@@ -366,7 +371,7 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<i64>) {
 
                         if adjustment_ratio < min_adjustment_ratio() {
                             // Items from a to b cannot fit on the same line.
-                            graph.remove_node(edge.target());
+                            node_to_remove = Some(edge.target());
                             last_active_node = Some(a);
                         }
 
@@ -398,7 +403,7 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<i64>) {
                             // non-breakable penalty item to avoid rendering glue or
                             // penalties at the beginning of lines.
 
-                            feasible_breakpoints.push(&Node {
+                            let new_node = Node {
                                 index: b,
                                 line: a.line + 1,
                                 fitness,
@@ -406,7 +411,8 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<i64>) {
                                 total_shrink: sum_shrink,
                                 total_stretch: sum_stretch,
                                 total_demerits: a.total_demerits + demerits,
-                            });
+                            };
+                            feasible_breakpoints.push(&new_node);
 
                             // Add feasible breakpoint with lowest score to active set.
                             if feasible_breakpoints.len() > 0 {
@@ -424,6 +430,10 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<i64>) {
                     }
                     _ => {}
                 }
+
+                if let Some(node) = node_to_remove {
+                    graph.remove_node(node);
+                }
             }
         }
     }
@@ -439,16 +449,16 @@ fn compute_adjustment_ratios_with_breakpoints(
     line_lengths: Vec<i64>,
     breakpoints: Vec<usize>,
 ) -> Vec<Rational> {
-    let adjustment_ratios: Vec<Rational> = Vec::new();
+    let mut adjustment_ratios: Vec<Rational> = Vec::new();
 
     for (breakpoint_line, breakpoint_index) in breakpoints.iter().enumerate() {
-        let desired_length = Sp(get_line_length(line_lengths, breakpoint_line));
-        let actual_length = Sp(0);
-        let line_shrink = Sp(0);
-        let line_stretch = Sp(0);
+        let desired_length = Sp(get_line_length(&line_lengths, breakpoint_line));
+        let mut actual_length = Sp(0);
+        let mut line_shrink = Sp(0);
+        let mut line_stretch = Sp(0);
         let next_breakpoint = breakpoints[breakpoint_line + 1];
 
-        let mut beginning = if breakpoint_line == 0 {
+        let beginning = if breakpoint_line == 0 {
             *breakpoint_index
         } else {
             *breakpoint_index + 1
