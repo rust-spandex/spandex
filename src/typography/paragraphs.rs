@@ -47,7 +47,7 @@ fn min_adjustment_ratio() -> Rational {
 }
 
 const DASH_GLYPH: char = '-';
-const DEFAULT_LINE_LENGTH: Sp = Sp::from(Mm(270.0));
+const DEFAULT_LINE_LENGTH: Sp = Sp(50135040);
 const MIN_COST: Sp = Sp(50);
 const ADJACENT_LOOSE_TIGHT_PENALTY: Sp = Sp(50);
 const MIN_ADJUSTMENT_RATIO: Sp = Sp(1);
@@ -378,7 +378,7 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<Sp>) -> Vec<usize> {
 
                 let adjustment_ratio = compute_adjustment_ratio(
                     actual_width,
-                    Sp(get_line_length(&lines_length, a.line)),
+                    get_line_length(&lines_length, a.line),
                     line_stretch,
                     line_shrink,
                 );
@@ -500,13 +500,13 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<Sp>) -> Vec<usize> {
 /// Computes the adjustment ratios of all lines given a set of line lengths and breakpoint indices.
 fn compute_adjustment_ratios_with_breakpoints(
     items: &Vec<Item>,
-    line_lengths: &Vec<i64>,
+    line_lengths: &Vec<Sp>,
     breakpoints: &Vec<usize>,
 ) -> Vec<Rational> {
     let mut adjustment_ratios: Vec<Rational> = Vec::new();
 
     for (breakpoint_line, breakpoint_index) in breakpoints.iter().enumerate() {
-        let desired_length = Sp(get_line_length(&line_lengths, breakpoint_line));
+        let desired_length = get_line_length(line_lengths, breakpoint_line);
         let mut actual_length = Sp(0);
         let mut line_shrink = Sp(0);
         let mut line_stretch = Sp(0);
