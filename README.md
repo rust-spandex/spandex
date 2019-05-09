@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/tforgione/spandex.svg?branch=master)](https://travis-ci.org/tforgione/spandex)
+[![Build Status](https://travis-ci.org/rust-spandex/spandex.svg?branch=master)](https://travis-ci.org/rust-spandex/spandex)
 
 # SpanDeX
 

@@ -5,3 +5,21 @@ notifications:
   email:
     on_success: never
     on_failure: always
+
+before_deploy:
+  - cargo doc --no-deps --lib
+  - cargo install mdbook
+  - git clone https://github.com/rust-spandex/book/
+  - cd book && mdbook build && cd ..
+  - cp -r target/doc/* book/book
+
+deploy:
+  provider: pages
+  skip_cleanup: true
+  github_token: $GITHUB_TOKEN
+  repo: rust-spandex/rust-spandex.github.io
+  target_branch: master
+  local_dir: book/book
+  on:
+    branch: master
+
