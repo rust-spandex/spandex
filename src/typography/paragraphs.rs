@@ -49,7 +49,7 @@ pub fn itemize_paragraph<'a>(
     let mut paragraph = Paragraph::new();
 
     if indentation != Sp(0) {
-        paragraph.push(Item::space(indentation));
+        paragraph.push(Item::glue(indentation, Sp(0), Sp(0)));
     }
 
     let ideal_spacing = Sp(90_000);
@@ -163,7 +163,6 @@ pub fn find_legal_breakpoints(paragraph: &Paragraph) -> Vec<usize> {
                 last_item_was_box = false;
             }
             Content::BoundingBox { .. } => last_item_was_box = true,
-            Content::Space => last_item_was_box = true,
         }
     }
 
@@ -256,7 +255,7 @@ mod tests {
 
         let legal_breakpoints = find_legal_breakpoints(&paragraph);
         // [ ] Lorem ip-sum do-lor sit amet.
-        assert_eq!(legal_breakpoints, [0, 1, 7, 10, 14, 17, 21, 25, 31, 32]);
+        assert_eq!(legal_breakpoints, [0, 7, 10, 14, 17, 21, 25, 31, 32]);
 
         Ok(())
     }

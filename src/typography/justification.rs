@@ -27,9 +27,6 @@ impl Justifier for NaiveJustifier {
                     current_x += item.width;
                     current_word.push(item);
                 },
-                Content::Space => {
-                    current_x += item.width;
-                },
                 Content::Glue { .. } => {
                     current_line.push(current_word);
                     current_x += Sp(200_000);

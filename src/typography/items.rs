@@ -35,9 +35,6 @@ pub enum Content<'a> {
         /// The font style of the glyph.
         font: &'a Font,
     },
-    /// A fixed space, that behaves just like a bounding box with a fixed width, but with no char
-    /// or font.
-    Space,
     /// Glue is a blank space which can see its width altered in specified ways.
     ///
     /// It can either stretch or shrink up to a certain limit, and is used as
@@ -75,14 +72,6 @@ impl<'a> Item<'a> {
         Item {
             width,
             content: Content::BoundingBox { glyph, font },
-        }
-    }
-
-    /// Creates a space from its width.
-    pub fn space(width: Sp) -> Item<'a> {
-        Item {
-            width,
-            content: Content::Space,
         }
     }
 
