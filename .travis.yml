@@ -11,11 +11,10 @@ notifications:
     on_failure: always
 
 before_deploy:
-  script: bash scripts/deploy.sh
-    - cargo doc --no-deps --lib
-    - git clone https://github.com/rust-spandex/book/
-    - cd book && mdbook build
-    - cp -r target/doc/* book/book
+  - cargo doc --no-deps --lib
+  - git clone https://github.com/rust-spandex/book/
+  - cd book && mdbook build
+  - cp -r target/doc/* book/book
 
 deploy:
   provider: pages
