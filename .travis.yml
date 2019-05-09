@@ -1,9 +1,5 @@
 language: rust
 rust: stable
-addons:
-  snaps:
-    mdbook
-
 
 notifications:
   email:
@@ -12,6 +8,7 @@ notifications:
 
 before_deploy:
   - cargo doc --no-deps --lib
+  - cargo install mdbook
   - git clone https://github.com/rust-spandex/book/
   - cd book && mdbook build
   - cp -r target/doc/* book/book
