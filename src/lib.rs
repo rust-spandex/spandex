@@ -10,6 +10,7 @@ pub mod document;
 pub mod font;
 pub mod typography;
 pub mod units;
+pub mod saturating;
 
 use std::path::PathBuf;
 use std::{error, fmt, io, result};
