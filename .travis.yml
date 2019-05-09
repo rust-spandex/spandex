@@ -10,12 +10,19 @@ notifications:
     on_success: never
     on_failure: always
 
+before_deploy:
+  script: bash scripts/deploy.sh
+    - cargo doc --no-deps --lib
+    - git clone https://github.com/rust-spandex/book/
+    - cd book && mdbook build
+    - cp -r target/doc/* book/book
+
 deploy:
   provider: pages
   script: bash scripts/deploy.sh
   skip_cleanup: true
   github_token: $GITHUB_TOKEN
-  repo: rust-spandex.github.io
+  repo: rust-spandex/rust-spandex.github.io
   target_branch: master
   local_dir: book/book
   on:
