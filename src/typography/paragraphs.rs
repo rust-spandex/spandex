@@ -37,6 +37,10 @@ fn one_half() -> Rational {
     Rational::new_raw(Sp(1), Sp(2))
 }
 
+fn plus_infinity() -> Rational {
+    Rational::new_raw(PLUS_INFINITY, Sp(1))
+}
+
 fn min_adjustment_ratio() -> Rational {
     Rational::new(MIN_ADJUSTMENT_RATIO, Sp(1))
 }
@@ -280,14 +284,17 @@ fn compute_fitness(adjustment_ratio: Rational) -> i64 {
     }
 }
 
-fn algorithm(paragraph: &Paragraph, lines_length: Vec<i64>) {
-    let mut graph = StableGraph::<_, ()>::new();
+fn algorithm(paragraph: &Paragraph, lines_length: Vec<i64>) -> Vec<usize> {
+    let mut graph = StableGraph::<_, Rational>::new();
     let mut sum_width = Sp(0);
     let mut sum_stretch = Sp(0);
     let mut sum_shrink = Sp(0);
     let mut best_adjustment_ratio_above_threshold = Rational::new(PLUS_INFINITY, Sp(1));
-    let mut current_maximum_adjustment_ratio = Rational::new(PLUS_INFINITY, Sp(1));
+    let mut current_maximum_adjustment_ratio = plus_infinity();
     let mut last_item_is_box = false;
+
+    let mut last_best_node: Node;
+    let mut last_best_node_index: Option<_> = None;
 
     // Add an initial active node for the beginning of the paragraph.
     let beginning = graph.add_node(Node {
@@ -301,6 +308,8 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<i64>) {
     });
 
     for (b, item) in paragraph.items.iter().enumerate() {
+        let mut last_previous_node_index: Option<_> = None;
+
         if item.width < Sp(0) {
             panic!("Item #{} has negative width.", b);
         }
@@ -324,6 +333,8 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<i64>) {
                         _ => false,
                     });
 
+                println!("Item {} is glue. Can break: {}", b, can_break);
+
                 if !can_break {
                     sum_width += item.width;
                     sum_shrink += shrinkability;
@@ -332,10 +343,13 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<i64>) {
             }
             Content::Penalty { value, .. } => {
                 can_break = value < INFINITELY_POSITIVE_PENALTY;
+
+                println!("Item {} is penalty. Can break: {}", b, can_break);
             }
         }
 
         if !can_break {
+            println!("Item {} cannot break, skipping to next item.", b);
             continue;
         }
 
@@ -346,96 +360,136 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<i64>) {
         let mut feasible_breakpoints: Vec<Node> = Vec::new();
         let mut node_to_remove: Option<_> = None;
 
+        println!("======== BFS ==========");
+
         while let Some(node) = bfs.next(&graph) {
-            let graph_clone = graph.clone();
-            let edges = graph_clone.edges(node);
+            println!("Next node in BFS: {:?}", graph.node_weight(node));
 
-            for edge in edges {
-                match graph.node_weight(edge.target()) {
-                    Some(a) => {
-                        let line_shrink = sum_shrink - a.total_shrink;
-                        let line_stretch = sum_stretch - a.total_stretch;
-                        let actual_width = sum_width - a.total_width;
+            last_previous_node_index = Some(node);
 
-                        let adjustment_ratio = compute_adjustment_ratio(
-                            actual_width,
-                            Sp(get_line_length(&lines_length, a.line)),
-                            line_stretch,
-                            line_shrink,
-                        );
+            if let Some(a) = graph.node_weight(node) {
+                let line_shrink = sum_shrink - a.total_shrink;
+                let line_stretch = sum_stretch - a.total_stretch;
+                let actual_width = sum_width - a.total_width;
 
-                        if adjustment_ratio > current_maximum_adjustment_ratio {
-                            best_adjustment_ratio_above_threshold =
-                                adjustment_ratio.min(best_adjustment_ratio_above_threshold)
-                        }
+                println!("Line shrink: {:?}", line_shrink);
+                println!("Line stretch: {:?}", line_stretch);
 
-                        if adjustment_ratio < min_adjustment_ratio() {
-                            // Items from a to b cannot fit on the same line.
-                            node_to_remove = Some(edge.target());
-                            last_active_node = Some(a);
-                        }
+                let adjustment_ratio = compute_adjustment_ratio(
+                    actual_width,
+                    Sp(get_line_length(&lines_length, a.line)),
+                    line_stretch,
+                    line_shrink,
+                );
 
-                        if adjustment_ratio > min_adjustment_ratio()
-                            && adjustment_ratio <= current_maximum_adjustment_ratio
-                        {
-                            // This is a feasible breakpoint.
-                            let badness = adjustment_ratio.abs().pow(3) * Sp(100);
-                            let penalty = Rational::new(
-                                Sp(match item.content {
-                                    Content::Penalty { value, .. } => value,
-                                    _ => 0,
-                                }),
-                                Sp(1),
-                            );
+                println!("Adjustment ratio: {:?}", adjustment_ratio);
 
-                            let mut demerits = compute_demerits(penalty, badness);
+                if adjustment_ratio > current_maximum_adjustment_ratio {
+                    best_adjustment_ratio_above_threshold =
+                        adjustment_ratio.min(best_adjustment_ratio_above_threshold)
+                }
 
-                            // TODO: support double hyphenation penalty.
+                if adjustment_ratio < min_adjustment_ratio() {
+                    // Items from a to b cannot fit on the same line.
+                    node_to_remove = Some(node);
+                    last_active_node = Some(a);
+                }
 
-                            // Compute fitness class.
-                            let fitness = compute_fitness(adjustment_ratio);
+                if adjustment_ratio > min_adjustment_ratio()
+                    && adjustment_ratio <= current_maximum_adjustment_ratio
+                {
+                    println!(
+                        "Adjustment ratio is <= {:?}",
+                        current_maximum_adjustment_ratio
+                    );
+                    // This is a feasible breakpoint.
+                    let badness = (adjustment_ratio).abs().pow(3);
+                    println!("Badness: {:?}", badness);
+                    let penalty = Rational::new(
+                        Sp(match item.content {
+                            Content::Penalty { value, .. } => value,
+                            _ => 0,
+                        }),
+                        Sp(1),
+                    );
 
-                            if a.index > 0 && (fitness - a.fitness).abs() > 1 {
-                                demerits = demerits + ADJACENT_LOOSE_TIGHT_PENALTY;
-                            }
+                    let mut demerits = compute_demerits(penalty, badness);
 
-                            // TODO: Ignore the width of potential subsequent glue or
-                            // non-breakable penalty item to avoid rendering glue or
-                            // penalties at the beginning of lines.
+                    println!("Demerits: {:?}", demerits);
 
-                            feasible_breakpoints.push(Node {
-                                index: b,
-                                line: a.line + 1,
-                                fitness,
-                                total_width: sum_width,
-                                total_shrink: sum_shrink,
-                                total_stretch: sum_stretch,
-                                total_demerits: a.total_demerits + demerits,
-                            });
+                    // TODO: support double hyphenation penalty.
 
-                            // Add feasible breakpoint with lowest score to active set.
-                            if feasible_breakpoints.len() > 0 {
-                                let mut best_node = feasible_breakpoints[0];
+                    // Compute fitness class.
+                    let fitness = compute_fitness(adjustment_ratio);
 
-                                for node in feasible_breakpoints.iter() {
-                                    if node.total_demerits < best_node.total_demerits {
-                                        best_node = *node;
-                                    }
-                                }
-
-                                graph.add_node(best_node);
-                            }
-                        }
+                    if a.index > 0 && (fitness - a.fitness).abs() > 1 {
+                        demerits = demerits + ADJACENT_LOOSE_TIGHT_PENALTY;
                     }
-                    _ => {}
+
+                    // TODO: Ignore the width of potential subsequent glue or
+                    // non-breakable penalty item to avoid rendering glue or
+                    // penalties at the beginning of lines.
+
+                    let new_node = Node {
+                        index: b,
+                        line: a.line + 1,
+                        fitness,
+                        total_width: sum_width,
+                        total_shrink: sum_shrink,
+                        total_stretch: sum_stretch,
+                        total_demerits: a.total_demerits + demerits,
+                    };
+                    let inserted_node = graph.add_node(new_node);
+                    feasible_breakpoints.push(new_node);
+
+                    graph.add_edge(inserted_node, node, new_node.total_demerits);
+                }
+            }
+
+            if let Some(node) = node_to_remove {
+                graph.remove_node(node);
+            }
+        }
+
+        // Add feasible breakpoint with lowest score to active set.
+        if let Some(previous_node_index) = last_previous_node_index {
+            if feasible_breakpoints.len() > 0 {
+                last_best_node = feasible_breakpoints[0];
+
+                for node in feasible_breakpoints.iter() {
+                    if node.total_demerits < last_best_node.total_demerits {
+                        last_best_node = *node;
+                    }
                 }
 
-                if let Some(node) = node_to_remove {
-                    graph.remove_node(node);
-                }
+                let inserted_node = graph.add_node(last_best_node);
+                last_best_node_index = Some(inserted_node);
+
+                // Create a precedence relationship between a and the best node.
+                graph.add_edge(
+                    inserted_node,
+                    previous_node_index,
+                    last_best_node.total_demerits,
+                );
             }
         }
     }
+
+    // TODO: handle situation where there's no option to fall within the window of
+    // accepted adjustment ratios.
+
+    // Follow the edges backwards.
+    let mut result: Vec<usize> = Vec::new();
+
+    if let Some(best_node_index) = last_best_node_index {
+        for edge in graph.edges(best_node_index) {
+            if let Some(node) = graph.node_weight(edge.target()) {
+                result.push(node.index);
+            }
+        }
+    }
+
+    result
 }
 
 // fn positionate_items(items: Vec<Item>, lines_length: Vec<i32>, breakpoints: Vec<i32>) -> PositionedItem {
@@ -508,9 +562,17 @@ fn compute_adjustment_ratio(
     if actual_length == desired_length {
         zero()
     } else if actual_length < desired_length {
-        Rational::new(desired_length - actual_length, total_stretchability)
+        if total_stretchability != Sp(0) {
+            Rational::new(desired_length - actual_length, total_stretchability)
+        } else {
+            plus_infinity()
+        }
     } else {
-        Rational::new(desired_length - actual_length, total_shrinkability)
+        if total_stretchability != Sp(0) {
+            Rational::new(desired_length - actual_length, total_shrinkability)
+        } else {
+            plus_infinity()
+        }
     }
 }
 
@@ -581,8 +643,8 @@ fn positionate_items(
 #[cfg(test)]
 mod tests {
     use crate::config::Config;
-    use crate::typography::paragraphs::{find_legal_breakpoints, itemize_paragraph};
-    use crate::units::Sp;
+    use crate::typography::paragraphs::{algorithm, find_legal_breakpoints, itemize_paragraph};
+    use crate::units::{Mm, Sp};
     use crate::{Error, Result};
     use hyphenation::*;
     use std::path::PathBuf;
@@ -661,4 +723,37 @@ mod tests {
 
     //     Ok(())
     // }
+
+    #[test]
+    fn test_algorithm() -> Result<()> {
+        let words = "In olden times when wishing still helped one, \
+                     there lived a king whose daughters were all beautiful ; \
+                     and the youngest was so beautiful that the sun itself, \
+                     which has seen so much, was astonished whenever it shone \
+                     in her face.";
+
+        let en_us = Standard::from_embedded(Language::EnglishUS)?;
+
+        let (_, font_manager) = Config::with_title("Test").init()?;
+
+        let regular_font_name = "CMU Serif Roman";
+        // let bold_font_name = "CMU Serif Bold";
+
+        let font = font_manager
+            .get(regular_font_name)
+            .ok_or(Error::FontNotFound(PathBuf::from(regular_font_name)))?;
+
+        let indentation = Sp::from(Mm(5.0));
+
+        let paragraph = itemize_paragraph(words, indentation, &font, 12.0, &en_us);
+
+        let lines_length = vec![50];
+        let breakpoints = algorithm(&paragraph, lines_length);
+
+        println!("Breakpoints: {:?}", breakpoints);
+
+        panic!("Test");
+
+        Ok(())
+    }
 }
