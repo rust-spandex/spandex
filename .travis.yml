@@ -1,7 +1,24 @@
 language: rust
 rust: stable
+addons:
+  snaps:
+    mdbook
+
 
 notifications:
   email:
     on_success: never
     on_failure: always
+
+deploy:
+  provider: pages
+  script: bash scripts/deploy.sh
+  skip_cleanup: true
+  github_token: $GITHUB_TOKEN
+  keep_history: true
+  repo: rust-spandex.github.io
+  target_branch: master
+  local_dir: book/book
+  on:
+    branch: master
+
