@@ -7,7 +7,7 @@ use num_integer::Integer;
 use num_traits::identities::{One, Zero};
 use num_traits::{Num, Pow, Signed};
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, Rem, Sub, SubAssign};
-use std::{f64, fmt};
+use std::{f64, fmt, i64};
 
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
@@ -15,10 +15,10 @@ use std::cmp::Ordering;
 /// Measure of what is supposed to be positive infinity.
 ///
 /// Any measure exceeding this value will be considered infinite.
-pub const PLUS_INFINITY: Sp = Sp(10_000_000_000);
+pub const PLUS_INFINITY: Sp = Sp(i64::MAX);
 
 /// Measure of what is supposed to be negative infinity.
-pub const MINUS_INFINITY: Sp = Sp(-10_000_000_000);
+pub const MINUS_INFINITY: Sp = Sp(i64::MIN);
 
 /// Scaled point, equal to 1/65,536 of a point.
 ///
@@ -148,7 +148,7 @@ impl Pow<u32> for Sp {
     type Output = Sp;
 
     fn pow(self, rhs: u32) -> Self::Output {
-        Sp(self.0.pow(rhs))
+        Sp(self.0.saturating_pow(rhs))
     }
 }
 
@@ -172,14 +172,6 @@ impl fmt::Debug for Pt {
 
 macro_rules! impl_operators {
     ($the_type: ty, $constructor: expr) => {
-        impl Add for $the_type {
-            type Output = $the_type;
-
-            fn add(self, other: $the_type) -> $the_type {
-                $constructor(self.0 + other.0)
-            }
-        }
-
         impl AddAssign for $the_type {
             fn add_assign(&mut self, other: $the_type) {
                 self.0 += other.0;
@@ -214,13 +206,13 @@ macro_rules! impl_operators {
             }
         }
 
-        impl Mul for $the_type {
-            type Output = $the_type;
+        // impl Mul for $the_type {
+        //     type Output = $the_type;
 
-            fn mul(self, other: $the_type) -> $the_type {
-                $constructor(self.0 * other.0)
-            }
-        }
+        //     fn mul(self, other: $the_type) -> $the_type {
+        //         $constructor(self.0 * other.0)
+        //     }
+        // }
 
         impl Rem for $the_type {
             type Output = $the_type;
@@ -235,6 +227,34 @@ macro_rules! impl_operators {
 impl_operators!(Sp, Sp);
 impl_operators!(Mm, Mm);
 impl_operators!(Pt, Pt);
+
+impl Add for Sp {
+    type Output = Sp;
+
+    fn add(self, other: Sp) -> Sp {
+        let (result, did_overflow) = self.0.overflowing_add(other.0);
+
+        if did_overflow {
+            PLUS_INFINITY
+        } else {
+            Sp(result)
+        }
+    }
+}
+
+impl Mul for Sp {
+    type Output = Sp;
+
+    fn mul(self, other: Sp) -> Sp {
+        let (result, did_overflow) = self.0.overflowing_mul(other.0);
+
+        if did_overflow {
+            PLUS_INFINITY
+        } else {
+            Sp(result)
+        }
+    }
+}
 
 impl Mul<i64> for Sp {
     type Output = Sp;
