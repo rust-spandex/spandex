@@ -7,11 +7,10 @@ notifications:
     on_failure: always
 
 before_deploy:
-  - pwd
   - cargo doc --no-deps --lib
   - cargo install mdbook
   - git clone https://github.com/rust-spandex/book/
-  - cd book && mdbook build
+  - cd book && mdbook build && cd ..
   - cp -r target/doc/* book/book
 
 deploy:
