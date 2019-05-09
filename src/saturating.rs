@@ -1,6 +1,5 @@
 //! This module contains a useful trait to deal with saturating operations.
 
-use num_traits::NumAssign;
 use num_rational::Ratio;
 use num_integer::Integer;
 
@@ -59,7 +58,7 @@ impl Saturating for Sp {
     }
 }
 
-impl<T: Clone + NumAssign + Integer + Saturating> Saturating for Ratio<T> {
+impl<T: Clone + Integer + Saturating> Saturating for Ratio<T> {
     fn sadd(&self, rhs: &Self) -> Self {
         let mut numer = self.numer().clone();
         let mut denom = self.denom().clone();
