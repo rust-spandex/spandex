@@ -47,7 +47,7 @@ fn min_adjustment_ratio() -> Rational {
 }
 
 const DASH_GLYPH: char = '-';
-const DEFAULT_LINE_LENGTH: Sp = Sp::from(Mm(270));
+const DEFAULT_LINE_LENGTH: Sp = Sp::from(Mm(270.0));
 const MIN_COST: Sp = Sp(50);
 const ADJACENT_LOOSE_TIGHT_PENALTY: Sp = Sp(50);
 const MIN_ADJUSTMENT_RATIO: Sp = Sp(1);
@@ -285,7 +285,7 @@ fn compute_fitness(adjustment_ratio: Rational) -> i64 {
     }
 }
 
-fn algorithm(paragraph: &Paragraph, lines_length: Vec<i64>) -> Vec<usize> {
+fn algorithm(paragraph: &Paragraph, lines_length: Vec<Sp>) -> Vec<usize> {
     let mut graph = StableGraph::<_, Rational>::new();
     let mut sum_width = Sp(0);
     let mut sum_stretch = Sp(0);
@@ -581,7 +581,7 @@ fn compute_adjustment_ratio(
 /// The generated list is ready to be rendered.
 fn positionate_items(
     items: Vec<Item>,
-    line_lengths: Vec<i64>,
+    line_lengths: Vec<Sp>,
     breakpoints: Vec<usize>,
 ) -> Vec<PositionedItem> {
     let adjustment_ratios =
@@ -748,7 +748,7 @@ mod tests {
 
         let paragraph = itemize_paragraph(words, indentation, &font, 12.0, &en_us);
 
-        let lines_length = vec![50];
+        let lines_length = vec![];
         let breakpoints = algorithm(&paragraph, lines_length);
 
         println!("Breakpoints: {:?}", breakpoints);
