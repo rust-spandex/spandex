@@ -12,8 +12,8 @@ use hyphenation::*;
 use num_rational::Ratio;
 use num_traits::sign::Signed;
 use petgraph::stable_graph::StableGraph;
-use petgraph::visit::Bfs;
 use petgraph::visit::EdgeRef;
+use petgraph::visit::{Bfs, Dfs};
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::f64;
@@ -47,8 +47,10 @@ fn min_adjustment_ratio() -> Rational {
 }
 
 const DASH_GLYPH: char = '-';
+const SPACE_WIDTH: Sp = Sp(185771);
 const DEFAULT_LINE_LENGTH: Sp = Sp(50135040);
 const MIN_COST: Sp = Sp(50);
+const MAX_COST: i64 = 1000;
 const ADJACENT_LOOSE_TIGHT_PENALTY: Sp = Sp(50);
 const MIN_ADJUSTMENT_RATIO: Sp = Sp(1);
 
@@ -136,7 +138,7 @@ pub fn itemize_paragraph(
 /// Returns the glue based on the spatial context of the cursor.
 fn get_glue_from_context(_previous_glyph: char, ideal_spacing: Sp) -> Item {
     // Todo: make this glue context dependent.
-    Item::glue(ideal_spacing, Sp(0), Sp(0))
+    Item::glue(ideal_spacing, SPACE_WIDTH * 2, SPACE_WIDTH)
 }
 
 /// Finds all the legal breakpoints within a paragraph. A legal breakpoint
@@ -320,7 +322,6 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<Sp>) -> Vec<usize> {
         match item.content {
             Content::BoundingBox { .. } => {
                 sum_width += item.width;
-                last_item_is_box = true
             }
             Content::Glue {
                 stretchability,
@@ -334,8 +335,6 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<Sp>) -> Vec<usize> {
                         _ => false,
                     });
 
-                println!("Item {} is glue. Can break: {}", b, can_break);
-
                 if !can_break {
                     sum_width += item.width;
                     sum_shrink += shrinkability;
@@ -344,13 +343,19 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<Sp>) -> Vec<usize> {
             }
             Content::Penalty { value, .. } => {
                 can_break = value < INFINITELY_POSITIVE_PENALTY;
-
-                println!("Item {} is penalty. Can break: {}", b, can_break);
             }
         }
 
+        // println!(
+        //     "----- STATS ------\n\
+        //      Width sum: {:?}\n\
+        //      Shrink sum: {:?}\n\
+        //      Stretch sum: {:?}",
+        //     sum_width, sum_shrink, sum_stretch
+        // );
+
         if !can_break {
-            println!("Item {} cannot break, skipping to next item.", b);
+            // println!("Item {} cannot break, skipping to next item.", b);
             continue;
         }
 
@@ -364,8 +369,6 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<Sp>) -> Vec<usize> {
         println!("======== BFS ==========");
 
         while let Some(node) = bfs.next(&graph) {
-            println!("Next node in BFS: {:?}", graph.node_weight(node));
-
             last_previous_node_index = Some(node);
 
             if let Some(a) = graph.node_weight(node) {
@@ -396,13 +399,9 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<Sp>) -> Vec<usize> {
                     last_active_node = Some(a);
                 }
 
-                if adjustment_ratio > min_adjustment_ratio()
+                if adjustment_ratio >= min_adjustment_ratio()
                     && adjustment_ratio <= current_maximum_adjustment_ratio
                 {
-                    println!(
-                        "Adjustment ratio is <= {:?}",
-                        current_maximum_adjustment_ratio
-                    );
                     // This is a feasible breakpoint.
                     let badness = adjustment_ratio.abs().spow(3);
                     println!("Badness: {:?}", badness);
@@ -431,19 +430,42 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<Sp>) -> Vec<usize> {
                     // non-breakable penalty item to avoid rendering glue or
                     // penalties at the beginning of lines.
 
+                    let mut width_to_next_box = Sp(0);
+                    let mut shrink_to_next_box = Sp(0);
+                    let mut stretch_to_next_box = Sp(0);
+
+                    for c in b..paragraph.items.len() {
+                        let next_item = &paragraph.items[c];
+
+                        width_to_next_box += item.width;
+
+                        match next_item.content {
+                            Content::BoundingBox { .. } => break,
+                            Content::Glue {
+                                shrinkability,
+                                stretchability,
+                            } => {
+                                shrink_to_next_box += shrinkability;
+                                stretch_to_next_box += stretchability;
+                            }
+                            Content::Penalty { value, .. } => {
+                                if value >= MAX_COST {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
                     let new_node = Node {
                         index: b,
                         line: a.line + 1,
                         fitness,
-                        total_width: sum_width,
-                        total_shrink: sum_shrink,
-                        total_stretch: sum_stretch,
+                        total_width: sum_width + width_to_next_box,
+                        total_shrink: sum_shrink + shrink_to_next_box,
+                        total_stretch: sum_stretch + stretch_to_next_box,
                         total_demerits: a.total_demerits + demerits,
                     };
-                    let inserted_node = graph.add_node(new_node);
                     feasible_breakpoints.push(new_node);
-
-                    graph.add_edge(inserted_node, node, new_node.total_demerits);
                 }
             }
 
@@ -451,6 +473,11 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<Sp>) -> Vec<usize> {
                 graph.remove_node(node);
             }
         }
+
+        println!(
+            "Looking for lowest score breakpoint. There are {} breakpoints.",
+            feasible_breakpoints.len()
+        );
 
         // Add feasible breakpoint with lowest score to active set.
         if let Some(previous_node_index) = last_previous_node_index {
@@ -463,6 +490,8 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<Sp>) -> Vec<usize> {
                     }
                 }
 
+                println!("Best breakpoint node: {:?}", last_best_node);
+
                 let inserted_node = graph.add_node(last_best_node);
                 last_best_node_index = Some(inserted_node);
 
@@ -471,6 +500,17 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<Sp>) -> Vec<usize> {
                     inserted_node,
                     previous_node_index,
                     last_best_node.total_demerits,
+                );
+
+                graph.add_edge(
+                    previous_node_index,
+                    inserted_node,
+                    last_best_node.total_demerits,
+                );
+
+                println!(
+                    "Node added to active graph. Graph has {} nodes.",
+                    graph.node_count()
                 );
             }
         }
@@ -483,13 +523,16 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<Sp>) -> Vec<usize> {
     let mut result: Vec<usize> = Vec::new();
 
     if let Some(best_node_index) = last_best_node_index {
-        for edge in graph.edges(best_node_index) {
-            if let Some(node) = graph.node_weight(edge.target()) {
+        let mut dfs = Dfs::new(&graph, best_node_index);
+        while let Some(node_index) = dfs.next(&graph) {
+            // use a detached neighbors walker
+            if let Some(node) = graph.node_weight(node_index) {
                 result.push(node.index);
             }
         }
     }
 
+    result.reverse();
     result
 }
 
@@ -560,6 +603,13 @@ fn compute_adjustment_ratio(
     total_stretchability: Sp,
     total_shrinkability: Sp,
 ) -> Rational {
+    // println!(
+    //     "Computing AR.\nActual length: {:?}\nDesired length: {:?}\n\
+    //      Stretchability: {:?}\n\
+    //      Shrinkability: {:?}",
+    //     actual_length, desired_length, total_stretchability, total_shrinkability
+    // );
+
     if actual_length == desired_length {
         zero()
     } else if actual_length < desired_length {
@@ -644,6 +694,7 @@ fn positionate_items(
 #[cfg(test)]
 mod tests {
     use crate::config::Config;
+    use crate::typography::items::Content;
     use crate::typography::paragraphs::{algorithm, find_legal_breakpoints, itemize_paragraph};
     use crate::units::{Mm, Sp};
     use crate::{Error, Result};
@@ -750,8 +801,21 @@ mod tests {
 
         let lines_length = vec![];
         let breakpoints = algorithm(&paragraph, lines_length);
+        // let positions = positionate_items(paragraph.items, lines_length, breakpoints);
 
         println!("Breakpoints: {:?}", breakpoints);
+        for (c, item) in paragraph.items.iter().enumerate() {
+            match item.content {
+                Content::BoundingBox { glyph } => print!("{}", glyph),
+                _ => {
+                    if breakpoints.contains(&c) {
+                        print!("\n");
+                    } else {
+                        print!(" ");
+                    }
+                }
+            }
+        }
 
         panic!("Test");
 
