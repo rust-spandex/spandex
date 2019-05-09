@@ -414,7 +414,7 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<i64>) -> Vec<usize> {
                         Sp(1),
                     );
 
-                    let mut demerits = compute_demerits(penalty, badness);
+                    let mut demerits = compute_demerits(&penalty, &badness);
 
                     println!("Demerits: {:?}", demerits);
 
