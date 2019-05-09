@@ -7,7 +7,7 @@ use crate::saturating::Saturating;
 use crate::typography::items::{
     Content, Item, PositionedItem, INFINITELY_NEGATIVE_PENALTY, INFINITELY_POSITIVE_PENALTY,
 };
-use crate::units::{Sp, PLUS_INFINITY};
+use crate::units::{Mm, Sp, PLUS_INFINITY};
 use hyphenation::*;
 use num_rational::Ratio;
 use num_traits::sign::Signed;
@@ -47,7 +47,7 @@ fn min_adjustment_ratio() -> Rational {
 }
 
 const DASH_GLYPH: char = '-';
-const DEFAULT_LINE_LENGTH: i64 = 65;
+const DEFAULT_LINE_LENGTH: Sp = Sp::from(Mm(270));
 const MIN_COST: Sp = Sp(50);
 const ADJACENT_LOOSE_TIGHT_PENALTY: Sp = Sp(50);
 const MIN_ADJUSTMENT_RATIO: Sp = Sp(1);
@@ -246,7 +246,7 @@ impl Hash for Node {
 /// Returns the length of the line of given index, from a list of
 /// potential line lengths. If the list is too short, the line
 /// length will default to `DEFAULT_LINE_LENGTH`.
-fn get_line_length(lines_length: &Vec<i64>, index: usize) -> i64 {
+fn get_line_length(lines_length: &Vec<Sp>, index: usize) -> Sp {
     if index < lines_length.len() {
         lines_length[index]
     } else {
@@ -404,7 +404,7 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<i64>) -> Vec<usize> {
                         current_maximum_adjustment_ratio
                     );
                     // This is a feasible breakpoint.
-                    let badness = (adjustment_ratio).abs().pow(3);
+                    let badness = adjustment_ratio.abs().spow(3);
                     println!("Badness: {:?}", badness);
                     let penalty = Rational::new(
                         Sp(match item.content {
