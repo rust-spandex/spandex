@@ -3,6 +3,7 @@
 //! words into lines.
 
 use crate::font::Font;
+use crate::saturating::Saturating;
 use crate::typography::items::{
     Content, Item, PositionedItem, INFINITELY_NEGATIVE_PENALTY, INFINITELY_POSITIVE_PENALTY,
 };
@@ -259,15 +260,15 @@ fn get_line_length(lines_length: &Vec<i64>, index: usize) -> i64 {
 
 /// Computes the demerits of a line based on its accumulated penalty
 /// and badness.
-fn compute_demerits(penalty: Rational, badness: Rational) -> Rational {
+fn compute_demerits(penalty: &Rational, badness: &Rational) -> Rational {
     let one = Rational::new_raw(Sp(1), Sp(1));
 
-    if penalty >= zero() {
-        (one + badness + penalty).pow(2)
-    } else if penalty > Rational::new_raw(MIN_COST, Sp(1)) {
-        (one + badness).pow(2) - penalty.pow(2)
+    if penalty >= &zero() {
+        one.sadd(badness).sadd(penalty).spow(2)
+    } else if penalty > &Rational::new_raw(MIN_COST, Sp(1)) {
+        one.sadd(badness).spow(2) - penalty.spow(2)
     } else {
-        (one + badness).pow(2)
+        one.sadd(badness).spow(2)
     }
 }
 
