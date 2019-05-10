@@ -263,7 +263,7 @@ impl fmt::Display for Warnings {
 
 
 /// The abstract syntax tree representing the parsed file.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Ast {
     /// A title.
     Title {

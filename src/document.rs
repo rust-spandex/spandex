@@ -188,8 +188,20 @@ impl Document {
                 }
             },
 
-            Ast::Title { .. } => {
-                self.write_paragraph::<NaiveJustifier>(ast, font_config, size, &en);
+            Ast::Title { level, content } => {
+                self.counters.increment(*level as i32);
+                match &**content {
+                    Ast::Group(children) => {
+                        let mut new_children = vec![Ast::Text(format!("{}", self.counters))];
+                        new_children.extend_from_slice(children);
+                        let new_ast = Ast::Title {
+                            level: *level,
+                            content: Box::new(Ast::Group(new_children)),
+                        };
+                        self.write_paragraph::<NaiveJustifier>(&new_ast, font_config, size, &en);
+                    },
+                    _ => self.write_paragraph::<NaiveJustifier>(ast, font_config, size, &en),
+                }
                 self.new_line(size);
             },
 
@@ -210,8 +222,6 @@ impl Document {
         let en = Standard::from_embedded(Language::EnglishUS).unwrap();
 
         for paragraph in content.split("\n") {
-
-            // Ugly copy right there...
             let ast = Ast::Text(paragraph.to_owned());
             self.write_paragraph::<NaiveJustifier>(&ast, font_config, size, &en);
             self.new_line(size);
@@ -221,7 +231,7 @@ impl Document {
     /// Writes a paragraph on the document.
     pub fn write_paragraph<'a, J: Justifier>(&mut self, paragraph: &Ast, font_config: &FontConfig, size: Sp, dict: &Standard) {
 
-        let paragraph = itemize_ast(paragraph, font_config, size, dict);
+        let paragraph = itemize_ast(paragraph, font_config, size, dict, Sp(0));
         let justified = J::justify(&paragraph, self.window.width);
 
         for line in justified {

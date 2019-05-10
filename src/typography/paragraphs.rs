@@ -44,9 +44,14 @@ impl<'a> Paragraph<'a> {
 }
 
 /// Parses an AST into a sequence of items.
-pub fn itemize_ast<'a>(ast: &Ast, font_config: &'a FontConfig, size: Sp, dictionary: &Standard) -> Paragraph<'a> {
+pub fn itemize_ast<'a>(ast: &Ast, font_config: &'a FontConfig, size: Sp, dictionary: &Standard, indent: Sp) -> Paragraph<'a> {
     let mut p = Paragraph::new();
     let current_style = FontStyle::regular();
+
+    if indent != Sp(0) {
+        p.push(Item::glue(indent, Sp(0), Sp(0)));
+    }
+
     itemize_ast_aux(ast, font_config, size, dictionary, current_style, &mut p);
     p
 }
@@ -216,40 +221,29 @@ fn compute_adjustment_ratio(
 /// Unit tests for the paragraphs typesetting.
 #[cfg(test)]
 mod tests {
+    use crate::parser::Ast;
     use crate::config::Config;
-    use crate::typography::Glyph;
-    use crate::typography::paragraphs::{find_legal_breakpoints, itemize_paragraph};
+    use crate::typography::paragraphs::{find_legal_breakpoints, itemize_ast};
     use crate::units::{Pt, Sp};
-    use crate::{Error, Result};
+    use crate::Result;
     use hyphenation::*;
-    use std::path::PathBuf;
 
     #[test]
     fn test_paragraph_itemization() -> Result<()> {
         let words = "Lorem ipsum dolor sit amet.";
+        let ast = Ast::Paragraph(vec![Ast::Text(words.into())]);
 
         let en_us = Standard::from_embedded(Language::EnglishUS)?;
 
         let (_, font_manager) = Config::with_title("Test").init()?;
-
-        let regular_font_name = "CMU Serif Roman";
-        // let bold_font_name = "CMU Serif Bold";
-
-        let font = font_manager
-            .get(regular_font_name)
-            .ok_or(Error::FontNotFound(PathBuf::from(regular_font_name)))?;
-
-        let words = words
-            .chars()
-            .map(|x| Glyph::new(x, font, Pt(12.0).into()))
-            .collect::<Vec<_>>();
+        let config = font_manager.default_config();
 
         // No indentation, meaning no leading empty box.
-        let paragraph = itemize_paragraph(&words, Sp(0), &en_us);
+        let paragraph = itemize_ast(&ast, &config, Pt(10.0).into(), &en_us, Sp(0));
         assert_eq!(paragraph.items.len(), 32);
 
         // Indentated paragraph, implying the presence of a leading empty box.
-        let paragraph = itemize_paragraph(&words, Sp(120_000), &en_us);
+        let paragraph = itemize_ast(&ast, &config, Pt(10.0).into(), &en_us, Sp(120_000));
         assert_eq!(paragraph.items.len(), 33);
 
         Ok(())
@@ -258,25 +252,15 @@ mod tests {
     #[test]
     fn test_legal_breakpoints() -> Result<()> {
         let words = "Lorem ipsum dolor sit amet.";
+        let ast = Ast::Paragraph(vec![Ast::Text(words.into())]);
 
         let en_us = Standard::from_embedded(Language::EnglishUS)?;
 
         let (_, font_manager) = Config::with_title("Test").init()?;
-
-        let regular_font_name = "CMU Serif Roman";
-        // let bold_font_name = "CMU Serif Bold";
-
-        let font = font_manager
-            .get(regular_font_name)
-            .ok_or(Error::FontNotFound(PathBuf::from(regular_font_name)))?;
-
-        let words = words
-            .chars()
-            .map(|x| Glyph::new(x, font, Pt(12.0).into()))
-            .collect::<Vec<_>>();
+        let config = font_manager.default_config();
 
         // Indentated paragraph, implying the presence of a leading empty box.
-        let paragraph = itemize_paragraph(&words, Sp(120_000), &en_us);
+        let paragraph = itemize_ast(&ast, &config, Pt(10.0).into(), &en_us, Sp(120_000));
 
         let legal_breakpoints = find_legal_breakpoints(&paragraph);
         // [ ] Lorem ip-sum do-lor sit amet.

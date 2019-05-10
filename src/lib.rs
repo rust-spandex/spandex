@@ -94,17 +94,7 @@ pub type Result<T> = result::Result<T, Error>;
 /// Compiles a spandex project.
 pub fn build(config: &Config) -> Result<()> {
     let (mut document, font_manager) = config.init()?;
-
-    let regular_font_name = "CMU Serif Roman";
-    let bold_font_name = "CMU Serif Bold";
-    let italic_font_name = "CMU Serif Italic";
-    let bold_italic_font_name = "CMU Serif BoldItalic";
-
-    let font_config = font_manager.config(
-        regular_font_name,
-        bold_font_name,
-        italic_font_name,
-        bold_italic_font_name)?;
+    let font_config = font_manager.default_config();
 
     let mut content = String::new();
     let mut file = File::open(&config.input)?;

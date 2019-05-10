@@ -138,21 +138,6 @@ pub struct FontManager {
 }
 
 impl FontManager {
-    /// Creates a font config.
-    pub fn config<'a>(&'a self, regular: &str, bold: &str, italic: &str, bold_italic: &str)
-        -> Result<FontConfig<'a>> {
-
-        Ok(FontConfig {
-            regular: self.fonts.get(regular).ok_or(Error::FontNotFound(PathBuf::from(regular)))?,
-            bold: self.fonts.get(bold).ok_or(Error::FontNotFound(PathBuf::from(bold)))?,
-            italic: self.fonts.get(italic).ok_or(Error::FontNotFound(PathBuf::from(italic)))?,
-            bold_italic: self.fonts.get(bold_italic).ok_or(Error::FontNotFound(PathBuf::from(bold_italic)))?,
-        })
-    }
-}
-
-impl FontManager {
-
     /// Creates a new font manager, with the default fonts.
     pub fn init(document: &mut Document) -> Result<FontManager> {
 
@@ -213,6 +198,32 @@ impl FontManager {
     /// Returns a reference font if it is present in the font manager.
     pub fn get(&self, font_name: &str) -> Option<&Font> {
         self.fonts.get(font_name)
+    }
+
+    /// Creates a font config.
+    pub fn config<'a>(&'a self, regular: &str, bold: &str, italic: &str, bold_italic: &str)
+        -> Result<FontConfig<'a>> {
+
+        Ok(FontConfig {
+            regular: self.fonts.get(regular).ok_or(Error::FontNotFound(PathBuf::from(regular)))?,
+            bold: self.fonts.get(bold).ok_or(Error::FontNotFound(PathBuf::from(bold)))?,
+            italic: self.fonts.get(italic).ok_or(Error::FontNotFound(PathBuf::from(italic)))?,
+            bold_italic: self.fonts.get(bold_italic).ok_or(Error::FontNotFound(PathBuf::from(bold_italic)))?,
+        })
+    }
+
+    /// Returns the default configuration for computer modern fonts.
+    pub fn default_config<'a>(&'a self) -> FontConfig<'a> {
+        let regular = "CMU Serif Roman";
+        let bold = "CMU Serif Bold";
+        let italic = "CMU Serif Italic";
+        let bold_italic = "CMU Serif BoldItalic";
+
+        // This should never fail.
+        match self.config(regular, bold, italic, bold_italic) {
+            Ok(c) => c,
+            Err(_) => unreachable!("Default font not found, this should never happen"),
+        }
     }
 
 }
