@@ -1,21 +1,21 @@
 //! This module contains the trait and implementation of justification algorithms.
 
 use crate::units::Sp;
-use crate::font::Font;
+use crate::typography::Glyph;
 use crate::typography::items::Content;
 use crate::typography::paragraphs::Paragraph;
 
 /// An algorithm that justifies a paragraph.
 pub trait Justifier {
     /// Justifies the paragraph passed as parameter.
-    fn justify<'a>(paragraph: &'a Paragraph<'a>, text_width: Sp) -> Vec<Vec<(char, &'a Font, Sp)>>;
+    fn justify<'a>(paragraph: &'a Paragraph<'a>, text_width: Sp) -> Vec<Vec<(Glyph<'a>, Sp)>>;
 }
 
 /// A naive justifier, that goes to the next line once a word overtakes the text width.
 pub struct NaiveJustifier;
 
 impl Justifier for NaiveJustifier {
-    fn justify<'a>(paragraph: &'a Paragraph<'a>, text_width: Sp) -> Vec<Vec<(char, &'a Font, Sp)>> {
+    fn justify<'a>(paragraph: &'a Paragraph<'a>, text_width: Sp) -> Vec<Vec<(Glyph<'a>, Sp)>> {
         let mut ret = vec![];
         let mut current_line = vec![];
         let mut current_word = vec![];
@@ -58,8 +58,8 @@ impl Justifier for NaiveJustifier {
                 for word in current_line {
                     for item in &word {
                         match item.content {
-                            Content::BoundingBox { glyph, font } => {
-                                final_line.push((glyph, font, current_x));
+                            Content::BoundingBox(ref glyph) => {
+                                final_line.push((glyph.clone(), current_x));
                                 current_x += item.width;
                             },
 
@@ -84,8 +84,8 @@ impl Justifier for NaiveJustifier {
         for word in current_line {
             for item in word {
                 match item.content {
-                    Content::BoundingBox { glyph, font } => {
-                        final_line.push((glyph, font, current_x));
+                    Content::BoundingBox(ref glyph) => {
+                        final_line.push((glyph.clone(), current_x));
                         current_x += item.width;
                     },
                     _ => (),

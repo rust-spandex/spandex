@@ -110,9 +110,7 @@ pub fn build(config: &Config) -> Result<()> {
     let mut file = File::open(&config.input)?;
     file.read_to_string(&mut content)?;
 
-    if config.input.ends_with(".md") || config.input.ends_with(".mdown") {
-        document.write_markdown(&content, &font_config, Pt(10.0).into());
-    } else if config.input.ends_with(".dex") {
+    if config.input.ends_with(".dex") {
         let parsed = parse(&config.input)?;
         println!("{}", parsed.warnings);
         document.render(&parsed.ast, &font_config, Pt(10.0).into());

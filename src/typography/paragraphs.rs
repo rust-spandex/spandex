@@ -6,7 +6,9 @@ use std::slice::Iter;
 
 use hyphenation::*;
 
-use crate::units::{Sp, PLUS_INFINITY};
+use crate::parser::Ast;
+use crate::font::{FontConfig, FontStyle};
+use crate::units::{Sp, Pt, PLUS_INFINITY};
 use crate::typography::Glyph;
 use crate::typography::items::{
     Content,
@@ -18,6 +20,7 @@ use crate::typography::items::{
 const DASH_GLYPH: char = '-';
 
 /// Holds a list of items describing a paragraph.
+#[derive(Debug)]
 pub struct Paragraph<'a> {
     /// Sequence of items representing the structure of the paragraph.
     pub items: Vec<Item<'a>>,
@@ -40,99 +43,121 @@ impl<'a> Paragraph<'a> {
     }
 }
 
-/// Parses a string into a sequence of items.
-pub fn itemize_paragraph<'a>(
-    glyphs: &'a [Glyph<'a>],
-    indentation: Sp,
-    dictionary: &Standard,
-) -> Paragraph<'a> {
-    let mut paragraph = Paragraph::new();
-
-    if indentation != Sp(0) {
-        paragraph.push(Item::glue(indentation, Sp(0), Sp(0)));
-    }
-
-    let ideal_spacing = Sp(90_000);
-    let mut previous_glyph = 'c';
-    let mut current_word = vec![];
-
-    // Turn each word of the paragraph into a sequence of boxes for
-    // the caracters of the word. This includes potential punctuation
-    // marks.
-    for glyph in glyphs {
-        if glyph.glyph.is_whitespace() {
-            paragraph.push(get_glue_from_context(previous_glyph, ideal_spacing));
-
-            // Reached end of current word, handle hyphenation.
-            let to_hyphenate = current_word
-                .iter()
-                .map(|x: &&Glyph| x.glyph.to_string())
-                .collect::<Vec<_>>().join("");
-
-            let hyphenated = dictionary.hyphenate(&to_hyphenate);
-
-            let break_indices = &hyphenated.breaks;
-
-            for (i, g) in current_word.iter().enumerate() {
-                if break_indices.contains(&i) {
-                    paragraph.push(Item::penalty(Sp(0), 50, true))
-                }
-
-                paragraph.push(Item::from_glyph(g.glyph, g.font, g.scale));
-
-                if g.glyph == DASH_GLYPH {
-                    paragraph.push(Item::penalty(Sp(0), 50, true))
-                }
-            }
-
-            current_word = vec![];
-        } else {
-            current_word.push(glyph);
-        }
-
-        previous_glyph = glyph.glyph;
-    }
-
-    // Ugly code duplication to ensure the last word is treated
-    if ! current_word.is_empty() {
-        paragraph.push(get_glue_from_context(previous_glyph, ideal_spacing));
-
-        // Reached end of current word, handle hyphenation.
-        let to_hyphenate = current_word
-            .iter()
-            .map(|x: &&Glyph| x.glyph.to_string())
-            .collect::<Vec<_>>().join("");
-
-        let hyphenated = dictionary.hyphenate(&to_hyphenate);
-
-        let break_indices = &hyphenated.breaks;
-
-        for (i, g) in current_word.iter().enumerate() {
-            if break_indices.contains(&i) {
-                paragraph.push(Item::penalty(Sp(0), 50, true))
-            }
-
-            paragraph.push(Item::from_glyph(g.glyph, g.font, g.scale));
-
-            if g.glyph == DASH_GLYPH {
-                paragraph.push(Item::penalty(Sp(0), 50, true))
-            }
-        }
-
-    }
-
-    // Appends two items to ensure the end of any paragraph is
-    // treated properly: a glue specifying the available space
-    // at the right of the last tine, and a penalty item to
-    // force a line break.
-    paragraph.push(Item::glue(Sp(0), PLUS_INFINITY, Sp(0)));
-    paragraph.push(Item::penalty(Sp(0), INFINITELY_NEGATIVE_PENALTY, false));
-
-    paragraph
+/// Parses an AST into a sequence of items.
+pub fn itemize_ast<'a>(ast: &Ast, font_config: &'a FontConfig, size: Sp, dictionary: &Standard) -> Paragraph<'a> {
+    let mut p = Paragraph::new();
+    let current_style = FontStyle::regular();
+    itemize_ast_aux(ast, font_config, size, dictionary, current_style, &mut p);
+    p
 }
 
-/// Returns the glue based on the spatial context of the cursor.
-fn get_glue_from_context<'a>(_previous_glyph: char, ideal_spacing: Sp) -> Item<'a> {
+/// Parses an AST into a sequence of items.
+pub fn itemize_ast_aux<'a>(
+    ast: &Ast,
+    font_config: &'a FontConfig,
+    size: Sp,
+    dictionary: &Standard,
+    current_style: FontStyle,
+    buffer: &mut Paragraph<'a>,
+) {
+    match ast {
+        Ast::Title { level, content } => {
+            let size = size + Pt(3.0 * (4 - level) as f64).into();
+            itemize_ast_aux(content, font_config, size, dictionary, current_style.bold(), buffer);
+            buffer.push(Item::glue(Sp(0), PLUS_INFINITY, Sp(0)));
+            buffer.push(Item::penalty(Sp(0), INFINITELY_NEGATIVE_PENALTY, false));
+        },
+
+        Ast::Bold(content) => {
+            itemize_ast_aux(content, font_config, size, dictionary, current_style.bold(), buffer);
+        },
+
+        Ast::Italic(content) => {
+            itemize_ast_aux(content, font_config, size, dictionary, current_style.italic(), buffer);
+        },
+
+        Ast::Text(content) => {
+            let font = font_config.for_style(current_style);
+            let ideal_spacing = Sp(90_000);
+            let mut previous_glyph = None;
+            let mut current_word = vec![];
+
+            // Turn each word of the paragraph into a sequence of boxes for the caracters of the
+            // word. This includes potential punctuation marks.
+            for c in content.chars() {
+                if c.is_whitespace() {
+                    buffer.push(glue_from_context(previous_glyph, ideal_spacing));
+                    add_word_to_paragraph(current_word, dictionary, buffer);
+                    current_word = vec![];
+                } else {
+                    current_word.push(Glyph::new(c, font, size));
+                }
+
+                previous_glyph = Some(Glyph::new(c, font, size));
+            }
+
+            if ! current_word.is_empty() {
+                buffer.push(glue_from_context(previous_glyph, ideal_spacing));
+                add_word_to_paragraph(current_word, dictionary, buffer);
+            }
+
+
+        },
+
+        Ast::Group(children) => {
+            for child in children {
+                itemize_ast_aux(child, font_config, size, dictionary, current_style, buffer);
+            }
+        },
+
+        Ast::Paragraph(children)  => {
+            for child in children {
+                itemize_ast_aux(child, font_config, size, dictionary, current_style, buffer);
+            }
+
+            // Appends two items to ensure the end of any paragraph is treated properly: a glue
+            // specifying the available space at the right of the last tine, and a penalty item to
+            // force a line break.
+            buffer.push(Item::glue(Sp(0), PLUS_INFINITY, Sp(0)));
+            buffer.push(Item::penalty(Sp(0), INFINITELY_NEGATIVE_PENALTY, false));
+        },
+
+        _ => (),
+    }
+}
+
+/// Adds a word to a buffer.
+pub fn add_word_to_paragraph<'a>(
+    word: Vec<Glyph<'a>>,
+    dictionary: &Standard,
+    buffer: &mut Paragraph<'a>,
+) {
+    // Reached end of current word, handle hyphenation.
+    let to_hyphenate = word
+        .iter()
+        .map(|x: &Glyph| x.glyph.to_string())
+        .collect::<Vec<_>>().join("");
+
+    let hyphenated = dictionary.hyphenate(&to_hyphenate);
+
+    let break_indices = &hyphenated.breaks;
+
+    for (i, g) in word.iter().enumerate() {
+        if break_indices.contains(&i) {
+            buffer.push(Item::penalty(Sp(0), 50, true));
+        }
+
+        buffer.push(Item::from_glyph(g.clone()));
+
+        if g.glyph == DASH_GLYPH {
+            buffer.push(Item::penalty(Sp(0), 50, true));
+        }
+    }
+
+}
+
+/// Returns the glue based on the optional spatial context of the cursor.
+fn glue_from_context<'a>(_previous_glyph: Option<Glyph<'a>>, ideal_spacing: Sp) -> Item<'a> {
     // Todo: make this glue context dependent.
     Item::glue(ideal_spacing, Sp(0), Sp(0))
 }

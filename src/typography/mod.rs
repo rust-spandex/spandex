@@ -8,7 +8,7 @@ use crate::units::Sp;
 use crate::font::Font;
 
 /// A glyph with its font style.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Glyph<'a> {
     /// The content of the word.
     pub glyph: char,

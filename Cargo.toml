@@ -13,7 +13,6 @@ toml = "0.5.0"
 serde = { version = "1.0", features = ["derive"] }
 log = "0.4.6"
 beautylog = "0.1.0"
-pulldown-cmark = "0.4.1"
 hyphenation = { version = "0.7.1", features = ["embed_all"] }
 nom = "4.2.3"
 nom_locate = "0.3.1"

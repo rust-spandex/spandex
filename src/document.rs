@@ -7,17 +7,14 @@ use std::io::BufWriter;
 
 use printpdf::{PdfDocument, PdfDocumentReference, PdfPageReference, PdfLayerReference};
 
-use pulldown_cmark::{Event, Tag, Parser};
-
 use hyphenation::load::Load;
 use hyphenation::{Standard, Language};
 
-use crate::typography::Glyph;
 use crate::typography::justification::{Justifier, NaiveJustifier};
-use crate::font::{Font, FontConfig, FontStyle};
+use crate::font::{Font, FontConfig};
 use crate::units::{Pt, Sp};
 use crate::parser::Ast;
-use crate::typography::paragraphs::itemize_paragraph;
+use crate::typography::paragraphs::itemize_ast;
 
 /// The struct that manages the counters for the document.
 #[derive(Copy, Clone)]
@@ -181,170 +178,61 @@ impl Document {
 
     /// Renders an AST to the document.
     pub fn render(&mut self, ast: &Ast, font_config: &FontConfig, size: Sp) {
-        self.render_aux(ast, font_config, size, FontStyle::regular(), vec![]);
-    }
 
-    /// Renders an ast to the document with a certain buffer.
-    fn render_aux<'a>(&mut self, ast: &Ast, font_config: &'a FontConfig, size: Sp, current_style: FontStyle, buffer: Vec<Glyph<'a>>) -> Vec<Glyph<'a>>{
-
-        let mut buffer = buffer;
+        let en = Standard::from_embedded(Language::EnglishUS).unwrap();
 
         match ast {
-            Ast::Title { level, content } => {
-                let size = size + Pt(3.0 * (4 - level) as f64).into();
-                let buffer = self.render_aux(content, font_config, size, current_style.bold(), vec![]);
-                self.write_paragraph::<NaiveJustifier>(&buffer, size);
-                self.new_line(size);
-            },
-
-            Ast::Bold(content) => {
-                buffer = self.render_aux(content, font_config, size, current_style.bold(), buffer);
-            },
-
-            Ast::Italic(content) => {
-                buffer = self.render_aux(content, font_config, size, current_style.italic(), buffer);
-            },
-
-            Ast::InlineMath(_content) => {
-                unimplemented!();
-            },
-
-            Ast::Text(content) => {
-                let font = font_config.for_style(current_style);
-                for c in content.chars() {
-                    buffer.push(Glyph::new(c, font, size));
-                }
-            },
-
             Ast::Group(children) => {
                 for child in children {
-                    buffer = self.render_aux(child, font_config, size, current_style, buffer);
+                    self.render(child, font_config, size);
                 }
             },
 
-            Ast::Paragraph(children) => {
-                for child in children {
-                    buffer = self.render_aux(child, font_config, size, current_style, buffer);
-                }
-                self.write_paragraph::<NaiveJustifier>(&buffer, size);
-                buffer = vec![];
+            Ast::Title { .. } => {
+                self.write_paragraph::<NaiveJustifier>(ast, font_config, size, &en);
                 self.new_line(size);
-            }
+            },
 
-            Ast::Newline | Ast::Error(_) | Ast::Warning(_) => (),
+            Ast::Paragraph(_) => {
+                self.write_paragraph::<NaiveJustifier>(ast, font_config, size, &en);
+                self.new_line(size);
+                self.new_line(size);
+            },
+
+            _ => (),
         }
 
-        buffer
-    }
-
-    /// Writes markdown content on the document.
-    pub fn write_markdown(&mut self, markdown: &str, font_config: &FontConfig, size: Sp) {
-
-        let mut current_size = size;
-        let mut content = vec![];
-        let mut current_style = FontStyle::regular();
-
-        let parser = Parser::new(markdown);
-
-        for event in parser {
-            match event {
-                Event::Start(Tag::Header(i)) => {
-                    current_style = current_style.bold();
-                    let font = font_config.for_style(current_style);
-                    if self.counters.increment(i).is_some() {
-                        for c in format!("{}", self.counters).chars() {
-                            content.push(Glyph::new(c, font, size));
-                        }
-                    }
-
-                    current_size = size + Pt(3.0 * (4 - i) as f64).into();
-                },
-
-                Event::Start(Tag::Item) => {
-                    let font = font_config.for_style(current_style);
-                    content.push(Glyph::new('-', font, size));
-                },
-
-                Event::Start(Tag::Emphasis) => {
-                    current_style = current_style.italic();
-                },
-
-                Event::End(Tag::Emphasis) => {
-                    current_style = current_style.unitalic();
-                }
-
-                Event::Start(Tag::Strong) => {
-                    current_style = current_style.bold();
-                },
-
-                Event::End(Tag::Strong) => {
-                    current_style = current_style.unbold();
-                }
-
-                Event::Text(ref text) => {
-                    let font = font_config.for_style(current_style);
-                    content.push(Glyph::new(' ', font, size));
-                    for c in text.chars() {
-                        content.push(Glyph::new(c, font, size));
-                    }
-                },
-
-                Event::End(Tag::Paragraph) | Event::End(Tag::Item) => {
-                    self.write_paragraph::<NaiveJustifier>(&content, current_size);
-                    self.new_line(current_size);
-
-                    content.clear();
-                    current_size = size;
-                },
-
-                Event::End(Tag::Header(_)) => {
-                    current_style = current_style.unbold();
-                    self.write_paragraph::<NaiveJustifier>(&content, current_size);
-                    self.new_line(current_size);
-
-                    content.clear();
-                    current_size = size;
-                },
-
-                _ => (),
-            }
-        }
     }
 
     /// Writes content on the document.
     pub fn write_content(&mut self, content: &str, font_config: &FontConfig, size: Sp) {
 
-        let font = font_config.for_style(FontStyle::regular());
+        let en = Standard::from_embedded(Language::EnglishUS).unwrap();
 
         for paragraph in content.split("\n") {
 
-            let mut glyphs = vec![];
-            for c in paragraph.chars() {
-                glyphs.push(Glyph::new(c, font, size));
-            }
-
-            self.write_paragraph::<NaiveJustifier>(&glyphs, size);
+            // Ugly copy right there...
+            let ast = Ast::Text(paragraph.to_owned());
+            self.write_paragraph::<NaiveJustifier>(&ast, font_config, size, &en);
             self.new_line(size);
         }
     }
 
     /// Writes a paragraph on the document.
-    pub fn write_paragraph<'a, J: Justifier>(&mut self, paragraph: &'a [Glyph<'a>], size: Sp) {
-        let size_i64 = Into::<Pt>::into(size).0 as i64;
+    pub fn write_paragraph<'a, J: Justifier>(&mut self, paragraph: &Ast, font_config: &FontConfig, size: Sp, dict: &Standard) {
 
-        let en = Standard::from_embedded(Language::EnglishUS).unwrap();
-        let paragraph = itemize_paragraph(paragraph, Sp(0), &en);
+        let paragraph = itemize_ast(paragraph, font_config, size, dict);
         let justified = J::justify(&paragraph, self.window.width);
 
         for line in justified {
             for glyph in line {
 
                 self.layer.use_text(
-                    glyph.0.to_string(),
-                    size_i64,
-                    (self.window.x + glyph.2).into(),
+                    glyph.0.glyph.to_string(),
+                    Into::<Pt>::into(glyph.0.scale).0 as i64,
+                    (self.window.x + glyph.1).into(),
                     self.cursor.1.into(),
-                    glyph.1.printpdf());
+                    glyph.0.font.printpdf());
 
             }
 

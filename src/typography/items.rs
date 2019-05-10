@@ -1,7 +1,7 @@
 //! Various blocks holding information and specifications about the structure
 //! of a paragraph.
-use crate::font::Font;
 use crate::units::Sp;
+use crate::typography::Glyph;
 
 /// Value of the most negative penalty possible. This is considered infinite.
 pub const INFINITELY_NEGATIVE_PENALTY: i32 = i32::min_value();
@@ -28,13 +28,7 @@ pub enum Content<'a> {
     /// Though it holds the glyph it's representing, this item is
     /// essentially a black box as the only revelant information
     /// about it for splitting a paragraph into lines is its width.
-    BoundingBox {
-        /// The glyph that is meant to be typeset.
-        glyph: char,
-
-        /// The font style of the glyph.
-        font: &'a Font,
-    },
+    BoundingBox(Glyph<'a>),
     /// Glue is a blank space which can see its width altered in specified ways.
     ///
     /// It can either stretch or shrink up to a certain limit, and is used as
@@ -60,18 +54,10 @@ pub enum Content<'a> {
 
 impl<'a> Item<'a> {
     /// Creates a box for a particular glyph and font.
-    pub fn from_glyph(glyph: char, font: &'a Font, font_size: Sp) -> Item<'a> {
+    pub fn from_glyph(glyph: Glyph<'a>) -> Item<'a> {
         Item {
-            width: font.char_width(glyph, font_size),
-            content: Content::BoundingBox { glyph, font },
-        }
-    }
-
-    /// Creates a bounding box from its width in scaled points and its glyph.
-    pub fn bounding_box(width: Sp, glyph: char, font: &'a Font) -> Item<'a> {
-        Item {
-            width,
-            content: Content::BoundingBox { glyph, font },
+            width: glyph.font.char_width(glyph.glyph, glyph.scale),
+            content: Content::BoundingBox(glyph),
         }
     }
 
