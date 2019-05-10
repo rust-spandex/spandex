@@ -35,11 +35,9 @@ impl Justifier for NaiveJustifier {
                 Content::Penalty { .. } => (),
             }
 
-            if current_x > text_width {
+            if current_x > text_width && current_line.len() > 1 {
 
                 current_x = Sp(0);
-
-                debug_assert!(current_line.len() > 1);
 
                 let last_word = current_line.pop().unwrap();
 
@@ -51,7 +49,13 @@ impl Justifier for NaiveJustifier {
                 }
 
                 let available_space = text_width - occupied_width;
-                let word_space = available_space / Sp((current_line.len() - 1) as i64);
+
+                let word_space = if current_line.len() > 1 {
+                    available_space / Sp((current_line.len() - 1) as i64)
+                } else {
+                    Sp(200_00)
+                };
+
                 let mut current_x = Sp(0);
                 let mut final_line = vec![];
 

@@ -67,7 +67,7 @@ pub fn itemize_ast_aux<'a>(
 ) {
     match ast {
         Ast::Title { level, content } => {
-            let size = size + Pt(3.0 * (4 - level) as f64).into();
+            let size = size + Pt(3.0 * ((4 - *level as isize).max(1)) as f64).into();
             itemize_ast_aux(content, font_config, size, dictionary, current_style.bold(), buffer);
             buffer.push(Item::glue(Sp(0), PLUS_INFINITY, Sp(0)));
             buffer.push(Item::penalty(Sp(0), INFINITELY_NEGATIVE_PENALTY, false));
