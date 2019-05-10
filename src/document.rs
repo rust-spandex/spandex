@@ -17,25 +17,17 @@ use crate::parser::Ast;
 use crate::typography::paragraphs::itemize_ast;
 
 /// The struct that manages the counters for the document.
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub struct Counters {
-    /// The section counter.
-    pub sections: usize,
-
-    /// The subsection couter.
-    pub subsections: usize,
-
-    /// The subsubsection counter.
-    pub subsubsections: usize,
+    /// The counters.
+    pub counters: Vec<usize>,
 }
 
 impl Counters {
     /// Creates a new empty counters.
     pub fn new() -> Counters {
         Counters {
-            sections: 0,
-            subsections: 0,
-            subsubsections: 0,
+            counters: vec![0],
         }
     }
 
@@ -48,56 +40,37 @@ impl Counters {
     /// ```
     /// # use spandex::document::Counters;
     /// let mut counters = Counters::new();
+    /// counters.increment(0);
+    /// assert_eq!(counters.counter(0), 1);
+    /// assert_eq!(counters.counter(1), 0);
+    /// assert_eq!(counters.counter(2), 0);
     /// counters.increment(1);
-    /// assert_eq!(counters.sections, 1);
-    /// assert_eq!(counters.subsections, 0);
-    /// assert_eq!(counters.subsubsections, 0);
-    /// counters.increment(2);
-    /// assert_eq!(counters.subsections, 1);
-    /// counters.increment(2);
-    /// assert_eq!(counters.subsections, 2);
+    /// assert_eq!(counters.counter(1), 1);
     /// counters.increment(1);
-    /// assert_eq!(counters.sections, 2);
-    /// assert_eq!(counters.subsections, 0);
+    /// assert_eq!(counters.counter(1), 2);
+    /// counters.increment(0);
+    /// assert_eq!(counters.counter(0), 2);
+    /// assert_eq!(counters.counter(1), 0);
+    /// println!("{}", counters);
     /// ```
-    pub fn increment(&mut self, counter_id: i32) -> Option<usize> {
-        match counter_id {
-            1 => {
-                self.sections += 1;
-                self.subsections = 0;
-                self.subsubsections = 0;
-                Some(self.sections)
-            }
+    pub fn increment(&mut self, counter_id: usize) -> usize {
+        self.counters.resize(counter_id + 1, 0);
+        self.counters[counter_id] += 1;
+        self.counters[counter_id]
+    }
 
-            2 => {
-                self.subsections += 1;
-                self.subsubsections = 0;
-                Some(self.subsections)
-            },
-
-            3 => {
-                self.subsubsections += 1;
-                Some(self.subsubsections)
-            },
-
-            _ => {
-                warn!("sub sub sub sections are not supported");
-                None
-            },
+    /// Returns a specific value of a counter.
+    pub fn counter(&self, counter_id: usize) -> usize {
+        match self.counters.get(counter_id) {
+            Some(i) => *i,
+            None => 0,
         }
     }
 }
 
 impl fmt::Display for Counters {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "{}", self.sections)?;
-        if self.subsections > 0 {
-            write!(fmt, ".{}", self.subsections)?;
-        }
-        if self.subsubsections > 0 {
-            write!(fmt, ".{}", self.subsubsections)?;
-        }
-        Ok(())
+        write!(fmt, "{}", self.counters.iter().map(|x| x.to_string()).collect::<Vec<_>>().join("."))
     }
 }
 
@@ -189,7 +162,7 @@ impl Document {
             },
 
             Ast::Title { level, content } => {
-                self.counters.increment(*level as i32);
+                self.counters.increment(*level as usize);
                 match &**content {
                     Ast::Group(children) => {
                         let mut new_children = vec![Ast::Text(format!("{}", self.counters))];

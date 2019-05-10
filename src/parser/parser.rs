@@ -106,7 +106,7 @@ named!(pub parse_title<Span, Ast>,
         level: parse_title_level >>
         content: parse_line >> ({
             Ast::Title {
-                level: level as u8,
+                level: (level - 1) as u8,
                 content: Box::new(content)
             }
         })

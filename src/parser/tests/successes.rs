@@ -12,7 +12,7 @@ fn test_title_1() -> Result<(), Box<Error>> {
 
     let expected_ast = Ast::Group(vec![
         Ast::Title {
-            level: 1,
+            level: 0,
             content: Box::new(Ast::Group(vec![
                 Ast::Text("A title".into()),
             ])),
@@ -33,7 +33,7 @@ fn test_title_2() -> Result<(), Box<Error>> {
 
     let expected_ast = Ast::Group(vec![
         Ast::Title {
-            level: 2,
+            level: 1,
             content: Box::new(Ast::Group(vec![
                 Ast::Text("A subtitle".into())
             ])),
@@ -54,13 +54,13 @@ fn test_titles() -> Result<(), Box<Error>> {
 
     let expected_ast = Ast::Group(vec![
         Ast::Title {
-            level: 1,
+            level: 0,
             content: Box::new(Ast::Group(vec![
                 Ast::Text("A title".into())
             ])),
         },
         Ast::Title {
-            level: 2,
+            level: 1,
             content: Box::new(Ast::Group(vec![
                 Ast::Text("With its subtitle".into())
             ])),
