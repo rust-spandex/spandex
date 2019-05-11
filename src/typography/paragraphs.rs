@@ -11,23 +11,27 @@ use crate::units::{Mm, Sp, PLUS_INFINITY};
 use hyphenation::*;
 use num_rational::Ratio;
 use num_traits::sign::Signed;
+use petgraph::dot::{Config, Dot};
+use petgraph::graph::NodeIndex;
 use petgraph::stable_graph::StableGraph;
 use petgraph::visit::EdgeRef;
 use petgraph::visit::{Bfs, Dfs};
+use petgraph::visit::{IntoEdgeReferences, IntoNodeIdentifiers, NodeCompactIndexable};
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::f64;
+use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::vec::Vec;
 
 type Rational = Ratio<Sp>;
 
 fn minus_one() -> Rational {
-    Rational::new_raw(Sp(-1), Sp(1))
+    Rational::new_raw(Sp(-65536), Sp(1))
 }
 
 fn one() -> Rational {
-    Rational::new_raw(Sp(1), Sp(1))
+    Rational::new_raw(Sp(65536), Sp(1))
 }
 
 fn zero() -> Rational {
@@ -35,7 +39,7 @@ fn zero() -> Rational {
 }
 
 fn one_half() -> Rational {
-    Rational::new_raw(Sp(1), Sp(2))
+    Rational::new_raw(Sp(65536), Sp(2))
 }
 
 fn plus_infinity() -> Rational {
@@ -43,16 +47,21 @@ fn plus_infinity() -> Rational {
 }
 
 fn min_adjustment_ratio() -> Rational {
-    Rational::new(MIN_ADJUSTMENT_RATIO, Sp(1))
+    Rational::new_raw(MIN_ADJUSTMENT_RATIO, Sp(1))
+}
+
+fn max_adjustment_ratio() -> Rational {
+    Rational::new_raw(MAX_ADJUSTMENT_RATIO, Sp(1))
 }
 
 const DASH_GLYPH: char = '-';
 const SPACE_WIDTH: Sp = Sp(185771);
 const DEFAULT_LINE_LENGTH: Sp = Sp(50135040);
-const MIN_COST: Sp = Sp(50);
+const MIN_COST: i64 = -1000;
 const MAX_COST: i64 = 1000;
-const ADJACENT_LOOSE_TIGHT_PENALTY: Sp = Sp(50);
-const MIN_ADJUSTMENT_RATIO: Sp = Sp(1);
+const ADJACENT_LOOSE_TIGHT_PENALTY: f64 = 50.0;
+const MIN_ADJUSTMENT_RATIO: Sp = Sp(-1);
+const MAX_ADJUSTMENT_RATIO: Sp = Sp(10);
 
 /// Holds a list of items describing a paragraph.
 pub struct Paragraph {
@@ -203,7 +212,7 @@ fn find_beginning_of_line(paragraph: &Paragraph, index: usize) -> usize {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone)]
 struct Node {
     /// Index of the item represented by the node, within the paragraph.
     pub index: usize,
@@ -216,7 +225,13 @@ struct Node {
     pub total_width: Sp,
     pub total_stretch: Sp,
     pub total_shrink: Sp,
-    pub total_demerits: Rational,
+    pub total_demerits: f64,
+}
+
+impl fmt::Debug for Node {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.index)
+    }
 }
 
 impl PartialOrd for Node {
@@ -262,15 +277,15 @@ fn get_line_length(lines_length: &Vec<Sp>, index: usize) -> Sp {
 
 /// Computes the demerits of a line based on its accumulated penalty
 /// and badness.
-fn compute_demerits(penalty: &Rational, badness: &Rational) -> Rational {
+fn compute_demerits(penalty: &Rational, badness: &Rational) -> f64 {
     let one = Rational::new_raw(Sp(1), Sp(1));
 
     if penalty >= &zero() {
-        one.sadd(badness).sadd(penalty).spow(2)
-    } else if penalty > &Rational::new_raw(MIN_COST, Sp(1)) {
-        one.sadd(badness).spow(2) - penalty.spow(2)
+        one.sadd(badness).sadd(penalty).to_float().powi(2)
+    } else if penalty > &Rational::new_raw(Sp(MIN_COST), Sp(1)) {
+        one.sadd(badness).to_float().powi(2) - penalty.to_float().powi(2)
     } else {
-        one.sadd(badness).spow(2)
+        one.sadd(badness).to_float().powi(2)
     }
 }
 
@@ -287,32 +302,29 @@ fn compute_fitness(adjustment_ratio: Rational) -> i64 {
     }
 }
 
-fn algorithm(paragraph: &Paragraph, lines_length: Vec<Sp>) -> Vec<usize> {
-    let mut graph = StableGraph::<_, Rational>::new();
+fn algorithm(paragraph: &Paragraph, lines_length: &Vec<Sp>) -> Vec<usize> {
+    let mut graph = StableGraph::<_, f64>::new();
     let mut sum_width = Sp(0);
     let mut sum_stretch = Sp(0);
     let mut sum_shrink = Sp(0);
     let mut best_adjustment_ratio_above_threshold = Rational::new(PLUS_INFINITY, Sp(1));
     let mut current_maximum_adjustment_ratio = plus_infinity();
-    let mut last_item_is_box = false;
 
     let mut last_best_node: Node;
     let mut last_best_node_index: Option<_> = None;
 
     // Add an initial active node for the beginning of the paragraph.
-    let beginning = graph.add_node(Node {
+    graph.add_node(Node {
         index: 0,
         line: 0,
-        fitness: 0,
+        fitness: 1,
         total_width: Sp(0),
         total_stretch: Sp(0),
         total_shrink: Sp(0),
-        total_demerits: zero(),
+        total_demerits: 0.0,
     });
 
     for (b, item) in paragraph.items.iter().enumerate() {
-        let mut last_previous_node_index: Option<_> = None;
-
         if item.width < Sp(0) {
             panic!("Item #{} has negative width.", b);
         }
@@ -360,24 +372,20 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<Sp>) -> Vec<usize> {
         }
 
         // Update the set of active nodes.
-        let mut bfs = Bfs::new(&graph, beginning);
 
         let mut last_active_node: Option<&Node> = None;
-        let mut feasible_breakpoints: Vec<Node> = Vec::new();
-        let mut node_to_remove: Option<_> = None;
+        let mut feasible_breakpoints: Vec<(Node, NodeIndex)> = Vec::new();
+        let mut node_to_remove: Vec<NodeIndex> = Vec::new();
 
-        println!("======== BFS ==========");
-
-        while let Some(node) = bfs.next(&graph) {
-            last_previous_node_index = Some(node);
-
+        for node in graph.node_identifiers() {
             if let Some(a) = graph.node_weight(node) {
+                println!("[ Adjustment ratio from {} to {} ]", a.index, b);
                 let line_shrink = sum_shrink - a.total_shrink;
                 let line_stretch = sum_stretch - a.total_stretch;
                 let actual_width = sum_width - a.total_width;
 
-                println!("Line shrink: {:?}", line_shrink);
-                println!("Line stretch: {:?}", line_stretch);
+                println!("   -> Line shrink: {:?}", line_shrink);
+                println!("   -> Line stretch: {:?}", line_stretch);
 
                 let adjustment_ratio = compute_adjustment_ratio(
                     actual_width,
@@ -386,25 +394,27 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<Sp>) -> Vec<usize> {
                     line_shrink,
                 );
 
-                println!("Adjustment ratio: {:?}", adjustment_ratio);
+                println!("   -> Adjustment ratio: {:?}", adjustment_ratio.to_float());
+                println!("                  -> {:?}", adjustment_ratio);
 
                 if adjustment_ratio > current_maximum_adjustment_ratio {
                     best_adjustment_ratio_above_threshold =
                         adjustment_ratio.min(best_adjustment_ratio_above_threshold)
                 }
 
-                if adjustment_ratio < min_adjustment_ratio() {
+                if adjustment_ratio < min_adjustment_ratio() || is_forced_break(item) {
                     // Items from a to b cannot fit on the same line.
-                    node_to_remove = Some(node);
+                    println!("Removing node {:?}", node);
+                    node_to_remove.push(node);
                     last_active_node = Some(a);
                 }
 
                 if adjustment_ratio >= min_adjustment_ratio()
-                    && adjustment_ratio <= current_maximum_adjustment_ratio
+                    && adjustment_ratio <= max_adjustment_ratio()
                 {
                     // This is a feasible breakpoint.
                     let badness = adjustment_ratio.abs().spow(3);
-                    println!("Badness: {:?}", badness);
+                    println!("   -> Badness: {:?}", badness.to_float());
                     let penalty = Rational::new(
                         Sp(match item.content {
                             Content::Penalty { value, .. } => value,
@@ -412,10 +422,11 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<Sp>) -> Vec<usize> {
                         }),
                         Sp(1),
                     );
+                    println!("   -> Penalty: {:?}", penalty.to_float());
 
                     let mut demerits = compute_demerits(&penalty, &badness);
 
-                    println!("Demerits: {:?}", demerits);
+                    println!("   -> Demerits: {:?}", demerits);
 
                     // TODO: support double hyphenation penalty.
 
@@ -465,13 +476,14 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<Sp>) -> Vec<usize> {
                         total_stretch: sum_stretch + stretch_to_next_box,
                         total_demerits: a.total_demerits + demerits,
                     };
-                    feasible_breakpoints.push(new_node);
+                    feasible_breakpoints.push((new_node, node));
                 }
             }
+        }
 
-            if let Some(node) = node_to_remove {
-                graph.remove_node(node);
-            }
+        for node in node_to_remove {
+            println!("========> Removing node {:?}", node);
+            graph.remove_node(node);
         }
 
         println!(
@@ -479,50 +491,94 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<Sp>) -> Vec<usize> {
             feasible_breakpoints.len()
         );
 
-        // Add feasible breakpoint with lowest score to active set.
-        if let Some(previous_node_index) = last_previous_node_index {
-            if feasible_breakpoints.len() > 0 {
-                last_best_node = feasible_breakpoints[0];
+        // If there is a feasible break at b, then append the best such break
+        // as an active node.
+        if feasible_breakpoints.len() > 0 {
+            let (mut last_best_node, mut last_node_parent_id) = feasible_breakpoints[0];
 
-                for node in feasible_breakpoints.iter() {
-                    if node.total_demerits < last_best_node.total_demerits {
-                        last_best_node = *node;
-                    }
+            for (node, parent_id) in feasible_breakpoints.iter() {
+                println!("Node #{:?} with parent #{:?}", node, parent_id);
+                if node.total_demerits < last_best_node.total_demerits {
+                    last_best_node = *node;
+                    last_node_parent_id = *parent_id;
                 }
-
-                println!("Best breakpoint node: {:?}", last_best_node);
-
-                let inserted_node = graph.add_node(last_best_node);
-                last_best_node_index = Some(inserted_node);
-
-                // Create a precedence relationship between a and the best node.
-                graph.add_edge(
-                    inserted_node,
-                    previous_node_index,
-                    last_best_node.total_demerits,
-                );
-
-                graph.add_edge(
-                    previous_node_index,
-                    inserted_node,
-                    last_best_node.total_demerits,
-                );
-
-                println!(
-                    "Node added to active graph. Graph has {} nodes.",
-                    graph.node_count()
-                );
             }
+
+            println!("Best breakpoint node: {:?}", last_best_node);
+
+            let inserted_node = graph.add_node(last_best_node);
+            last_best_node_index = Some(inserted_node);
+
+            // Create a precedence relationship between a and the best node.
+            graph.add_edge(
+                inserted_node,
+                last_node_parent_id,
+                last_best_node.total_demerits,
+            );
+
+            // graph.add_edge(
+            //     last_node_parent_id,
+            //     inserted_node,
+            //     last_best_node.total_demerits.to_integer(),
+            // );
+
+            println!(
+                "Node added to active graph. Graph has {} nodes.",
+                graph.node_count()
+            );
+        }
+
+        match item.content {
+            Content::Glue {
+                shrinkability,
+                stretchability,
+            } => {
+                sum_width += item.width;
+                sum_shrink = sum_shrink.sadd(&shrinkability);
+                sum_stretch = sum_stretch.sadd(&stretchability);
+            }
+            _ => {}
         }
     }
 
     // TODO: handle situation where there's no option to fall within the window of
     // accepted adjustment ratios.
 
+    println!("{:?}", Dot::with_config(&graph, &[]));
+
+    // Choose the active node with fewest total demerits.
+    let mut best_node: Option<NodeIndex> = None;
+    for node in graph.node_identifiers() {
+        println!("Current node: {:?}, best node: {:?}", node, best_node);
+        if let Some(a) = graph.node_weight(node) {
+            match best_node {
+                Some(best_node_index) => {
+                    if let Some(best_node_value) = graph.node_weight(best_node_index) {
+                        if a.total_demerits < best_node_value.total_demerits {
+                            println!("Total demerits are better.");
+                            best_node = Some(node);
+                        } else {
+                            println!(
+                                "Total demerits aren't better ({:?} vs {:?}).",
+                                a.total_demerits, best_node_value.total_demerits
+                            );
+                        }
+                    }
+                }
+
+                None => best_node = Some(node),
+            }
+        }
+    }
+
     // Follow the edges backwards.
     let mut result: Vec<usize> = Vec::new();
 
-    if let Some(best_node_index) = last_best_node_index {
+    if let Some(best_node_index) = best_node {
+        println!(
+            "->>>>>>>>>>>>>>> LAST BEST NODE INDEX: {:?}",
+            best_node_index
+        );
         let mut dfs = Dfs::new(&graph, best_node_index);
         while let Some(node_index) = dfs.next(&graph) {
             // use a detached neighbors walker
@@ -536,6 +592,22 @@ fn algorithm(paragraph: &Paragraph, lines_length: Vec<Sp>) -> Vec<usize> {
     result
 }
 
+fn is_forced_break(item: &Item) -> bool {
+    match item.content {
+        Content::Penalty { value, .. } => value < MIN_COST,
+        _ => false,
+    }
+}
+
+pub trait ToFloat {
+    fn to_float(&self) -> f64;
+}
+
+impl ToFloat for Rational {
+    fn to_float(&self) -> f64 {
+        self.numer().0 as f64 / self.denom().0 as f64
+    }
+}
 // fn positionate_items(items: Vec<Item>, lines_length: Vec<i32>, breakpoints: Vec<i32>) -> PositionedItem {
 //     let adjustment_ratio = compute_adjustment_ratio(actual_length: Sp, desired_length: Sp, total_stretchability: Sp, total_shrinkability: Sp, )
 // }
@@ -553,7 +625,11 @@ fn compute_adjustment_ratios_with_breakpoints(
         let mut actual_length = Sp(0);
         let mut line_shrink = Sp(0);
         let mut line_stretch = Sp(0);
-        let next_breakpoint = breakpoints[breakpoint_line + 1];
+        let next_breakpoint = if breakpoint_line < breakpoints.len() - 1 {
+            breakpoints[breakpoint_line + 1]
+        } else {
+            items.len() - 1
+        };
 
         let beginning = if breakpoint_line == 0 {
             *breakpoint_index
@@ -569,9 +645,9 @@ fn compute_adjustment_ratios_with_breakpoints(
                     stretchability,
                 } => {
                     if p != beginning && p != next_breakpoint {
-                        actual_length += items[p].width;
-                        line_shrink += shrinkability;
-                        line_stretch += stretchability;
+                        actual_length = actual_length.sadd(&items[p].width);
+                        line_shrink = line_shrink.sadd(&shrinkability);
+                        line_stretch = line_stretch.sadd(&stretchability);
                     }
                 }
                 Content::Penalty { .. } => {
@@ -581,6 +657,12 @@ fn compute_adjustment_ratios_with_breakpoints(
                 }
             }
         }
+
+        println!("[ FROM {} to {}]", beginning, next_breakpoint);
+        println!("    -> Actual length: {:?}", actual_length);
+        println!("    -> Desired length: {:?}", desired_length);
+        println!("    -> Line shrink: {:?}", line_shrink);
+        println!("    -> Line stretch: {:?}", line_stretch);
 
         adjustment_ratios.push(compute_adjustment_ratio(
             actual_length,
@@ -603,23 +685,21 @@ fn compute_adjustment_ratio(
     total_stretchability: Sp,
     total_shrinkability: Sp,
 ) -> Rational {
-    // println!(
-    //     "Computing AR.\nActual length: {:?}\nDesired length: {:?}\n\
-    //      Stretchability: {:?}\n\
-    //      Shrinkability: {:?}",
-    //     actual_length, desired_length, total_stretchability, total_shrinkability
-    // );
-
     if actual_length == desired_length {
         zero()
     } else if actual_length < desired_length {
         if total_stretchability != Sp(0) {
+            println!(
+                "{:?} / {:?}",
+                desired_length - actual_length,
+                total_stretchability
+            );
             Rational::new(desired_length - actual_length, total_stretchability)
         } else {
             plus_infinity()
         }
     } else {
-        if total_stretchability != Sp(0) {
+        if total_shrinkability != Sp(0) {
             Rational::new(desired_length - actual_length, total_shrinkability)
         } else {
             plus_infinity()
@@ -695,7 +775,10 @@ fn positionate_items(
 mod tests {
     use crate::config::Config;
     use crate::typography::items::Content;
-    use crate::typography::paragraphs::{algorithm, find_legal_breakpoints, itemize_paragraph};
+    use crate::typography::paragraphs::{
+        algorithm, compute_adjustment_ratios_with_breakpoints, find_legal_breakpoints,
+        itemize_paragraph, ToFloat,
+    };
     use crate::units::{Mm, Sp};
     use crate::{Error, Result};
     use hyphenation::*;
@@ -784,6 +867,8 @@ mod tests {
                      which has seen so much, was astonished whenever it shone \
                      in her face.";
 
+        // let words = "The Ministry of Truth, which concerned itself with news, entertainment, education and the fine arts. The Ministry of Peace, which concerned itself with war. The Ministry of Love, which maintained law and order. And the Ministry of Plenty, which was responsible for economic affairs. Their names, in Newspeak: Minitrue, Minipax, Miniluv and Miniplenty.";
+
         let en_us = Standard::from_embedded(Language::EnglishUS)?;
 
         let (_, font_manager) = Config::with_title("Test").init()?;
@@ -800,18 +885,34 @@ mod tests {
         let paragraph = itemize_paragraph(words, indentation, &font, 12.0, &en_us);
 
         let lines_length = vec![];
-        let breakpoints = algorithm(&paragraph, lines_length);
+        let breakpoints = algorithm(&paragraph, &lines_length);
         // let positions = positionate_items(paragraph.items, lines_length, breakpoints);
 
+        let adjustment_ratios = compute_adjustment_ratios_with_breakpoints(
+            &paragraph.items,
+            &lines_length,
+            &breakpoints,
+        );
+
         println!("Breakpoints: {:?}", breakpoints);
+        let mut current_line = 0;
         for (c, item) in paragraph.items.iter().enumerate() {
             match item.content {
                 Content::BoundingBox { glyph } => print!("{}", glyph),
-                _ => {
+                Content::Glue { .. } => {
                     if breakpoints.contains(&c) {
+                        print!("       [{:?}]", adjustment_ratios[current_line].to_float());
                         print!("\n");
+                        current_line += 1;
                     } else {
                         print!(" ");
+                    }
+                }
+                Content::Penalty { .. } => {
+                    if breakpoints.contains(&c) {
+                        print!("-      [{:?}]", adjustment_ratios[current_line].to_float());
+                        print!("\n");
+                        current_line += 1;
                     }
                 }
             }
