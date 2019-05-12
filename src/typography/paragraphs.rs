@@ -658,12 +658,14 @@ fn positionate_items(
     items: &Vec<Item>,
     line_lengths: &Vec<Pt>,
     breakpoints: &Vec<usize>,
-) -> Vec<PositionedItem> {
+) -> Vec<Vec<PositionedItem>> {
     let adjustment_ratios =
         compute_adjustment_ratios_with_breakpoints(&items, &line_lengths, &breakpoints);
-    let mut positioned_items: Vec<PositionedItem> = Vec::new();
+    let mut lines_breakdown: Vec<Vec<PositionedItem>> = Vec::new();
 
     for breakpoint_line in 0..(breakpoints.len() - 1) {
+        let mut positioned_items: Vec<PositionedItem> = Vec::new();
+
         let breakpoint_index = breakpoints[breakpoint_line];
         let adjustment_ratio = adjustment_ratios[breakpoint_line].max(MIN_ADJUSTMENT_RATIO);
         let mut horizontal_offset = Pt(0.0);
@@ -714,9 +716,11 @@ fn positionate_items(
                 }
             }
         }
+
+        lines_breakdown.push(positioned_items);
     }
 
-    positioned_items
+    lines_breakdown
 }
 
 /// Unit tests for the paragraphs typesetting.
