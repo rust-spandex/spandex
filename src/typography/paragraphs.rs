@@ -237,7 +237,7 @@ fn compute_fitness(adjustment_ratio: f64) -> i64 {
     }
 }
 
-fn algorithm(paragraph: &Paragraph, lines_length: &Vec<Pt>) -> Vec<usize> {
+pub fn algorithm(paragraph: &Paragraph, lines_length: &Vec<Pt>) -> Vec<usize> {
     let mut graph = StableGraph::<_, f64>::new();
     let mut sum_width = Pt(0.0);
     let mut sum_stretch = Pt(0.0);
@@ -654,7 +654,7 @@ fn compute_adjustment_ratio(
 
 /// Generates a list of positioned items from a list of items making up a paragraph.
 /// The generated list is ready to be rendered.
-fn positionate_items(
+pub fn positionate_items(
     items: &Vec<Item>,
     line_lengths: &Vec<Pt>,
     breakpoints: &Vec<usize>,
