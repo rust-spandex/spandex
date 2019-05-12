@@ -15,10 +15,10 @@ use std::cmp::Ordering;
 /// Measure of what is supposed to be positive infinity.
 ///
 /// Any measure exceeding this value will be considered infinite.
-pub const PLUS_INFINITY: Sp = Sp(i64::MAX);
+pub const PLUS_INFINITY: Pt = Pt(f64::MAX);
 
 /// Measure of what is supposed to be negative infinity.
-pub const MINUS_INFINITY: Sp = Sp(i64::MIN);
+pub const MINUS_INFINITY: Pt = Pt(f64::MIN);
 
 /// Scaled point, equal to 1/65,536 of a point.
 ///
@@ -172,6 +172,14 @@ impl fmt::Debug for Pt {
 
 macro_rules! impl_operators {
     ($the_type: ty, $constructor: expr) => {
+        impl Add for $the_type {
+            type Output = $the_type;
+
+            fn add(self, other: $the_type) -> $the_type {
+                $constructor(self.0 + other.0)
+            }
+        }
+
         impl AddAssign for $the_type {
             fn add_assign(&mut self, other: $the_type) {
                 self.0 += other.0;
@@ -206,13 +214,13 @@ macro_rules! impl_operators {
             }
         }
 
-        // impl Mul for $the_type {
-        //     type Output = $the_type;
+        impl Mul for $the_type {
+            type Output = $the_type;
 
-        //     fn mul(self, other: $the_type) -> $the_type {
-        //         $constructor(self.0 * other.0)
-        //     }
-        // }
+            fn mul(self, other: $the_type) -> $the_type {
+                $constructor(self.0 * other.0)
+            }
+        }
 
         impl Rem for $the_type {
             type Output = $the_type;
@@ -228,39 +236,41 @@ impl_operators!(Sp, Sp);
 impl_operators!(Mm, Mm);
 impl_operators!(Pt, Pt);
 
-impl Add for Sp {
-    type Output = Sp;
+// impl Mul for Sp {
+//     type Output = Sp;
 
-    fn add(self, other: Sp) -> Sp {
-        let (result, did_overflow) = self.0.overflowing_add(other.0);
+//     fn mul(self, other: Sp) -> Sp {
+//         let (result, did_overflow) = self.0.overflowing_mul(other.0);
 
-        if did_overflow {
-            PLUS_INFINITY
-        } else {
-            Sp(result)
-        }
-    }
-}
-
-impl Mul for Sp {
-    type Output = Sp;
-
-    fn mul(self, other: Sp) -> Sp {
-        let (result, did_overflow) = self.0.overflowing_mul(other.0);
-
-        if did_overflow {
-            PLUS_INFINITY
-        } else {
-            Sp(result)
-        }
-    }
-}
+//         if did_overflow {
+//             PLUS_INFINITY
+//         } else {
+//             Sp(result)
+//         }
+//     }
+// }
 
 impl Mul<i64> for Sp {
     type Output = Sp;
 
     fn mul(self, rhs: i64) -> Sp {
         Sp(self.0 * rhs)
+    }
+}
+
+impl Mul<f64> for Pt {
+    type Output = Pt;
+
+    fn mul(self, rhs: f64) -> Pt {
+        Pt(self.0 * rhs)
+    }
+}
+
+impl Mul<Pt> for f64 {
+    type Output = Pt;
+
+    fn mul(self, rhs: Pt) -> Pt {
+        Pt(self * rhs.0)
     }
 }
 
@@ -318,6 +328,12 @@ impl From<Pt> for Mm {
 impl Into<Pt> for Mm {
     fn into(self) -> Pt {
         Pt((72.27 / 25.4) * self.0)
+    }
+}
+
+impl PartialOrd for Pt {
+    fn partial_cmp(&self, other: &Pt) -> Option<Ordering> {
+        self.0.partial_cmp(&other.0)
     }
 }
 
