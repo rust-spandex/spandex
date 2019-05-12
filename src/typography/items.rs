@@ -1,13 +1,7 @@
 //! Various blocks holding information and specifications about the structure
 //! of a paragraph.
 use crate::font::Font;
-use crate::units::{Pt, Sp};
-
-/// Value of the most negative penalty possible. This is considered infinite.
-pub const INFINITELY_NEGATIVE_PENALTY: i64 = i64::min_value();
-
-/// Value of the most positive penalty possible. This is considered infinite. g
-pub const INFINITELY_POSITIVE_PENALTY: i64 = i64::max_value();
+use crate::units::Pt;
 
 /// Top abstraction of an item, which is a specification for a box, a glue
 /// or a penalty.
@@ -93,6 +87,7 @@ impl Item {
 }
 
 /// Holds the information of an item that's ready to be rendered.
+#[derive(Debug)]
 pub struct PositionedItem {
     // The index of the item within the list of items that make up
     // the paragraph in which is stands.
