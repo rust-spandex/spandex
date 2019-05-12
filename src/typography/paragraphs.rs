@@ -64,7 +64,7 @@ pub fn itemize_paragraph(
         paragraph.push(Item::bounding_box(indentation, ' '));
     }
 
-    let hyphen_width = Pt(font.char_width("-", font_size));
+    let hyphen_width = Pt(font.char_width('-', font_size));
 
     let ideal_spacing = Pt(17.0);
     let mut previous_glyph = 'c';
@@ -655,21 +655,22 @@ fn compute_adjustment_ratio(
 /// Generates a list of positioned items from a list of items making up a paragraph.
 /// The generated list is ready to be rendered.
 fn positionate_items(
-    items: Vec<Item>,
-    line_lengths: Vec<Pt>,
-    breakpoints: Vec<usize>,
+    items: &Vec<Item>,
+    line_lengths: &Vec<Pt>,
+    breakpoints: &Vec<usize>,
 ) -> Vec<PositionedItem> {
     let adjustment_ratios =
         compute_adjustment_ratios_with_breakpoints(&items, &line_lengths, &breakpoints);
     let mut positioned_items: Vec<PositionedItem> = Vec::new();
 
-    for (breakpoint_line, breakpoint_index) in breakpoints.iter().enumerate() {
+    for breakpoint_line in 0..(breakpoints.len() - 1) {
+        let breakpoint_index = breakpoints[breakpoint_line];
         let adjustment_ratio = adjustment_ratios[breakpoint_line].max(MIN_ADJUSTMENT_RATIO);
         let mut horizontal_offset = Pt(0.0);
         let beginning = if breakpoint_line == 0 {
-            *breakpoint_index
+            breakpoint_index
         } else {
-            *breakpoint_index + 1
+            breakpoint_index + 1
         };
 
         for p in beginning..breakpoints[breakpoint_line + 1] {
@@ -695,7 +696,7 @@ fn positionate_items(
 
                         // TODO: add an option to handle the inclusion of glue.
 
-                        horizontal_offset = horizontal_offset + gap;
+                        horizontal_offset += gap;
                     }
                 }
                 Content::Penalty { .. } => {
@@ -722,7 +723,7 @@ mod tests {
     use crate::typography::items::Content;
     use crate::typography::paragraphs::{
         algorithm, compute_adjustment_ratios_with_breakpoints, find_legal_breakpoints,
-        itemize_paragraph,
+        itemize_paragraph, positionate_items,
     };
     use crate::units::{Mm, Pt};
     use crate::{Error, Result};
@@ -833,7 +834,11 @@ mod tests {
 
         let lines_length = vec![Pt(400.0)];
         let breakpoints = algorithm(&paragraph, &lines_length);
-        // let positions = positionate_items(paragraph.items, lines_length, breakpoints);
+        let positions = positionate_items(&paragraph.items, &lines_length, &breakpoints);
+
+        for (i, position) in positions.iter().enumerate() {
+            println!("{:?}", position);
+        }
 
         let adjustment_ratios = compute_adjustment_ratios_with_breakpoints(
             &paragraph.items,
