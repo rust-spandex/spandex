@@ -64,6 +64,8 @@ pub fn itemize_paragraph(
         paragraph.push(Item::bounding_box(indentation, ' '));
     }
 
+    let hyphen_width = Pt(font.char_width("-", font_size));
+
     let ideal_spacing = Pt(17.0);
     let mut previous_glyph = 'c';
     let mut current_word = String::from("");
@@ -87,7 +89,7 @@ pub fn itemize_paragraph(
                 paragraph.push(Item::from_glyph(c, font, font_size));
 
                 if c == DASH_GLYPH {
-                    paragraph.push(Item::penalty(Pt(0.0), 50.0, true))
+                    paragraph.push(Item::penalty(hyphen_width, 50.0, true))
                 }
             }
 
