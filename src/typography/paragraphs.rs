@@ -675,12 +675,15 @@ fn positionate_items(
 
         for p in beginning..breakpoints[breakpoint_line + 1] {
             match items[p].content {
-                Content::BoundingBox { .. } => positioned_items.push(PositionedItem {
-                    index: p,
-                    line: breakpoint_line,
-                    horizontal_offset: horizontal_offset,
-                    width: items[p].width,
-                }),
+                Content::BoundingBox { .. } => {
+                    positioned_items.push(PositionedItem {
+                        index: p,
+                        line: breakpoint_line,
+                        horizontal_offset: horizontal_offset,
+                        width: items[p].width,
+                    });
+                    horizontal_offset += items[p].width;
+                }
                 Content::Glue {
                     shrinkability,
                     stretchability,
