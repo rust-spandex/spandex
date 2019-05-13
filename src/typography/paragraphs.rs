@@ -317,13 +317,9 @@ pub fn algorithm(paragraph: &Paragraph, lines_length: &Vec<Pt>) -> Vec<usize> {
 
         for node in graph.node_identifiers() {
             if let Some(a) = graph.node_weight(node) {
-                // println!("[ Adjustment ratio from {} to {} ]", a.index, b);
                 let line_shrink = sum_shrink - a.total_shrink;
                 let line_stretch = sum_stretch - a.total_stretch;
                 let actual_width = sum_width - a.total_width;
-
-                // println!("   -> Line shrink: {:?}", line_shrink);
-                // println!("   -> Line stretch: {:?}", line_stretch);
 
                 let adjustment_ratio = compute_adjustment_ratio(
                     actual_width,
@@ -332,8 +328,6 @@ pub fn algorithm(paragraph: &Paragraph, lines_length: &Vec<Pt>) -> Vec<usize> {
                     line_shrink,
                 );
 
-                // println!("   -> Adjustment ratio: {:?}", adjustment_ratio);
-
                 if adjustment_ratio > current_maximum_adjustment_ratio {
                     best_adjustment_ratio_above_threshold =
                         adjustment_ratio.min(best_adjustment_ratio_above_threshold)
@@ -341,7 +335,6 @@ pub fn algorithm(paragraph: &Paragraph, lines_length: &Vec<Pt>) -> Vec<usize> {
 
                 if adjustment_ratio < MIN_ADJUSTMENT_RATIO || is_forced_break(item) {
                     // Items from a to b cannot fit on the same line.
-                    // println!("Removing node {:?}", node);
                     node_to_remove.push(node);
                 }
 
@@ -350,17 +343,12 @@ pub fn algorithm(paragraph: &Paragraph, lines_length: &Vec<Pt>) -> Vec<usize> {
                 {
                     // This is a feasible breakpoint.
                     let badness = adjustment_ratio.abs().powi(3);
-                    // println!("   -> Badness: {:?}", badness);
                     let penalty = match item.content {
                         Content::Penalty { value, .. } => value,
                         _ => 0.0,
                     };
 
-                    // println!("   -> Penalty: {:?}", penalty);
-
                     let mut demerits = compute_demerits(penalty, badness);
-
-                    // println!("   -> Demerits: {:?}", demerits);
 
                     // TODO: support double hyphenation penalty.
 
@@ -415,16 +403,6 @@ pub fn algorithm(paragraph: &Paragraph, lines_length: &Vec<Pt>) -> Vec<usize> {
             }
         }
 
-        // for node in node_to_remove {
-        //     println!("========> Removing node {:?}", node);
-        //     graph.remove_node(node);
-        // }
-
-        // println!(
-        //     "Looking for lowest score breakpoint. There are {} breakpoints.",
-        //     feasible_breakpoints.len()
-        // );
-
         // If there is a feasible break at b, then append the best such break
         // as an active node.
         if feasible_breakpoints.len() > 0 {
@@ -436,8 +414,6 @@ pub fn algorithm(paragraph: &Paragraph, lines_length: &Vec<Pt>) -> Vec<usize> {
                     last_node_parent_id = *parent_id;
                 }
             }
-
-            // println!("Best breakpoint node: {:?}", last_best_node);
 
             let inserted_node = graph.add_node(last_best_node);
 
@@ -455,41 +431,12 @@ pub fn algorithm(paragraph: &Paragraph, lines_length: &Vec<Pt>) -> Vec<usize> {
                 if let Some((best_node_on_current_line, _)) =
                     lines_best_node.get(&last_best_node.line)
                 {
-                    // println!(
-                    //     "==== Current best node on line: {:?}",
-                    //     best_node_on_current_line.total_demerits
-                    // );
                     if last_best_node.total_demerits < best_node_on_current_line.total_demerits {
-                        // println!(
-                        // "==== Last best node ({:?}) has less demerits: {:?}",
-                        // last_best_node.index, last_best_node.total_demerits
-                        // );
                         lines_best_node
                             .insert(last_best_node.line, (last_best_node, inserted_node));
-                    } else {
-
-                        // println!(
-                        //     "Last best node doesn't have better demerits: {:?}",
-                        //     last_best_node.total_demerits
-                        // );
-
                     }
                 }
             }
-            // graph.add_edge(
-            //     last_node_parent_id,
-            //     inserted_node,
-            //     last_best_node.total_demerits.to_integer(),
-            // );
-
-            // println!(
-            //     "Node {:?} added to active graph with parent {:?}. Graph has {} nodes.",
-            //     b,
-            //     last_node_parent_id,
-            //     graph.node_count()
-            // );
-
-            // println!("LINES BEST NODES SO FAR: {:?}", lines_best_node);
         }
 
         match item.content {
@@ -508,40 +455,10 @@ pub fn algorithm(paragraph: &Paragraph, lines_length: &Vec<Pt>) -> Vec<usize> {
     // TODO: handle situation where there's no option to fall within the window of
     // accepted adjustment ratios.
 
-    // println!("{:?}", Dot::with_config(&graph, &[]));
-
-    // // Choose the active node with fewest total demerits.
-    // let mut best_node: Option<NodeIndex> = None;
-    // for node in graph.node_identifiers() {
-    //     println!("Current node: {:?}, best node: {:?}", node, best_node);
-    //     if let Some(a) = graph.node_weight(node) {
-    //         match best_node {
-    //             Some(best_node_index) => {
-    //                 if let Some(best_node_value) = graph.node_weight(best_node_index) {
-    //                     if a.total_demerits < best_node_value.total_demerits {
-    //                         println!("Total demerits are better.");
-    //                         best_node = Some(node);
-    //                     } else {
-    //                         println!(
-    //                             "Total demerits aren't better ({:?} vs {:?}).",
-    //                             a.total_demerits, best_node_value.total_demerits
-    //                         );
-    //                     }
-    //                 }
-    //             }
-    //             None => best_node = Some(node),
-    //         }
-    //     }
-    // }
-
     // Follow the edges backwards.
     let mut result: Vec<usize> = Vec::new();
 
     if let Some((_, best_node_on_last_line)) = lines_best_node.get(&farthest_line) {
-        // println!(
-        //     "->>>>>>>>>>>>>>> Best node on last line: {:?}",
-        //     best_node_on_last_line
-        // );
         let mut dfs = Dfs::new(&graph, *best_node_on_last_line);
         while let Some(node_index) = dfs.next(&graph) {
             // use a detached neighbors walker
