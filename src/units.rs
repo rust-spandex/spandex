@@ -250,11 +250,11 @@ impl_operators!(Pt, Pt);
 //     }
 // }
 
-impl Mul<i64> for Sp {
-    type Output = Sp;
+impl Mul<i64> for Pt {
+    type Output = Pt;
 
-    fn mul(self, rhs: i64) -> Sp {
-        Sp(self.0 * rhs)
+    fn mul(self, rhs: i64) -> Pt {
+        Pt(self.0 * rhs as f64)
     }
 }
 
@@ -263,6 +263,14 @@ impl Mul<f64> for Pt {
 
     fn mul(self, rhs: f64) -> Pt {
         Pt(self.0 * rhs)
+    }
+}
+
+impl Mul<i64> for Sp {
+    type Output = Sp;
+
+    fn mul(self, rhs: i64) -> Sp {
+        Sp(self.0 * rhs)
     }
 }
 
