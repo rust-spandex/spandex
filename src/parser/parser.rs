@@ -5,6 +5,7 @@
 
 use nom::rest;
 
+use crate::ligature::ligature;
 use crate::parser::{Span, Ast, ToPosition, EmptyError, ErrorType, EmptyWarning, WarningType};
 
 /// Returns true if the character passed as parameter changes the type of parsing we're going to do.
@@ -66,7 +67,7 @@ named!(pub parse_any<Span, Ast>,
         | map!(tag!("*"), |x| error(x, ErrorType::UnmatchedStar))
         | map!(tag!("/"), |x| error(x, ErrorType::UnmatchedSlash))
         | map!(tag!("$"), |x| error(x, ErrorType::UnmatchedDollar))
-        | take_till!(should_stop) => { |x: Span| { Ast::Text(x.to_string()) } }
+        | take_till!(should_stop) => { |x: Span| { Ast::Text(ligature(x.fragment.0)) } }
     )
 );
 

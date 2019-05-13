@@ -11,6 +11,7 @@ pub mod font;
 pub mod typography;
 pub mod units;
 pub mod parser;
+pub mod ligature;
 
 use std::path::PathBuf;
 use std::fs::File;
