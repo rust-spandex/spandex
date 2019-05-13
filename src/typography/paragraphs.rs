@@ -255,7 +255,7 @@ pub fn algorithm(paragraph: &Paragraph, lines_length: &Vec<Pt>) -> Vec<usize> {
     let mut sum_stretch = Pt(0.0);
     let mut sum_shrink = Pt(0.0);
     let mut best_adjustment_ratio_above_threshold = f64::MAX;
-    let mut current_maximum_adjustment_ratio = f64::MAX;
+    let current_maximum_adjustment_ratio = f64::MAX;
 
     let mut lines_best_node = HashMap::new();
     let mut farthest_line: usize = 0;
@@ -311,7 +311,6 @@ pub fn algorithm(paragraph: &Paragraph, lines_length: &Vec<Pt>) -> Vec<usize> {
 
         // Update the set of active nodes.
 
-        let last_active_node: Option<&Node> = None;
         let mut feasible_breakpoints: Vec<(Node, NodeIndex)> = Vec::new();
         let mut node_to_remove: Vec<NodeIndex> = Vec::new();
 
@@ -643,7 +642,7 @@ mod tests {
     use crate::typography::items::Content;
     use crate::typography::paragraphs::{
         algorithm, compute_adjustment_ratios_with_breakpoints, find_legal_breakpoints,
-        itemize_paragraph, positionate_items,
+        itemize_paragraph,
     };
     use crate::units::Pt;
     use crate::{Error, Result};
@@ -754,11 +753,7 @@ mod tests {
 
         let lines_length = vec![Pt(400.0)];
         let breakpoints = algorithm(&paragraph, &lines_length);
-        let positions = positionate_items(&paragraph.items, &lines_length, &breakpoints);
-
-        for (i, position) in positions.iter().enumerate() {
-            println!("{:?}", position);
-        }
+        // let positions = positionate_items(&paragraph.items, &lines_length, &breakpoints);
 
         let adjustment_ratios = compute_adjustment_ratios_with_breakpoints(
             &paragraph.items,
