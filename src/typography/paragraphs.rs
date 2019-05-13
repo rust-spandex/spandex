@@ -3,17 +3,14 @@
 //! words into lines.
 
 use crate::font::Font;
-use crate::saturating::Saturating;
 use crate::typography::items::{Content, Item, PositionedItem};
 use crate::units::{Pt, PLUS_INFINITY};
 use hyphenation::*;
-use num_traits::sign::Signed;
-use petgraph::dot::Dot;
 use petgraph::graph::NodeIndex;
 use petgraph::stable_graph::StableGraph;
 use petgraph::visit::Dfs;
 use petgraph::visit::IntoNodeIdentifiers;
-use std::cmp::{min, Ordering};
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::f64;
 use std::fmt;
@@ -21,7 +18,7 @@ use std::hash::{Hash, Hasher};
 use std::vec::Vec;
 
 const DASH_GLYPH: char = '-';
-const SPACE_WIDTH: Pt = Pt(10.0);
+const SPACE_WIDTH: Pt = Pt(5.0);
 const DEFAULT_LINE_LENGTH: Pt = Pt(680.0);
 const MIN_COST: f64 = -1000.0;
 const MAX_COST: f64 = 1000.0;
@@ -66,7 +63,7 @@ pub fn itemize_paragraph(
 
     let hyphen_width = Pt(font.char_width('-', font_size));
 
-    let ideal_spacing = Pt(17.0);
+    let ideal_spacing = Pt(7.5);
     let mut previous_glyph = 'c';
     let mut current_word = String::from("");
 
@@ -114,7 +111,7 @@ pub fn itemize_paragraph(
 /// Returns the glue based on the spatial context of the cursor.
 fn get_glue_from_context(_previous_glyph: char, ideal_spacing: Pt) -> Item {
     // Todo: make this glue context dependent.
-    Item::glue(ideal_spacing, SPACE_WIDTH * 2, SPACE_WIDTH)
+    Item::glue(ideal_spacing, SPACE_WIDTH, SPACE_WIDTH * 0.5)
 }
 
 /// Finds all the legal breakpoints within a paragraph. A legal breakpoint
@@ -149,6 +146,7 @@ pub fn find_legal_breakpoints(paragraph: &Paragraph) -> Vec<usize> {
     legal_breakpoints
 }
 
+/// Aggregates various measures up to and from a feasible breakpoint.
 #[derive(Copy, Clone)]
 struct Node {
     /// Index of the item represented by the node, within the paragraph.
@@ -159,9 +157,17 @@ struct Node {
 
     /// The fitness class of the item represented by the node.
     pub fitness: i64,
+
+    /// Total width from the previous breakpoint to this one.
     pub total_width: Pt,
+
+    /// Total stretchability from the previous breakpoint to this one.
     pub total_stretch: Pt,
+
+    /// Total shrinkability from the previous breakpoint to this one.
     pub total_shrink: Pt,
+
+    /// Accumulated demerits from previous breakpoints.
     pub total_demerits: f64,
 }
 
@@ -237,6 +243,12 @@ fn compute_fitness(adjustment_ratio: f64) -> i64 {
     }
 }
 
+/// Finds the optimal sequence of breakpoints that minimize
+/// the amount of demerits while breaking a paragraph down
+/// into lines.
+///
+/// It returns the indexes of items which have been chosen as
+/// breakpoints.
 pub fn algorithm(paragraph: &Paragraph, lines_length: &Vec<Pt>) -> Vec<usize> {
     let mut graph = StableGraph::<_, f64>::new();
     let mut sum_width = Pt(0.0);
@@ -293,22 +305,13 @@ pub fn algorithm(paragraph: &Paragraph, lines_length: &Vec<Pt>) -> Vec<usize> {
             }
         }
 
-        // println!(
-        //     "----- STATS ------\n\
-        //      Width sum: {:?}\n\
-        //      Shrink sum: {:?}\n\
-        //      Stretch sum: {:?}",
-        //     sum_width, sum_shrink, sum_stretch
-        // );
-
         if !can_break {
-            // println!("Item {} cannot break, skipping to next item.", b);
             continue;
         }
 
         // Update the set of active nodes.
 
-        let mut last_active_node: Option<&Node> = None;
+        let last_active_node: Option<&Node> = None;
         let mut feasible_breakpoints: Vec<(Node, NodeIndex)> = Vec::new();
         let mut node_to_remove: Vec<NodeIndex> = Vec::new();
 
@@ -551,6 +554,7 @@ pub fn algorithm(paragraph: &Paragraph, lines_length: &Vec<Pt>) -> Vec<usize> {
     result
 }
 
+/// Checks whether or not a given item encodes a forced linebreak.
 fn is_forced_break(item: &Item) -> bool {
     match item.content {
         Content::Penalty { value, .. } => value < MIN_COST,
@@ -558,11 +562,8 @@ fn is_forced_break(item: &Item) -> bool {
     }
 }
 
-// fn positionate_items(items: Vec<Item>, lines_length: Vec<i32>, breakpoints: Vec<i32>) -> PositionedItem {
-//     let adjustment_ratio = compute_adjustment_ratio(actual_length: Sp, desired_length: Sp, total_stretchability: Sp, total_shrinkability: Sp, )
-// }
-
 /// Computes the adjustment ratios of all lines given a set of line lengths and breakpoint indices.
+/// This allows to speed up the adaptation of glue items.
 fn compute_adjustment_ratios_with_breakpoints(
     items: &Vec<Item>,
     line_lengths: &Vec<Pt>,
@@ -608,12 +609,6 @@ fn compute_adjustment_ratios_with_breakpoints(
             }
         }
 
-        // println!("[ FROM {} to {}]", beginning, next_breakpoint);
-        // println!("    -> Actual length: {:?}", actual_length);
-        // println!("    -> Desired length: {:?}", desired_length);
-        // println!("    -> Line shrink: {:?}", line_shrink);
-        // println!("    -> Line stretch: {:?}", line_stretch);
-
         adjustment_ratios.push(compute_adjustment_ratio(
             actual_length,
             desired_length,
@@ -628,7 +623,6 @@ fn compute_adjustment_ratios_with_breakpoints(
 /// Computes the adjusment ratio of a line of items, based on their combined
 /// width, stretchability and shrinkability. This essentially tells how much
 /// effort has to be produce to fit the line to the desired width.
-#[allow(dead_code)]
 fn compute_adjustment_ratio(
     actual_length: Pt,
     desired_length: Pt,
@@ -677,12 +671,13 @@ pub fn positionate_items(
 
         for p in beginning..breakpoints[breakpoint_line + 1] {
             match items[p].content {
-                Content::BoundingBox { .. } => {
+                Content::BoundingBox { glyph, .. } => {
                     positioned_items.push(PositionedItem {
                         index: p,
                         line: breakpoint_line,
                         horizontal_offset: horizontal_offset,
                         width: items[p].width,
+                        glyph,
                     });
                     horizontal_offset += items[p].width;
                 }
@@ -711,6 +706,7 @@ pub fn positionate_items(
                             line: breakpoint_line,
                             horizontal_offset: horizontal_offset,
                             width: items[p].width,
+                            glyph: '-',
                         })
                     }
                 }
@@ -732,7 +728,7 @@ mod tests {
         algorithm, compute_adjustment_ratios_with_breakpoints, find_legal_breakpoints,
         itemize_paragraph, positionate_items,
     };
-    use crate::units::{Mm, Pt};
+    use crate::units::Pt;
     use crate::{Error, Result};
     use hyphenation::*;
     use std::path::PathBuf;
@@ -882,7 +878,7 @@ mod tests {
 
         print!("\n\n");
 
-        panic!("Test");
+        // panic!("Test");
 
         Ok(())
     }
