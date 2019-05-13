@@ -1,15 +1,18 @@
 //! This module allows to create beautiful documents.
 
+use hyphenation::*;
 use std::fmt;
-use std::path::Path;
 use std::fs::File;
 use std::io::BufWriter;
+use std::path::Path;
 
-use printpdf::{PdfDocument, PdfDocumentReference, PdfPageReference, PdfLayerReference, Mm, Pt};
+use printpdf::{Mm, PdfDocument, PdfDocumentReference, PdfLayerReference, PdfPageReference, Pt};
 
-use pulldown_cmark::{Event, Tag, Parser};
+use pulldown_cmark::{Event, Parser, Tag};
 
 use crate::font::{Font, FontConfig};
+use crate::typography::items::{Item, PositionedItem};
+use crate::typography::paragraphs::{algorithm, itemize_paragraph, positionate_items};
 
 /// Converts Pts to Mms.
 pub fn mm(pts: f64) -> Mm {
@@ -78,17 +81,17 @@ impl Counters {
                 self.subsections += 1;
                 self.subsubsections = 0;
                 Some(self.subsections)
-            },
+            }
 
             3 => {
                 self.subsubsections += 1;
                 Some(self.subsubsections)
-            },
+            }
 
             _ => {
                 warn!("sub sub sub sections are not supported");
                 None
-            },
+            }
         }
     }
 }
@@ -124,7 +127,6 @@ pub struct Window {
 
 /// This struct contains the pdf document.
 pub struct Document {
-
     /// The inner document from printpdf.
     document: PdfDocumentReference,
 
@@ -150,7 +152,6 @@ pub struct Document {
 impl Document {
     /// Creates a new pdf document from its name and its size in pt.
     pub fn new(name: &str, width: f64, height: f64, window: Window) -> Document {
-
         let (document, page, layer) = PdfDocument::new(name, mm(width), mm(height), "");
 
         let page = document.get_page(page);
@@ -165,7 +166,6 @@ impl Document {
             page_size: (width, height),
             counters: Counters::new(),
         }
-
     }
 
     /// Returns a reference to the inner pdf document.
@@ -180,7 +180,6 @@ impl Document {
 
     /// Writes markdown content on the document.
     pub fn write_markdown(&mut self, markdown: &str, font_config: &FontConfig, size: f64) {
-
         let mut current_size = size;
         let mut content = String::new();
 
@@ -194,16 +193,16 @@ impl Document {
                     }
 
                     current_size = size + 3.0 * (4 - i) as f64;
-                },
+                }
 
                 Event::Start(Tag::Item) => {
                     content.push_str(" - ");
-                },
+                }
 
                 Event::Text(ref text) => {
                     content.push(' ');
                     content.push_str(text);
-                },
+                }
 
                 Event::End(Tag::Paragraph) | Event::End(Tag::Item) => {
                     self.write_paragraph(&content, font_config.regular, current_size);
@@ -211,7 +210,7 @@ impl Document {
 
                     content.clear();
                     current_size = size;
-                },
+                }
 
                 Event::End(Tag::Header(_)) => {
                     self.write_paragraph(&content, font_config.bold, current_size);
@@ -219,7 +218,7 @@ impl Document {
 
                     content.clear();
                     current_size = size;
-                },
+                }
 
                 _ => (),
             }
@@ -230,7 +229,7 @@ impl Document {
     /// Writes content on the document.
     pub fn write_content(&mut self, content: &str, font: &Font, size: f64) {
         for paragraph in content.split("\n") {
-            self.write_paragraph(paragraph, font, size);
+            self.layout_paragraph(paragraph, &font, size);
             self.new_line(size);
         }
     }
@@ -248,10 +247,14 @@ impl Document {
             let text_width = font.text_width(&line, size);
 
             if text_width >= self.window.width {
-
                 let remaining = words.pop().unwrap();
                 let remaining_width = self.window.width - font.text_width(&words.join(" "), size);
-                self.write_line(&words, font, size, 3.2 + remaining_width / ((words.len() - 1) as f64));
+                self.write_line(
+                    &words,
+                    font,
+                    size,
+                    3.2 + remaining_width / ((words.len() - 1) as f64),
+                );
 
                 words.clear();
                 words.push(remaining);
@@ -259,11 +262,10 @@ impl Document {
                 if self.cursor.1 <= size + self.window.y {
                     self.new_page();
                 }
-
             }
         }
 
-        if ! words.is_empty() {
+        if !words.is_empty() {
             self.write_line(&words, font, size, 3.0);
             if self.cursor.1 <= size + self.window.y {
                 self.new_page();
@@ -279,11 +281,66 @@ impl Document {
             let width = mm(current_width);
             let height = mm(self.cursor.1);
 
-            self.layer.use_text(word.to_owned(), size as i64, width, height - mm(size), font.printpdf());
+            self.layer.use_text(
+                word.to_owned(),
+                size as i64,
+                width,
+                height - mm(size),
+                font.printpdf(),
+            );
             current_width += font.text_width(word, size) + spacing;
         }
 
         self.new_line(size);
+    }
+
+    pub fn layout_paragraph(&mut self, words: &str, font: &Font, font_size: f64) {
+        fn get_line_length(total: i64) -> Vec<crate::units::Pt> {
+            let mut lines: Vec<crate::units::Pt> = Vec::new();
+            let base = 300.0;
+
+            for x in -(total / 2)..(total / 2) {
+                lines.push(crate::units::Pt(base + (x + 3).pow(2) as f64));
+            }
+
+            lines
+        }
+
+        if let Ok(en_us) = Standard::from_embedded(Language::EnglishUS) {
+            let indentation = crate::units::Pt(18.0);
+
+            let paragraph = itemize_paragraph(words, indentation, &font, font_size, &en_us);
+
+            println!("Paragraph itemized into {:?} items.", paragraph.items.len());
+
+            let lines_length = get_line_length(14); // vec![crate::units::Pt(400.0)];
+            let breakpoints = algorithm(&paragraph, &lines_length);
+
+            println!("{:?} breakpoints found.", breakpoints.len());
+
+            let positions = positionate_items(&paragraph.items, &lines_length, &breakpoints);
+
+            println!("Done positionating items. Laying out.");
+
+            for line in positions {
+                self.layout_line(&line, &font, font_size);
+                self.new_line(font_size);
+            }
+        }
+    }
+
+    pub fn layout_line(&mut self, line_items: &Vec<PositionedItem>, font: &Font, font_size: f64) {
+        let y = mm(self.cursor.1) - mm(font_size);
+
+        for item in line_items {
+            self.layer.use_text(
+                item.glyph.to_string(),
+                font_size as i64,
+                mm(self.window.x + item.horizontal_offset.0),
+                y,
+                font.printpdf(),
+            );
+        }
     }
 
     /// Goes to the beginning of the next line.
@@ -293,7 +350,9 @@ impl Document {
 
     /// Creates a new page and append it to the document.
     pub fn new_page(&mut self) {
-        let page = self.document.add_page(mm(self.page_size.0), mm(self.page_size.1), "");
+        let page = self
+            .document
+            .add_page(mm(self.page_size.0), mm(self.page_size.1), "");
         self.page = self.document.get_page(page.0);
         self.layer = self.page.get_layer(page.1);
         self.cursor.1 = self.window.height + self.window.y;

@@ -9,6 +9,7 @@ pub mod config;
 pub mod document;
 pub mod font;
 pub mod typography;
+pub mod maths;
 pub mod units;
 pub mod saturating;
 

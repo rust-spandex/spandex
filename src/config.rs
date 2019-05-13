@@ -82,7 +82,7 @@ impl Config {
 
         let (mut document, font_manager) = self.init()?;
 
-        let regular_font_name = "CMU Serif Roman";
+        let regular_font_name = "CMU Bright Roman";
         let bold_font_name = "CMU Serif Bold";
 
         let font_config = font_manager.config(regular_font_name, bold_font_name)?;
