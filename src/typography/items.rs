@@ -89,19 +89,19 @@ impl Item {
 /// Holds the information of an item that's ready to be rendered.
 #[derive(Debug)]
 pub struct PositionedItem {
-    // The index of the item within the list of items that make up
-    // the paragraph in which is stands.
+    /// The index of the item within the list of items that make up
+    /// the paragraph in which is stands.
     pub index: usize,
 
-    // The index of the line on which this item is to be rendered.
+    /// The index of the line on which this item is to be rendered.
     pub line: usize,
 
-    // The horizontal offset of the item.
+    /// The horizontal offset of the item.
     pub horizontal_offset: Pt,
 
-    // The (potentially adjusted) width this item should be rendered with.
+    /// The (potentially adjusted) width this item should be rendered with.
     pub width: Pt,
 
-    // The glyph that should be layed out within this item.
+    /// The glyph that should be layed out within this item.
     pub glyph: char,
 }
