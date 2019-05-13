@@ -101,4 +101,7 @@ pub struct PositionedItem {
 
     // The (potentially adjusted) width this item should be rendered with.
     pub width: Pt,
+
+    // The glyph that should be layed out within this item.
+    pub glyph: char,
 }
