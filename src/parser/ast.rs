@@ -142,43 +142,64 @@ impl Ast {
     }
 
     /// Pretty prints the ast.
-    pub fn print_debug(&self, fmt: &mut fmt::Formatter, indent: &str) -> fmt::Result {
+    pub fn print_debug(&self, fmt: &mut fmt::Formatter, indent: &str, last_child: bool) -> fmt::Result {
+        let delimiter1 = if indent == "" {
+            "─"
+        } else if last_child {
+            "└"
+        } else {
+            "├"
+        };
+
+        let delimiter2 = match self {
+            Ast::Error(_) | Ast::Warning(_) | Ast::Text(_) | Ast::Newline | Ast::InlineMath(_) => "──",
+            _ => "─┬",
+        };
+
+        let new_indent = format!("{}{}{} ", indent, delimiter1, delimiter2);
+
+        let indent = if last_child {
+            format!("{}  ", indent)
+        } else {
+            format!("{}│ ", indent)
+        };
+
         match self {
-            Ast::Error(e) => write!(fmt, "{}Error({:?})", indent, e)?,
-            Ast::Warning(w) => write!(fmt, "{}Warning({:?})", indent, w)?,
-            Ast::Text(text) => write!(fmt, "{}Text({:?})", indent, text)?,
-            Ast::Newline => write!(fmt, "{}NewLine", indent)?,
-            Ast::InlineMath(math) => write!(fmt, "{}Math({:?})", indent, math)?,
+            Ast::Error(e) => writeln!(fmt, "{}{}", new_indent, &format!("Error({:?})", e).red())?,
+            Ast::Warning(e) => writeln!(fmt, "{}{}", new_indent, &format!("Warning({:?})", e).yellow())?,
+            Ast::Text(t) => writeln!(fmt, "{}{}{}{}", new_indent, "Text(".green(), &format!("{:?}", t).dimmed(), ")".green())?,
+            Ast::Newline => writeln!(fmt, "{}NewLine", new_indent)?,
+            Ast::InlineMath(math) => writeln!(fmt, "{}Math({:?})", new_indent, math)?,
 
             Ast::Group(children) => {
-                write!(fmt, "{}Group:", indent)?;
-                let new_indent = format!("{}  ", indent);
-                for child in children {
-                    child.print_debug(fmt, &new_indent)?;
+                writeln!(fmt, "{}{}", new_indent, "Group".blue().bold())?;
+                let len = children.len();
+                for (index, child) in children.iter().enumerate() {
+                    child.print_debug(fmt, &indent, index == len - 1)?;
                 }
             },
 
             Ast::Paragraph(children) => {
-                write!(fmt, "{}Group:", indent)?;
-                let new_indent = format!("{}  ", indent);
-                for child in children {
-                    child.print_debug(fmt, &new_indent)?;
+                writeln!(fmt, "{}{}", new_indent, "Paragraph".blue().bold())?;
+                let len = children.len();
+                for (index, child) in children.iter().enumerate() {
+                    child.print_debug(fmt, &indent, index == len - 1)?;
                 }
             },
 
             Ast::Title { content, level } => {
-                write!(fmt, "{}Title(level={})", indent, level)?;
-                content.print_debug(fmt, &format!("{}  ", indent))?;
+                writeln!(fmt, "{}{}", new_indent, &format!("Title(level={})", level).magenta().bold())?;
+                content.print_debug(fmt, &indent, true)?;
             },
 
             Ast::Bold(ast) => {
-                write!(fmt, "{}Bold", indent)?;
-                ast.print_debug(fmt, &format!("{}  ", indent))?;
+                writeln!(fmt, "{}{}", new_indent, "Bold".cyan().bold())?;
+                ast.print_debug(fmt, &indent, true)?;
             },
 
             Ast::Italic(ast) => {
-                write!(fmt, "{}Italic", indent)?;
-                ast.print_debug(fmt, &format!("{}  ", indent))?;
+                writeln!(fmt, "{}{}", new_indent, "Italic".cyan().bold())?;
+                ast.print_debug(fmt, &indent, true)?;
             },
 
         }
@@ -222,6 +243,6 @@ impl fmt::Display for Ast {
 
 impl fmt::Debug for Ast {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        self.print_debug(fmt, "")
+        self.print_debug(fmt, "", true)
     }
 }

@@ -105,6 +105,7 @@ pub fn build(config: &Config) -> Result<()> {
     if config.input.ends_with(".dex") {
         let parsed = parse(&config.input)?;
         println!("{}", parsed.warnings);
+        println!("{:?}", parsed.ast);
         document.render(&parsed.ast, &font_config, Pt(10.0).into());
     } else {
         document.write_content(&content, &font_config, Pt(10.0).into());
