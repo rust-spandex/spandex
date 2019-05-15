@@ -13,10 +13,11 @@ before_deploy:
 
 deploy:
   provider: pages
+  overwrite: true
   skip_cleanup: true
   github_token: $GITHUB_TOKEN
-  repo: rust-spandex/spandex
-  target_branch: gh-pages
+  repo: rust-spandex/rust-spandex.github.io
+  target_branch: master
   local_dir: target/doc/
   on:
     branch: master
