@@ -1,6 +1,8 @@
 language: rust
 rust: stable
 
+cache: cargo
+
 notifications:
   email:
     on_success: never
@@ -8,7 +10,6 @@ notifications:
 
 before_deploy:
   - cargo doc --no-deps --lib
-  - cp -r target/doc/* book/book
 
 deploy:
   provider: pages
