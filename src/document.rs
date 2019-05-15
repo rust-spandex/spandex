@@ -13,7 +13,7 @@ use hyphenation::{Standard, Language};
 use crate::typography::justification::{Justifier, NaiveJustifier};
 use crate::font::{Font, FontConfig};
 use crate::units::{Pt, Sp};
-use crate::parser::Ast;
+use crate::parser::ast::Ast;
 use crate::typography::paragraphs::itemize_ast;
 
 /// The struct that manages the counters for the document.

@@ -6,7 +6,10 @@
 use nom::rest;
 
 use crate::ligature::ligature;
-use crate::parser::{Span, Ast, ToPosition, EmptyError, ErrorType, EmptyWarning, WarningType};
+use crate::parser::{Span, ToPosition};
+use crate::parser::ast::Ast;
+use crate::parser::error::{EmptyError, ErrorType};
+use crate::parser::warning::{EmptyWarning, WarningType};
 
 /// Returns true if the character passed as parameter changes the type of parsing we're going to do.
 pub fn should_stop(c: char) -> bool {

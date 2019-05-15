@@ -6,7 +6,7 @@ use std::slice::Iter;
 
 use hyphenation::*;
 
-use crate::parser::Ast;
+use crate::parser::ast::Ast;
 use crate::font::{FontConfig, FontStyle};
 use crate::units::{Sp, Pt, PLUS_INFINITY};
 use crate::typography::Glyph;
@@ -221,7 +221,7 @@ fn compute_adjustment_ratio(
 /// Unit tests for the paragraphs typesetting.
 #[cfg(test)]
 mod tests {
-    use crate::parser::Ast;
+    use crate::parser::ast::Ast;
     use crate::config::Config;
     use crate::typography::paragraphs::{find_legal_breakpoints, itemize_ast};
     use crate::units::{Pt, Sp};

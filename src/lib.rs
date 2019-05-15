@@ -21,6 +21,7 @@ use std::{error, fmt, io, result};
 use crate::config::Config;
 use crate::units::Pt;
 use crate::parser::parse;
+use crate::parser::error::Errors;
 
 macro_rules! impl_from_error {
     ($type: ty, $variant: path, $from: ty) => {
@@ -60,14 +61,14 @@ pub enum Error {
     IoError(io::Error),
 
     /// Some error occured while parsing a dex file.
-    DexError(parser::Errors),
+    DexError(Errors),
 }
 
 impl_from_error!(Error, Error::FreetypeError, freetype::Error);
 impl_from_error!(Error, Error::PrintpdfError, printpdf::errors::Error);
 impl_from_error!(Error, Error::IoError, io::Error);
 impl_from_error!(Error, Error::HyphenationLoadError, hyphenation::load::Error);
-impl_from_error!(Error, Error::DexError, parser::Errors);
+impl_from_error!(Error, Error::DexError, Errors);
 
 impl fmt::Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {

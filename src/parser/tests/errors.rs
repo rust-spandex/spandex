@@ -1,7 +1,9 @@
 //! This module contains the tests that should fail and checks that the error messages are correct.
 
 use std::error::Error;
-use crate::parser::{parse, ErrorType};
+
+use crate::parser::parse;
+use crate::parser::error::ErrorType;
 
 #[test]
 fn test_unmatched_star() -> Result<(), Box<Error>> {
