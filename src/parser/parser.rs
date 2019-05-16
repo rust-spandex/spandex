@@ -64,7 +64,7 @@ named!(pub parse_styled<Span, Ast>,
 
 /// Parses a comment.
 named!(pub parse_comment<Span, Ast>,
-    map!(preceded!(tag!("||"), take_until_and_consume!("\n")), { |_|  Ast::Newline })
+    map!(preceded!(tag!("||"), alt!(take_until_and_consume!("\n") | call!(rest))), { |_|  Ast::Newline })
 );
 
 /// Parses some multiline inline content.
@@ -76,6 +76,7 @@ named!(pub parse_any<Span, Ast>,
         | map!(tag!("*"), |x| error(x, ErrorType::UnmatchedStar))
         | map!(tag!("/"), |x| error(x, ErrorType::UnmatchedSlash))
         | map!(tag!("$"), |x| error(x, ErrorType::UnmatchedDollar))
+        | preceded!(tag!("|"), take_till!(should_stop)) => { |x: Span| { Ast::Text(format!("|{}", ligature(x.fragment.0))) } }
         | take_till!(should_stop) => { |x: Span| { Ast::Text(ligature(x.fragment.0)) } }
     )
 );
