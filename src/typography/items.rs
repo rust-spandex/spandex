@@ -1,7 +1,7 @@
 //! Various blocks holding information and specifications about the structure
 //! of a paragraph.
-use crate::units::Sp;
 use crate::typography::Glyph;
+use crate::units::Sp;
 
 /// Value of the most negative penalty possible. This is considered infinite.
 pub const INFINITELY_NEGATIVE_PENALTY: i32 = i32::min_value();

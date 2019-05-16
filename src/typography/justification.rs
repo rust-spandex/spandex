@@ -1,9 +1,9 @@
 //! This module contains the trait and implementation of justification algorithms.
 
-use crate::units::Sp;
-use crate::typography::Glyph;
 use crate::typography::items::Content;
 use crate::typography::paragraphs::Paragraph;
+use crate::typography::Glyph;
+use crate::units::Sp;
 
 /// An algorithm that justifies a paragraph.
 pub trait Justifier {
@@ -26,17 +26,16 @@ impl Justifier for NaiveJustifier {
                 Content::BoundingBox { .. } => {
                     current_x += item.width;
                     current_word.push(item);
-                },
+                }
                 Content::Glue { .. } => {
                     current_line.push(current_word);
                     current_x += Sp(200_000);
                     current_word = vec![];
-                },
+                }
                 Content::Penalty { .. } => (),
             }
 
             if current_x > text_width && current_line.len() > 1 {
-
                 current_x = Sp(0);
 
                 let last_word = current_line.pop().unwrap();
@@ -65,7 +64,7 @@ impl Justifier for NaiveJustifier {
                             Content::BoundingBox(ref glyph) => {
                                 final_line.push((glyph.clone(), current_x));
                                 current_x += item.width;
-                            },
+                            }
 
                             _ => (),
                         }
@@ -91,7 +90,7 @@ impl Justifier for NaiveJustifier {
                     Content::BoundingBox(ref glyph) => {
                         final_line.push((glyph.clone(), current_x));
                         current_x += item.width;
-                    },
+                    }
                     _ => (),
                 }
             }

@@ -5,14 +5,14 @@ use std::path::PathBuf;
 
 use colored::*;
 
-use crate::parser::Position;
 use crate::parser::utils::{next_new_line, previous_new_line, replicate};
+use crate::parser::Position;
 
 /// The different types of warning that can occur.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum WarningType {
     /// Two consecutive stars only seperated by whitespaces.
-    ConsecutiveStars
+    ConsecutiveStars,
 }
 
 impl WarningType {
@@ -30,11 +30,12 @@ impl WarningType {
         }
     }
 
-
     /// Returns a potential note.
     pub fn note(self) -> Option<&'static str> {
         match self {
-            WarningType::ConsecutiveStars => Some("to use bold, you should use single stars, e.g. '*this is bold*'"),
+            WarningType::ConsecutiveStars => {
+                Some("to use bold, you should use single stars, e.g. '*this is bold*'")
+            }
         }
     }
 }
@@ -64,9 +65,7 @@ pub struct Warnings {
 
 impl fmt::Display for Warnings {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-
         for warning in &self.warnings {
-
             let start = previous_new_line(&self.content, warning.position.offset);
             let end = next_new_line(&self.content, warning.position.offset);
 
@@ -78,28 +77,53 @@ impl fmt::Display for Warnings {
             let margin = replicate(' ', column);
             let hats = replicate('^', 1);
 
-            writeln!(fmt, "{}{}", "warning: ".bold().yellow(), warning.ty.title().bold())?;
+            writeln!(
+                fmt,
+                "{}{}",
+                "warning: ".bold().yellow(),
+                warning.ty.title().bold()
+            )?;
 
-            writeln!(fmt, "{}{} {}:{}:{}",
-                     space,
-                     "-->".bold().blue(),
-                      self.path.display(),
-                     line,
-                     column)?;
+            writeln!(
+                fmt,
+                "{}{} {}:{}:{}",
+                space,
+                "-->".bold().blue(),
+                self.path.display(),
+                line,
+                column
+            )?;
 
             writeln!(fmt, "{} {}", space, "|".blue().bold())?;
-            writeln!(fmt, "{} {}", &format!("{}|", line_number).blue().bold(), &self.content[start .. end])?;
-            writeln!(fmt, "{} {}{}{} {}", space, "|".blue().bold(), margin, hats.bold().yellow(), warning.ty.detail().bold().yellow())?;
+            writeln!(
+                fmt,
+                "{} {}",
+                &format!("{}|", line_number).blue().bold(),
+                &self.content[start..end]
+            )?;
+            writeln!(
+                fmt,
+                "{} {}{}{} {}",
+                space,
+                "|".blue().bold(),
+                margin,
+                hats.bold().yellow(),
+                warning.ty.detail().bold().yellow()
+            )?;
             writeln!(fmt, "{} {}", space, "|".blue().bold())?;
 
             if let Some(note) = warning.ty.note() {
-                writeln!(fmt, "{} {} {}{}", space, "=".blue().bold(), "note: ".bold(), note)?;
+                writeln!(
+                    fmt,
+                    "{} {} {}{}",
+                    space,
+                    "=".blue().bold(),
+                    "note: ".bold(),
+                    note
+                )?;
             }
-
         }
 
         Ok(())
     }
 }
-
-

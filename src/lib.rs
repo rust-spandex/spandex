@@ -2,26 +2,28 @@
 
 #![warn(missing_docs)]
 
-#[macro_use] extern crate log;
-#[macro_use] extern crate nom;
+#[macro_use]
+extern crate log;
+#[macro_use]
+extern crate nom;
 
 pub mod config;
 pub mod document;
 pub mod font;
+pub mod ligature;
+pub mod parser;
 pub mod typography;
 pub mod units;
-pub mod parser;
-pub mod ligature;
 
-use std::path::PathBuf;
 use std::fs::File;
 use std::io::Read;
+use std::path::PathBuf;
 use std::{error, fmt, io, result};
 
 use crate::config::Config;
-use crate::units::Pt;
-use crate::parser::parse;
 use crate::parser::error::Errors;
+use crate::parser::parse;
+use crate::units::Pt;
 
 macro_rules! impl_from_error {
     ($type: ty, $variant: path, $from: ty) => {

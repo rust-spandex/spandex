@@ -6,10 +6,10 @@
 use nom::rest;
 
 use crate::ligature::ligature;
-use crate::parser::{Span, ToPosition};
 use crate::parser::ast::Ast;
 use crate::parser::error::{EmptyError, ErrorType};
 use crate::parser::warning::{EmptyWarning, WarningType};
+use crate::parser::{Span, ToPosition};
 
 /// Returns true if the character passed as parameter changes the type of parsing we're going to do.
 pub fn should_stop(c: char) -> bool {
@@ -32,7 +32,6 @@ pub fn warning(span: Span, ty: WarningType) -> Ast {
     })
 }
 
-
 /// Parses some bold content.
 named!(pub parse_bold<Span, Ast>,
     map!(
@@ -53,7 +52,6 @@ named!(pub parse_italic<Span, Ast>,
 named!(pub parse_inline_math<Span, Ast>,
     map!(preceded!(tag!("$"), take_until_and_consume!("$")), { |x: Span| Ast::InlineMath(x.fragment.0.into())} )
 );
-
 
 /// Parses a styled element.
 named!(pub parse_styled<Span, Ast>,
@@ -152,4 +150,3 @@ named!(pub parse<Span, Ast>,
         })
     )
 );
-

@@ -2,9 +2,9 @@
 //! to go from one to another easily.
 //!
 //! The main conversion rules used so far are that 1 in = 72.27 pt = 2.54 cm and 1 pt = 65,536 sp.
+use std::cmp::Ordering;
 use std::ops::{Add, AddAssign, Div, DivAssign, Sub, SubAssign};
 use std::{f64, fmt};
-use std::cmp::Ordering;
 
 use serde::{Deserialize, Serialize};
 

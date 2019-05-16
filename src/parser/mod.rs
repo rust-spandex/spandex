@@ -1,9 +1,9 @@
 //! This crate contains the parser for spandex.
 
-pub mod utils;
-pub mod parser;
 pub mod ast;
 pub mod error;
+pub mod parser;
+pub mod utils;
 pub mod warning;
 
 #[cfg(test)]
@@ -38,10 +38,8 @@ pub struct Position {
 
 /// A trait that serves the purpose to add the position method to span.
 pub trait ToPosition {
-
     /// Convers self to a position.
     fn position(&self) -> Position;
-
 }
 
 impl<'a> ToPosition for Span<'a> {
@@ -64,20 +62,15 @@ pub struct Parsed {
     pub warnings: Warnings,
 }
 
-
-
 /// Parses a dex file.
 pub fn parse<'a, P: AsRef<Path>>(path: P) -> Result<Parsed, Errors> {
-
     let path = path.as_ref();
     let mut file = File::open(&path).unwrap();
     let mut content = String::new();
     file.read_to_string(&mut content).unwrap();
 
     let ast = match parser::parse(Span::new(CompleteStr(&content))) {
-        Ok((_, ast)) => {
-            ast
-        },
+        Ok((_, ast)) => ast,
         Err(_) => panic!(),
     };
 
@@ -100,5 +93,4 @@ pub fn parse<'a, P: AsRef<Path>>(path: P) -> Result<Parsed, Errors> {
             errors,
         })
     }
-
 }

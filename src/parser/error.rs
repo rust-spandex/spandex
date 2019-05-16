@@ -1,13 +1,13 @@
 //! This module contains everything related to parsing errors.
 
+use std::error::Error;
 use std::fmt;
 use std::path::PathBuf;
-use std::error::Error;
 
 use colored::*;
 
-use crate::parser::Position;
 use crate::parser::utils::{next_new_line, previous_new_line, replicate};
+use crate::parser::Position;
 
 /// The different types errors that can occur while parsing.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -57,7 +57,6 @@ impl ErrorType {
     }
 }
 
-
 /// An error that occured during the parsing.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EmptyError {
@@ -79,14 +78,11 @@ pub struct Errors {
 
     /// The errors that were produced.
     pub errors: Vec<EmptyError>,
-
 }
 
 impl fmt::Display for Errors {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-
         for error in &self.errors {
-
             let start = previous_new_line(&self.content, error.position.offset);
             let end = next_new_line(&self.content, error.position.offset);
 
@@ -100,26 +96,47 @@ impl fmt::Display for Errors {
 
             writeln!(fmt, "{}{}", "error: ".bold().red(), error.ty.title().bold())?;
 
-            writeln!(fmt, "{}{} {}:{}:{}",
-                     space,
-                     "-->".bold().blue(),
-                      self.path.display(),
-                     line,
-                     column)?;
+            writeln!(
+                fmt,
+                "{}{} {}:{}:{}",
+                space,
+                "-->".bold().blue(),
+                self.path.display(),
+                line,
+                column
+            )?;
 
             writeln!(fmt, "{} {}", space, "|".blue().bold())?;
-            writeln!(fmt, "{} {}", &format!("{}|", line_number).blue().bold(), &self.content[start .. end])?;
-            writeln!(fmt, "{} {}{}{} {}", space, "|".blue().bold(), margin, hats.bold().red(), error.ty.detail().bold().red())?;
+            writeln!(
+                fmt,
+                "{} {}",
+                &format!("{}|", line_number).blue().bold(),
+                &self.content[start..end]
+            )?;
+            writeln!(
+                fmt,
+                "{} {}{}{} {}",
+                space,
+                "|".blue().bold(),
+                margin,
+                hats.bold().red(),
+                error.ty.detail().bold().red()
+            )?;
             writeln!(fmt, "{} {}", space, "|".blue().bold())?;
             if let Some(note) = error.ty.note() {
-                writeln!(fmt, "{} {} {}{}", space, "=".blue().bold(), "note: ".bold(), note)?;
+                writeln!(
+                    fmt,
+                    "{} {} {}{}",
+                    space,
+                    "=".blue().bold(),
+                    "note: ".bold(),
+                    note
+                )?;
             }
-
         }
 
         Ok(())
     }
 }
 
-impl Error for Errors { }
-
+impl Error for Errors {}

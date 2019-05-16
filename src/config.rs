@@ -1,11 +1,11 @@
 //! This module contains the configuration struct for the spandex.toml file.
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
-use crate::units::{Sp, Mm};
-use crate::document::Window;
 use crate::document::Document;
+use crate::document::Window;
 use crate::font::FontManager;
+use crate::units::{Mm, Sp};
 use crate::Result;
 
 /// This structure holds all the configuration information.
@@ -49,7 +49,6 @@ impl Config {
 
     /// Creates a document and a font maanger from the config.
     pub fn init(&self) -> Result<(Document, FontManager)> {
-
         let window = Window {
             x: self.left_margin,
             y: self.top_margin,
@@ -61,7 +60,5 @@ impl Config {
         let font_manager = FontManager::init(&mut document)?;
 
         Ok((document, font_manager))
-
     }
-
 }

@@ -6,16 +6,13 @@ use std::slice::Iter;
 
 use hyphenation::*;
 
-use crate::parser::ast::Ast;
 use crate::font::{FontConfig, FontStyle};
-use crate::units::{Sp, Pt, PLUS_INFINITY};
-use crate::typography::Glyph;
+use crate::parser::ast::Ast;
 use crate::typography::items::{
-    Content,
-    Item,
-    INFINITELY_NEGATIVE_PENALTY,
-    INFINITELY_POSITIVE_PENALTY,
+    Content, Item, INFINITELY_NEGATIVE_PENALTY, INFINITELY_POSITIVE_PENALTY,
 };
+use crate::typography::Glyph;
+use crate::units::{Pt, Sp, PLUS_INFINITY};
 
 const DASH_GLYPH: char = '-';
 
@@ -44,7 +41,13 @@ impl<'a> Paragraph<'a> {
 }
 
 /// Parses an AST into a sequence of items.
-pub fn itemize_ast<'a>(ast: &Ast, font_config: &'a FontConfig, size: Sp, dictionary: &Standard, indent: Sp) -> Paragraph<'a> {
+pub fn itemize_ast<'a>(
+    ast: &Ast,
+    font_config: &'a FontConfig,
+    size: Sp,
+    dictionary: &Standard,
+    indent: Sp,
+) -> Paragraph<'a> {
     let mut p = Paragraph::new();
     let current_style = FontStyle::regular();
 
@@ -68,18 +71,39 @@ pub fn itemize_ast_aux<'a>(
     match ast {
         Ast::Title { level, content } => {
             let size = size + Pt(3.0 * ((4 - *level as isize).max(1)) as f64).into();
-            itemize_ast_aux(content, font_config, size, dictionary, current_style.bold(), buffer);
+            itemize_ast_aux(
+                content,
+                font_config,
+                size,
+                dictionary,
+                current_style.bold(),
+                buffer,
+            );
             buffer.push(Item::glue(Sp(0), PLUS_INFINITY, Sp(0)));
             buffer.push(Item::penalty(Sp(0), INFINITELY_NEGATIVE_PENALTY, false));
-        },
+        }
 
         Ast::Bold(content) => {
-            itemize_ast_aux(content, font_config, size, dictionary, current_style.bold(), buffer);
-        },
+            itemize_ast_aux(
+                content,
+                font_config,
+                size,
+                dictionary,
+                current_style.bold(),
+                buffer,
+            );
+        }
 
         Ast::Italic(content) => {
-            itemize_ast_aux(content, font_config, size, dictionary, current_style.italic(), buffer);
-        },
+            itemize_ast_aux(
+                content,
+                font_config,
+                size,
+                dictionary,
+                current_style.italic(),
+                buffer,
+            );
+        }
 
         Ast::Text(content) => {
             let font = font_config.for_style(current_style);
@@ -101,21 +125,19 @@ pub fn itemize_ast_aux<'a>(
                 previous_glyph = Some(Glyph::new(c, font, size));
             }
 
-            if ! current_word.is_empty() {
+            if !current_word.is_empty() {
                 buffer.push(glue_from_context(previous_glyph, ideal_spacing));
                 add_word_to_paragraph(current_word, dictionary, buffer);
             }
-
-
-        },
+        }
 
         Ast::Group(children) => {
             for child in children {
                 itemize_ast_aux(child, font_config, size, dictionary, current_style, buffer);
             }
-        },
+        }
 
-        Ast::Paragraph(children)  => {
+        Ast::Paragraph(children) => {
             for child in children {
                 itemize_ast_aux(child, font_config, size, dictionary, current_style, buffer);
             }
@@ -125,7 +147,7 @@ pub fn itemize_ast_aux<'a>(
             // force a line break.
             buffer.push(Item::glue(Sp(0), PLUS_INFINITY, Sp(0)));
             buffer.push(Item::penalty(Sp(0), INFINITELY_NEGATIVE_PENALTY, false));
-        },
+        }
 
         _ => (),
     }
@@ -141,7 +163,8 @@ pub fn add_word_to_paragraph<'a>(
     let to_hyphenate = word
         .iter()
         .map(|x: &Glyph| x.glyph.to_string())
-        .collect::<Vec<_>>().join("");
+        .collect::<Vec<_>>()
+        .join("");
 
     let hyphenated = dictionary.hyphenate(&to_hyphenate);
 
@@ -158,7 +181,6 @@ pub fn add_word_to_paragraph<'a>(
             buffer.push(Item::penalty(Sp(0), 50, true));
         }
     }
-
 }
 
 /// Returns the glue based on the optional spatial context of the cursor.
@@ -221,8 +243,8 @@ fn compute_adjustment_ratio(
 /// Unit tests for the paragraphs typesetting.
 #[cfg(test)]
 mod tests {
-    use crate::parser::ast::Ast;
     use crate::config::Config;
+    use crate::parser::ast::Ast;
     use crate::typography::paragraphs::{find_legal_breakpoints, itemize_ast};
     use crate::units::{Pt, Sp};
     use crate::Result;

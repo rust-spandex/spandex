@@ -1,20 +1,20 @@
 //! This module allows to create beautiful documents.
 
 use std::fmt;
-use std::path::Path;
 use std::fs::File;
 use std::io::BufWriter;
+use std::path::Path;
 
-use printpdf::{PdfDocument, PdfDocumentReference, PdfPageReference, PdfLayerReference};
+use printpdf::{PdfDocument, PdfDocumentReference, PdfLayerReference, PdfPageReference};
 
 use hyphenation::load::Load;
-use hyphenation::{Standard, Language};
+use hyphenation::{Language, Standard};
 
-use crate::typography::justification::{Justifier, NaiveJustifier};
 use crate::font::{Font, FontConfig};
-use crate::units::{Pt, Sp};
 use crate::parser::ast::Ast;
+use crate::typography::justification::{Justifier, NaiveJustifier};
 use crate::typography::paragraphs::itemize_ast;
+use crate::units::{Pt, Sp};
 
 /// The struct that manages the counters for the document.
 #[derive(Clone)]
@@ -26,9 +26,7 @@ pub struct Counters {
 impl Counters {
     /// Creates a new empty counters.
     pub fn new() -> Counters {
-        Counters {
-            counters: vec![0],
-        }
+        Counters { counters: vec![0] }
     }
 
     /// Increases the corresponding counter and returns it if it is correct.
@@ -70,7 +68,15 @@ impl Counters {
 
 impl fmt::Display for Counters {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "{}", self.counters.iter().map(|x| x.to_string()).collect::<Vec<_>>().join("."))
+        write!(
+            fmt,
+            "{}",
+            self.counters
+                .iter()
+                .map(|x| x.to_string())
+                .collect::<Vec<_>>()
+                .join(".")
+        )
     }
 }
 
@@ -92,7 +98,6 @@ pub struct Window {
 
 /// This struct contains the pdf document.
 pub struct Document {
-
     /// The inner document from printpdf.
     document: PdfDocumentReference,
 
@@ -117,8 +122,12 @@ pub struct Document {
 
 impl Document {
     /// Creates a new pdf document from its name and its size in pt.
-    pub fn new<T: Into<Sp>, U: Into<Sp>>(name: &str, width: T, height: U, window: Window) -> Document {
-
+    pub fn new<T: Into<Sp>, U: Into<Sp>>(
+        name: &str,
+        width: T,
+        height: U,
+        window: Window,
+    ) -> Document {
         let width: Sp = width.into();
         let height: Sp = height.into();
 
@@ -136,7 +145,6 @@ impl Document {
             page_size: (width.into(), height.into()),
             counters: Counters::new(),
         }
-
     }
 
     /// Returns a reference to the inner pdf document.
@@ -151,7 +159,6 @@ impl Document {
 
     /// Renders an AST to the document.
     pub fn render(&mut self, ast: &Ast, font_config: &FontConfig, size: Sp) {
-
         let en = Standard::from_embedded(Language::EnglishUS).unwrap();
 
         match ast {
@@ -159,7 +166,7 @@ impl Document {
                 for child in children {
                     self.render(child, font_config, size);
                 }
-            },
+            }
 
             Ast::Title { level, content } => {
                 self.counters.increment(*level as usize);
@@ -172,26 +179,24 @@ impl Document {
                             content: Box::new(Ast::Group(new_children)),
                         };
                         self.write_paragraph::<NaiveJustifier>(&new_ast, font_config, size, &en);
-                    },
+                    }
                     _ => self.write_paragraph::<NaiveJustifier>(ast, font_config, size, &en),
                 }
                 self.new_line(size);
-            },
+            }
 
             Ast::Paragraph(_) => {
                 self.write_paragraph::<NaiveJustifier>(ast, font_config, size, &en);
                 self.new_line(size);
                 self.new_line(size);
-            },
+            }
 
             _ => (),
         }
-
     }
 
     /// Writes content on the document.
     pub fn write_content(&mut self, content: &str, font_config: &FontConfig, size: Sp) {
-
         let en = Standard::from_embedded(Language::EnglishUS).unwrap();
 
         for paragraph in content.split("\n") {
@@ -202,21 +207,25 @@ impl Document {
     }
 
     /// Writes a paragraph on the document.
-    pub fn write_paragraph<'a, J: Justifier>(&mut self, paragraph: &Ast, font_config: &FontConfig, size: Sp, dict: &Standard) {
-
+    pub fn write_paragraph<'a, J: Justifier>(
+        &mut self,
+        paragraph: &Ast,
+        font_config: &FontConfig,
+        size: Sp,
+        dict: &Standard,
+    ) {
         let paragraph = itemize_ast(paragraph, font_config, size, dict, Sp(0));
         let justified = J::justify(&paragraph, self.window.width);
 
         for line in justified {
             for glyph in line {
-
                 self.layer.use_text(
                     glyph.0.glyph.to_string(),
                     Into::<Pt>::into(glyph.0.scale).0 as i64,
                     (self.window.x + glyph.1).into(),
                     self.cursor.1.into(),
-                    glyph.0.font.printpdf());
-
+                    glyph.0.font.printpdf(),
+                );
             }
 
             self.new_line(size);
@@ -230,7 +239,6 @@ impl Document {
 
     /// Writes a line in the document.
     pub fn write_line(&mut self, words: &[&str], font: &Font, size: Sp, spacing: Sp) {
-
         let size_i64 = Into::<Pt>::into(size).0 as i64;
         let mut current_width = self.window.x;
 
@@ -238,7 +246,13 @@ impl Document {
             let width = current_width;
             let height = self.cursor.1;
 
-            self.layer.use_text(word.to_owned(), size_i64, width.into(), (height - size).into(), font.printpdf());
+            self.layer.use_text(
+                word.to_owned(),
+                size_i64,
+                width.into(),
+                (height - size).into(),
+                font.printpdf(),
+            );
             current_width += font.text_width(word, size) + spacing;
         }
 
@@ -252,7 +266,9 @@ impl Document {
 
     /// Creates a new page and append it to the document.
     pub fn new_page(&mut self) {
-        let page = self.document.add_page(self.page_size.0.into(), self.page_size.1.into(), "");
+        let page = self
+            .document
+            .add_page(self.page_size.0.into(), self.page_size.1.into(), "");
         self.page = self.document.get_page(page.0);
         self.layer = self.page.get_layer(page.1);
         self.cursor.1 = self.window.height + self.window.y;
