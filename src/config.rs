@@ -1,7 +1,8 @@
 //! This module defines the basic configuration of a document that is to be
-/// typeset. The configuration is parsed from a TOML file located at the
-/// root of the SpanDeX project. Mandatory measurements take default values
-/// that are also provided by this module.
+//! typeset. The configuration is parsed from a TOML file located at the
+//! root of the SpanDeX project. Mandatory measurements take default values
+//! that are also provided by this module.
+
 use crate::document::{Document, Window};
 use crate::font::FontManager;
 use crate::Result as CResult;
