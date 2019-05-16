@@ -1,3 +1,7 @@
+//! This module defines the basic configuration of a document that is to be
+/// typeset. The configuration is parsed from a TOML file located at the
+/// root of the SpanDeX project. Mandatory measurements take default values
+/// that are also provided by this module.
 use crate::document::{Document, Window};
 use crate::font::FontManager;
 use crate::Result as CResult;
@@ -7,8 +11,14 @@ use std::{fmt, result};
 
 use printpdf::{Mm, Pt};
 
+/// Serializes a `Pt` structure.
 pub fn serialize_pt<S: Serializer>(pt: &Pt, serializer: S) -> result::Result<S::Ok, S::Error> {
     serializer.serialize_f64(pt.0)
+}
+
+/// Deserializes a `Pt` structure.
+pub fn deserialize_pt<'a, D: Deserializer<'a>>(deserializer: D) -> Result<Pt, D::Error> {
+    deserializer.deserialize_f64(PtVisitor)
 }
 
 macro_rules! visit {
@@ -21,6 +31,7 @@ macro_rules! visit {
     }
 }
 
+/// Visitor for the `Pt` structure.
 pub struct PtVisitor;
 
 impl<'a> Visitor<'a> for PtVisitor {
@@ -40,10 +51,6 @@ impl<'a> Visitor<'a> for PtVisitor {
     visit!(visit_i64, i64);
     visit!(visit_f32, f32);
     visit!(visit_f64, f64);
-}
-
-pub fn deserialize_pt<'a, D: Deserializer<'a>>(deserializer: D) -> Result<Pt, D::Error> {
-    deserializer.deserialize_f64(PtVisitor)
 }
 
 #[cfg(test)]
@@ -79,6 +86,8 @@ mod test {
     }
 }
 
+/// Holds the configuration of a document, including various measurements
+/// common to all pages.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Config {
     /// The title of the document.
