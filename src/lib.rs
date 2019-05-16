@@ -10,7 +10,6 @@ extern crate nom;
 pub mod config;
 pub mod document;
 pub mod font;
-pub mod maths;
 pub mod parser;
 pub mod typography;
 pub mod units;
