@@ -70,13 +70,13 @@ named!(pub parse_comment<Span, Ast>,
 /// Parses some multiline inline content.
 named!(pub parse_any<Span, Ast>,
     alt!(
-        map!(tag!("**"), |x| warning(x, WarningType::ConsecutiveStars))
+        tag!("**") => { |x| warning(x, WarningType::ConsecutiveStars) }
         | parse_comment
         | parse_styled
-        | map!(tag!("*"), |x| error(x, ErrorType::UnmatchedStar))
-        | map!(tag!("/"), |x| error(x, ErrorType::UnmatchedSlash))
-        | map!(tag!("$"), |x| error(x, ErrorType::UnmatchedDollar))
-        | preceded!(tag!("|"), take_till!(should_stop)) => { |x: Span| { Ast::Text(format!("|{}", ligature(x.fragment.0))) } }
+        | tag!("*") => { |x| error(x, ErrorType::UnmatchedStar) }
+        | tag!("/") => { |x| error(x, ErrorType::UnmatchedSlash) }
+        | tag!("$") => { |x| error(x, ErrorType::UnmatchedDollar) }
+        | tag!("|") => { |_| { Ast::Text(String::from("|")) } }
         | take_till!(should_stop) => { |x: Span| { Ast::Text(ligature(x.fragment.0)) } }
     )
 );
