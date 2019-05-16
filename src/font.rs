@@ -1,17 +1,17 @@
 //! This module contains everything that helps us dealing with fonts.
 
-use std::io::Cursor;
-use std::fs::File;
-use std::path::{Path, PathBuf};
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::Cursor;
+use std::path::{Path, PathBuf};
 
-use freetype::{Face, Library, face};
+use freetype::{face, Face, Library};
 
 use printpdf::types::plugins::graphics::two_dimensional::font::IndirectFontRef;
 
-use crate::{Error, Result};
-use crate::units::{Pt, Sp};
 use crate::document::Document;
+use crate::{Error, Result};
+use printpdf::Pt;
 
 /// A font that contains the printpdf object font needed to render text and the freetype font
 /// needed to measure text.
@@ -25,8 +25,13 @@ pub struct Font {
 
 impl Font {
     /// Creates a font from a path to a file.
-    pub fn from_file<P: AsRef<Path>>(path: P, library: &Library, document: &mut Document) -> Result<Font> {
-        let file = File::open(path.as_ref()).map_err(|_| Error::FontNotFound(PathBuf::from(path.as_ref())))?;
+    pub fn from_file<P: AsRef<Path>>(
+        path: P,
+        library: &Library,
+        document: &mut Document,
+    ) -> Result<Font> {
+        let file = File::open(path.as_ref())
+            .map_err(|_| Error::FontNotFound(PathBuf::from(path.as_ref())))?;
         Ok(Font {
             freetype: library.new_face(path.as_ref(), 0)?,
             printpdf: document.inner_mut().add_external_font(file)?,
@@ -45,8 +50,7 @@ impl Font {
     }
 
     /// Computes the width of a char of the font at a specified size.
-    pub fn char_width(&self, c: char, scale: Sp) -> Sp {
-        let scale: Pt = scale.into();
+    pub fn char_width(&self, c: char, scale: Pt) -> Pt {
         let scale = scale.0;
 
         // vertical scale for the space character
@@ -59,19 +63,20 @@ impl Font {
         };
 
         // calculate the width of the text in unscaled units
-        let width = if let Ok(_) = self.freetype.load_char(c as usize, face::LoadFlag::NO_SCALE) {
+        let width = if let Ok(_) = self
+            .freetype
+            .load_char(c as usize, face::LoadFlag::NO_SCALE)
+        {
             self.freetype.glyph().metrics().horiAdvance
         } else {
             0
         };
 
-        Pt(width as f64 / (vert_scale as f64 / scale)).into()
+        Pt(width as f64 / (vert_scale as f64 / scale))
     }
 
     /// Computes the text width of the font at a specified size.
-    pub fn text_width(&self, text: &str, scale: Sp) -> Sp {
-
-        let scale: Pt = scale.into();
+    pub fn text_width(&self, text: &str, scale: Pt) -> Pt {
         let scale = scale.0;
 
         // vertical scale for the space character
@@ -85,10 +90,15 @@ impl Font {
 
         // calculate the width of the text in unscaled units
         let sum_width = text.chars().fold(0, |acc, ch| {
-            if let Ok(_) = self.freetype.load_char(ch as usize, face::LoadFlag::NO_SCALE) {
+            if let Ok(_) = self
+                .freetype
+                .load_char(ch as usize, face::LoadFlag::NO_SCALE)
+            {
                 let glyph_w = self.freetype.glyph().metrics().horiAdvance;
                 acc + glyph_w
-            } else { acc }
+            } else {
+                acc
+            }
         });
 
         Pt(sum_width as f64 / (vert_scale as f64 / scale)).into()
@@ -122,17 +132,21 @@ impl FontManager {
     /// Creates a font config.
     pub fn config<'a>(&'a self, regular: &str, bold: &str) -> Result<FontConfig<'a>> {
         Ok(FontConfig {
-            regular: self.fonts.get(regular).ok_or(Error::FontNotFound(PathBuf::from(regular)))?,
-            bold: self.fonts.get(bold).ok_or(Error::FontNotFound(PathBuf::from(bold)))?,
+            regular: self
+                .fonts
+                .get(regular)
+                .ok_or(Error::FontNotFound(PathBuf::from(regular)))?,
+            bold: self
+                .fonts
+                .get(bold)
+                .ok_or(Error::FontNotFound(PathBuf::from(bold)))?,
         })
     }
 }
 
 impl FontManager {
-
     /// Creates a new font manager, with the default fonts.
     pub fn init(document: &mut Document) -> Result<FontManager> {
-
         let mut font_manager = FontManager {
             library: Library::init()?,
             fonts: HashMap::new(),
@@ -170,7 +184,6 @@ impl FontManager {
         font_manager.add_font(include_bytes!("../assets/fonts/cmunvt.ttf"), document)?;
 
         Ok(font_manager)
-
     }
 
     /// Adds a new font to the font manager.
@@ -181,7 +194,7 @@ impl FontManager {
             _ => {
                 error!("Failed to create a built in font, this is a implementation error");
                 unreachable!();
-            },
+            }
         };
         self.fonts.insert(name, font);
         Ok(())
@@ -191,6 +204,4 @@ impl FontManager {
     pub fn get(&self, font_name: &str) -> Option<&Font> {
         self.fonts.get(font_name)
     }
-
 }
-

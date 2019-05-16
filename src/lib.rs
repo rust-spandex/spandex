@@ -2,24 +2,27 @@
 
 #![warn(missing_docs)]
 
-#[macro_use] extern crate log;
-#[macro_use] extern crate nom;
+#[macro_use]
+extern crate log;
+#[macro_use]
+extern crate nom;
 
 pub mod config;
 pub mod document;
 pub mod font;
+pub mod maths;
+pub mod parser;
 pub mod typography;
 pub mod units;
-pub mod parser;
 
-use std::path::PathBuf;
 use std::fs::File;
 use std::io::Read;
+use std::path::PathBuf;
 use std::{error, fmt, io, result};
 
 use crate::config::Config;
-use crate::units::Pt;
 use crate::parser::parse;
+use crate::units::Pt;
 
 macro_rules! impl_from_error {
     ($type: ty, $variant: path, $from: ty) => {
@@ -100,7 +103,8 @@ pub fn build(config: &Config) -> Result<()> {
 
     let font_config = font_manager.config(regular_font_name, bold_font_name)?;
 
-    let font = font_manager.get(regular_font_name)
+    let font = font_manager
+        .get(regular_font_name)
         .ok_or(Error::FontNotFound(PathBuf::from(regular_font_name)))?;
 
     let mut content = String::new();

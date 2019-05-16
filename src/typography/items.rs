@@ -1,20 +1,14 @@
 //! Various blocks holding information and specifications about the structure
 //! of a paragraph.
 use crate::font::Font;
-use crate::units::Sp;
-
-/// Value of the most negative penalty possible. This is considered infinite.
-pub const INFINITELY_NEGATIVE_PENALTY: i32 = i32::min_value();
-
-/// Value of the most positive penalty possible. This is considered infinite. g
-pub const INFINITELY_POSITIVE_PENALTY: i32 = i32::max_value();
+use printpdf::Pt;
 
 /// Top abstraction of an item, which is a specification for a box, a glue
 /// or a penalty.
 #[derive(Debug)]
 pub struct Item {
     /// The width of the item in scaled units.
-    pub width: Sp,
+    pub width: Pt,
 
     /// The type of the item.
     pub content: Content,
@@ -38,17 +32,17 @@ pub enum Content {
     /// mortar to leverage to reach a target column width.
     Glue {
         /// How inclined the glue is to stretch from its natural width, in scaled points.
-        stretchability: Sp,
+        stretchability: Pt,
 
         /// How inclined the glue is to shrink from its natural width, in scaled points.
-        shrinkability: Sp,
+        shrinkability: Pt,
     },
     /// Penalty is a potential place to end a line and step to another. It's helpful
     /// to cut a line in the middle of a word (hyphenation) or to enforce a break
     /// at the end of paragraphs.
     Penalty {
         /// The "cost" of the penalty.
-        value: i32,
+        value: f64,
 
         /// Whether or not the penalty is considered as flagged.
         flagged: bool,
@@ -57,7 +51,7 @@ pub enum Content {
 
 impl Item {
     /// Creates a box for a particular glyph and font.
-    pub fn from_glyph(glyph: char, font: &Font, font_size: Sp) -> Item {
+    pub fn from_glyph(glyph: char, font: &Font, font_size: Pt) -> Item {
         Item {
             width: font.char_width(glyph, font_size),
             content: Content::BoundingBox { glyph },
@@ -65,7 +59,7 @@ impl Item {
     }
 
     /// Creates a bounding box from its width in scaled points and its glyph.
-    pub fn bounding_box(width: Sp, glyph: char) -> Item {
+    pub fn bounding_box(width: Pt, glyph: char) -> Item {
         Item {
             width,
             content: Content::BoundingBox { glyph },
@@ -73,7 +67,7 @@ impl Item {
     }
 
     /// Creates some glue.
-    pub fn glue(ideal_spacing: Sp, stretchability: Sp, shrinkability: Sp) -> Item {
+    pub fn glue(ideal_spacing: Pt, stretchability: Pt, shrinkability: Pt) -> Item {
         Item {
             width: ideal_spacing,
             content: Content::Glue {
@@ -84,10 +78,30 @@ impl Item {
     }
 
     /// Creates a penalty.
-    pub fn penalty(width: Sp, value: i32, flagged: bool) -> Item {
+    pub fn penalty(width: Pt, value: f64, flagged: bool) -> Item {
         Item {
             width,
             content: Content::Penalty { value, flagged },
         }
     }
+}
+
+/// Holds the information of an item that's ready to be rendered.
+#[derive(Debug)]
+pub struct PositionedItem {
+    /// The index of the item within the list of items that make up
+    /// the paragraph in which is stands.
+    pub index: usize,
+
+    /// The index of the line on which this item is to be rendered.
+    pub line: usize,
+
+    /// The horizontal offset of the item.
+    pub horizontal_offset: Pt,
+
+    /// The (potentially adjusted) width this item should be rendered with.
+    pub width: Pt,
+
+    /// The glyph that should be layed out within this item.
+    pub glyph: char,
 }

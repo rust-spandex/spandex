@@ -2,9 +2,13 @@
 //! to go from one to another easily.
 //!
 //! The main conversion rules used so far are that 1 in = 72.27 pt = 2.54 cm and 1 pt = 65,536 sp.
-use std::ops::{Add, AddAssign, Div, DivAssign, Sub, SubAssign};
-use std::{f64, fmt};
+use core::ops::Neg;
+use num_integer::Integer;
+use num_traits::identities::{One, Zero};
+use num_traits::{Num, Pow, Signed};
 use std::cmp::Ordering;
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, Rem, Sub, SubAssign};
+use std::{f64, fmt, i64};
 
 use serde::{Deserialize, Serialize};
 
@@ -13,10 +17,10 @@ use printpdf::{Mm as PMm, Pt as PPt};
 /// Measure of what is supposed to be positive infinity.
 ///
 /// Any measure exceeding this value will be considered infinite.
-pub const PLUS_INFINITY: Sp = Sp(10_000_000_000);
+pub const PLUS_INFINITY: Pt = Pt(f64::MAX);
 
 /// Measure of what is supposed to be negative infinity.
-pub const MINUS_INFINITY: Sp = Sp(-10_000_000_000);
+pub const MINUS_INFINITY: Pt = Pt(f64::MIN);
 
 /// Scaled point, equal to 1/65,536 of a point.
 ///
@@ -34,6 +38,121 @@ pub struct Mm(pub f64);
 /// Points.
 #[derive(Copy, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Pt(pub f64);
+
+impl Zero for Sp {
+    fn zero() -> Self {
+        Sp(0)
+    }
+
+    fn is_zero(&self) -> bool {
+        self.0 == 0
+    }
+}
+
+impl One for Sp {
+    fn one() -> Self {
+        Sp(1)
+    }
+
+    fn is_one(&self) -> bool {
+        self.0 == 1
+    }
+}
+
+impl Num for Sp {
+    type FromStrRadixErr = std::num::ParseIntError;
+
+    fn from_str_radix(str: &str, radix: u32) -> Result<Self, Self::FromStrRadixErr> {
+        match i64::from_str_radix(str, radix) {
+            Ok(parsed) => Ok(Sp(parsed)),
+            Err(e) => Err(e),
+        }
+    }
+}
+
+impl Integer for Sp {
+    fn div_floor(&self, other: &Self) -> Self {
+        Sp(self.0.div_floor(&other.0))
+    }
+
+    fn mod_floor(&self, other: &Self) -> Self {
+        Sp(self.0.mod_floor(&other.0))
+    }
+
+    fn gcd(&self, other: &Self) -> Self {
+        Sp(self.0.gcd(&other.0))
+    }
+
+    fn lcm(&self, other: &Self) -> Self {
+        Sp(self.0.lcm(&other.0))
+    }
+
+    fn divides(&self, other: &Self) -> bool {
+        self.0.divides(&other.0)
+    }
+
+    fn is_multiple_of(&self, other: &Self) -> bool {
+        self.0.is_multiple_of(&other.0)
+    }
+
+    fn is_even(&self) -> bool {
+        self.0.is_even()
+    }
+
+    fn is_odd(&self) -> bool {
+        self.0.is_odd()
+    }
+
+    fn div_rem(&self, other: &Self) -> (Self, Self) {
+        let (div, rem) = self.0.div_rem(&other.0);
+
+        (Sp(div), Sp(rem))
+    }
+
+    fn div_mod_floor(&self, other: &Self) -> (Self, Self) {
+        let (div, rem) = self.0.div_mod_floor(&other.0);
+
+        (Sp(div), Sp(rem))
+    }
+}
+
+impl Neg for Sp {
+    type Output = Self;
+    #[inline]
+    fn neg(self) -> Self {
+        Sp(0) - self
+    }
+}
+
+impl Signed for Sp {
+    fn abs(&self) -> Self {
+        Sp(self.0.abs())
+    }
+
+    fn abs_sub(&self, other: &Self) -> Self {
+        Sp(self.0.abs_sub(&other.0))
+    }
+
+    fn signum(&self) -> Self {
+        Sp(self.0.signum())
+    }
+
+    fn is_positive(&self) -> bool {
+        self.0.is_positive()
+    }
+
+    fn is_negative(&self) -> bool {
+        self.0.is_negative()
+    }
+}
+
+impl Pow<u32> for Sp {
+    type Output = Sp;
+
+    fn pow(self, rhs: u32) -> Self::Output {
+        Sp(self.0.saturating_pow(rhs))
+    }
+}
 
 impl fmt::Debug for Sp {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -96,12 +215,82 @@ macro_rules! impl_operators {
                 self.0 /= other.0;
             }
         }
+
+        impl Mul for $the_type {
+            type Output = $the_type;
+
+            fn mul(self, other: $the_type) -> $the_type {
+                $constructor(self.0 * other.0)
+            }
+        }
+
+        impl Rem for $the_type {
+            type Output = $the_type;
+
+            fn rem(self, other: $the_type) -> $the_type {
+                $constructor(self.0 % other.0)
+            }
+        }
     };
 }
 
 impl_operators!(Sp, Sp);
 impl_operators!(Mm, Mm);
 impl_operators!(Pt, Pt);
+
+// impl Mul for Sp {
+//     type Output = Sp;
+
+//     fn mul(self, other: Sp) -> Sp {
+//         let (result, did_overflow) = self.0.overflowing_mul(other.0);
+
+//         if did_overflow {
+//             PLUS_INFINITY
+//         } else {
+//             Sp(result)
+//         }
+//     }
+// }
+
+impl Mul<i64> for Pt {
+    type Output = Pt;
+
+    fn mul(self, rhs: i64) -> Pt {
+        Pt(self.0 * rhs as f64)
+    }
+}
+
+impl Mul<f64> for Pt {
+    type Output = Pt;
+
+    fn mul(self, rhs: f64) -> Pt {
+        Pt(self.0 * rhs)
+    }
+}
+
+impl Mul<i64> for Sp {
+    type Output = Sp;
+
+    fn mul(self, rhs: i64) -> Sp {
+        Sp(self.0 * rhs)
+    }
+}
+
+impl Mul<Pt> for f64 {
+    type Output = Pt;
+
+    fn mul(self, rhs: Pt) -> Pt {
+        Pt(self * rhs.0)
+    }
+}
+
+impl Mul<Sp> for i64 {
+    type Output = Sp;
+
+    fn mul(self, rhs: Sp) -> Sp {
+        Sp(self * rhs.0)
+    }
+}
 
 impl PartialOrd for Sp {
     fn partial_cmp(&self, other: &Sp) -> Option<Ordering> {
@@ -149,6 +338,12 @@ impl From<Pt> for Mm {
 impl Into<Pt> for Mm {
     fn into(self) -> Pt {
         Pt((72.27 / 25.4) * self.0)
+    }
+}
+
+impl PartialOrd for Pt {
+    fn partial_cmp(&self, other: &Pt) -> Option<Ordering> {
+        self.0.partial_cmp(&other.0)
     }
 }
 
