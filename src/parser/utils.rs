@@ -9,11 +9,6 @@ pub fn replicate(c: char, n: usize) -> String {
     string
 }
 
-/// Returns true if the character passed as parameter changes the type of parsing we're going to do.
-pub fn should_stop(c: char) -> bool {
-    c == '*' || c == '/' || c == '$'
-}
-
 /// Returns true if the char at specified byte is a \n.
 pub fn is_new_line(content: &str, byte: usize) -> bool {
     content.is_char_boundary(byte)

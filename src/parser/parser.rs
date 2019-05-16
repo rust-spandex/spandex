@@ -13,7 +13,7 @@ use crate::parser::warning::{EmptyWarning, WarningType};
 
 /// Returns true if the character passed as parameter changes the type of parsing we're going to do.
 pub fn should_stop(c: char) -> bool {
-    c == '*' || c == '/' || c == '$'
+    c == '*' || c == '/' || c == '$' || c == '|'
 }
 
 /// Creates an error.
@@ -62,10 +62,16 @@ named!(pub parse_styled<Span, Ast>,
     )
 );
 
+/// Parses a comment.
+named!(pub parse_comment<Span, Ast>,
+    map!(preceded!(tag!("||"), take_until_and_consume!("\n")), { |_|  Ast::Newline })
+);
+
 /// Parses some multiline inline content.
 named!(pub parse_any<Span, Ast>,
     alt!(
         map!(tag!("**"), |x| warning(x, WarningType::ConsecutiveStars))
+        | parse_comment
         | parse_styled
         | map!(tag!("*"), |x| error(x, ErrorType::UnmatchedStar))
         | map!(tag!("/"), |x| error(x, ErrorType::UnmatchedSlash))
