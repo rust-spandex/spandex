@@ -1,7 +1,9 @@
 //! This module contains the tests that should fail and checks that the error messages are correct.
 
 use std::error::Error;
-use crate::parser::{parse, ErrorType};
+
+use crate::parser::error::ErrorType;
+use crate::parser::parse;
 
 #[test]
 fn test_unmatched_star() -> Result<(), Box<Error>> {
@@ -86,7 +88,6 @@ fn test_title_no_new_line() -> Result<(), Box<Error>> {
     Ok(())
 }
 
-
 #[test]
 fn test_accent() -> Result<(), Box<Error>> {
     let p = parse("assets/tests/errors/test-accent.dex");
@@ -105,4 +106,3 @@ fn test_accent() -> Result<(), Box<Error>> {
 
     Ok(())
 }
-

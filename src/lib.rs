@@ -13,15 +13,18 @@ pub mod font;
 pub mod parser;
 pub mod typography;
 pub mod units;
+pub mod ligature;
 
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
 use std::{error, fmt, io, result};
 
+use printpdf::Pt;
+
 use crate::config::Config;
 use crate::parser::parse;
-use crate::units::Pt;
+use crate::parser::error::Errors;
 
 macro_rules! impl_from_error {
     ($type: ty, $variant: path, $from: ty) => {
@@ -61,14 +64,14 @@ pub enum Error {
     IoError(io::Error),
 
     /// Some error occured while parsing a dex file.
-    DexError(parser::Errors),
+    DexError(Errors),
 }
 
 impl_from_error!(Error, Error::FreetypeError, freetype::Error);
 impl_from_error!(Error, Error::PrintpdfError, printpdf::errors::Error);
 impl_from_error!(Error, Error::IoError, io::Error);
 impl_from_error!(Error, Error::HyphenationLoadError, hyphenation::load::Error);
-impl_from_error!(Error, Error::DexError, parser::Errors);
+impl_from_error!(Error, Error::DexError, Errors);
 
 impl fmt::Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
@@ -96,27 +99,19 @@ pub type Result<T> = result::Result<T, Error>;
 /// Compiles a spandex project.
 pub fn build(config: &Config) -> Result<()> {
     let (mut document, font_manager) = config.init()?;
-
-    let regular_font_name = "CMU Serif Roman";
-    let bold_font_name = "CMU Serif Bold";
-
-    let font_config = font_manager.config(regular_font_name, bold_font_name)?;
-
-    let font = font_manager
-        .get(regular_font_name)
-        .ok_or(Error::FontNotFound(PathBuf::from(regular_font_name)))?;
+    let font_config = font_manager.default_config();
 
     let mut content = String::new();
     let mut file = File::open(&config.input)?;
     file.read_to_string(&mut content)?;
 
-    if config.input.ends_with(".md") || config.input.ends_with(".mdown") {
-        document.write_markdown(&content, &font_config, Pt(10.0).into());
-    } else if config.input.ends_with(".dex") {
+    if config.input.ends_with(".dex") {
         let parsed = parse(&config.input)?;
-        document.render(&parsed.ast, &font_config, Pt(10.0).into());
+        println!("{}", parsed.warnings);
+        println!("{:?}", parsed.ast);
+        document.render(&parsed.ast, &font_config, Pt(10.0));
     } else {
-        document.write_content(&content, font, Pt(10.0).into());
+        document.write_content(&content, &font_config, Pt(10.0));
     }
     document.save("output.pdf");
     Ok(())

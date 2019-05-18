@@ -2,8 +2,11 @@
 //! semantics of "paragraph". That is, the logic to split a sequence of
 //! words into lines.
 
-use crate::font::Font;
+use crate::font::{FontStyle, FontConfig};
 use crate::typography::items::{Content, Item, PositionedItem};
+use crate::typography::Glyph;
+use crate::parser::ast::Ast;
+
 use hyphenation::*;
 use petgraph::graph::NodeIndex;
 use petgraph::stable_graph::StableGraph;
@@ -29,19 +32,19 @@ const MAX_ADJUSTMENT_RATIO: f64 = 10.0;
 const PLUS_INFINITY: Pt = Pt(f64::INFINITY);
 
 /// Holds a list of items describing a paragraph.
-pub struct Paragraph {
+pub struct Paragraph<'a> {
     /// Sequence of items representing the structure of the paragraph.
-    pub items: Vec<Item>,
+    pub items: Vec<Item<'a>>,
 }
 
-impl Paragraph {
+impl<'a> Paragraph<'a> {
     /// Instantiates a new paragraph.
-    pub fn new() -> Paragraph {
+    pub fn new() -> Paragraph<'a> {
         Paragraph { items: Vec::new() }
     }
 
     /// Pushes an item at the end of the paragraph.
-    pub fn push(&mut self, item: Item) {
+    pub fn push(&mut self, item: Item<'a>) {
         self.items.push(item)
     }
 
@@ -51,71 +54,150 @@ impl Paragraph {
     }
 }
 
-/// Parses a string into a sequence of items.
-pub fn itemize_paragraph(
-    words: &str,
-    indentation: Pt,
-    font: &Font,
-    font_size: Pt,
+/// Parses an AST into a sequence of items.
+pub fn itemize_ast<'a>(
+    ast: &Ast,
+    font_config: &'a FontConfig,
+    size: Pt,
     dictionary: &Standard,
-) -> Paragraph {
-    let mut paragraph = Paragraph::new();
+    indent: Pt,
+) -> Paragraph<'a> {
+    let mut p = Paragraph::new();
+    let current_style = FontStyle::regular();
 
-    // Add trailing space to ensure the last word is treated.
-    let words = format!("{}{}", words, " ");
-
-    // Prepend a bounding box for the paragraph indent.
-    paragraph.push(Item::bounding_box(indentation, ' '));
-
-    let hyphen_width = font.char_width('-', font_size);
-
-    let ideal_spacing = Pt(7.5);
-    let mut previous_glyph = 'c';
-    let mut current_word = String::from("");
-
-    // Turn each word of the paragraph into a sequence of boxes for
-    // the caracters of the word. This includes potential punctuation
-    // marks.
-    for glyph in words.chars() {
-        if glyph.is_whitespace() {
-            paragraph.push(get_glue_from_context(previous_glyph, ideal_spacing));
-
-            // Reached end of current word, handle hyphenation.
-            let hyphenated = dictionary.hyphenate(&*current_word);
-            let break_indices = &hyphenated.breaks;
-
-            for (i, c) in current_word.chars().enumerate() {
-                if break_indices.contains(&i) {
-                    paragraph.push(Item::penalty(Pt(0.0), 50.0, true))
-                }
-
-                paragraph.push(Item::from_glyph(c, font, font_size));
-
-                if c == DASH_GLYPH {
-                    paragraph.push(Item::penalty(hyphen_width, 50.0, true))
-                }
-            }
-
-            current_word = String::from("");
-        } else {
-            current_word.push(glyph);
-        }
-
-        previous_glyph = glyph;
+    if indent > Pt(0.0) {
+        p.push(Item::glue(indent, Pt(0.0), Pt(0.0)));
     }
 
-    // Appends two items to ensure the end of any paragraph is
-    // treated properly: a glue specifying the available space
-    // at the right of the last tine, and a penalty item to
-    // force a line break.
-    paragraph.push(Item::glue(Pt(0.0), PLUS_INFINITY, Pt(0.0)));
-    paragraph.push(Item::penalty(Pt(0.0), f64::NEG_INFINITY, false));
+    itemize_ast_aux(ast, font_config, size, dictionary, current_style, &mut p);
+    p
+}
 
-    paragraph
+/// Parses an AST into a sequence of items.
+pub fn itemize_ast_aux<'a>(
+    ast: &Ast,
+    font_config: &'a FontConfig,
+    size: Pt,
+    dictionary: &Standard,
+    current_style: FontStyle,
+    buffer: &mut Paragraph<'a>,
+) {
+    match ast {
+        Ast::Title { level, content } => {
+            let size = size + Pt(3.0 * ((4 - *level as isize).max(1)) as f64).into();
+            itemize_ast_aux(
+                content,
+                font_config,
+                size,
+                dictionary,
+                current_style.bold(),
+                buffer,
+            );
+            buffer.push(Item::glue(Pt(0.0), PLUS_INFINITY, Pt(0.0)));
+            buffer.push(Item::penalty(Pt(0.0), f64::NEG_INFINITY, false));
+        }
+
+        Ast::Bold(content) => {
+            itemize_ast_aux(
+                content,
+                font_config,
+                size,
+                dictionary,
+                current_style.bold(),
+                buffer,
+            );
+        }
+
+        Ast::Italic(content) => {
+            itemize_ast_aux(
+                content,
+                font_config,
+                size,
+                dictionary,
+                current_style.italic(),
+                buffer,
+            );
+        }
+
+        Ast::Text(content) => {
+            let font = font_config.for_style(current_style);
+            let ideal_spacing = Pt(7.5);
+            let mut previous_glyph = None;
+            let mut current_word = vec![];
+
+            // Turn each word of the paragraph into a sequence of boxes for the caracters of the
+            // word. This includes potential punctuation marks.
+            for c in content.chars() {
+                if c.is_whitespace() {
+                    buffer.push(glue_from_context(previous_glyph, ideal_spacing));
+                    add_word_to_paragraph(current_word, dictionary, buffer);
+                    current_word = vec![];
+                } else {
+                    current_word.push(Glyph::new(c, font, size));
+                }
+
+                previous_glyph = Some(Glyph::new(c, font, size));
+            }
+
+            if !current_word.is_empty() {
+                buffer.push(glue_from_context(previous_glyph, ideal_spacing));
+                add_word_to_paragraph(current_word, dictionary, buffer);
+            }
+        }
+
+        Ast::Group(children) => {
+            for child in children {
+                itemize_ast_aux(child, font_config, size, dictionary, current_style, buffer);
+            }
+        }
+
+        Ast::Paragraph(children) => {
+            for child in children {
+                itemize_ast_aux(child, font_config, size, dictionary, current_style, buffer);
+            }
+
+            // Appends two items to ensure the end of any paragraph is treated properly: a glue
+            // specifying the available space at the right of the last tine, and a penalty item to
+            // force a line break.
+            buffer.push(Item::glue(Pt(0.0), PLUS_INFINITY, Pt(0.0)));
+            buffer.push(Item::penalty(Pt(0.0), f64::NEG_INFINITY, false));
+        }
+
+        _ => (),
+    }
+}
+
+/// Adds a word to a buffer.
+pub fn add_word_to_paragraph<'a>(
+    word: Vec<Glyph<'a>>,
+    dictionary: &Standard,
+    buffer: &mut Paragraph<'a>,
+) {
+    // Reached end of current word, handle hyphenation.
+    let to_hyphenate = word
+        .iter()
+        .map(|x: &Glyph| x.glyph.to_string())
+        .collect::<Vec<_>>()
+        .join("");
+
+    let hyphenated = dictionary.hyphenate(&to_hyphenate);
+    let break_indices = &hyphenated.breaks;
+
+    for (i, g) in word.iter().enumerate() {
+        if break_indices.contains(&i) {
+            buffer.push(Item::penalty(Pt(0.0), 50.0, true));
+        }
+
+        buffer.push(Item::from_glyph(g.clone()));
+
+        if g.glyph == DASH_GLYPH {
+            buffer.push(Item::penalty(Pt(0.0), 50.0, true));
+        }
+    }
 }
 
 /// Returns the glue based on the spatial context of the cursor.
-fn get_glue_from_context(_previous_glyph: char, ideal_spacing: Pt) -> Item {
+fn glue_from_context<'a>(_previous_glyph: Option<Glyph<'a>>, ideal_spacing: Pt) -> Item<'a> {
     // Todo: make this glue context dependent.
     Item::glue(ideal_spacing, SPACE_WIDTH, SPACE_WIDTH * 0.5)
 }
@@ -255,7 +337,7 @@ fn compute_fitness(adjustment_ratio: f64) -> i64 {
 ///
 /// It returns the indexes of items which have been chosen as
 /// breakpoints.
-pub fn algorithm(paragraph: &Paragraph, lines_length: &Vec<Pt>) -> Vec<usize> {
+pub fn algorithm<'a>(paragraph: &'a Paragraph<'a>, lines_length: &Vec<Pt>) -> Vec<usize> {
     let mut graph = StableGraph::<_, f64>::new();
     let mut sum_width = Pt(0.0);
     let mut sum_stretch = Pt(0.0);
@@ -477,7 +559,7 @@ pub fn algorithm(paragraph: &Paragraph, lines_length: &Vec<Pt>) -> Vec<usize> {
 }
 
 /// Checks whether or not a given item encodes a forced linebreak.
-fn is_forced_break(item: &Item) -> bool {
+fn is_forced_break<'a> (item: &'a Item<'a>) -> bool {
     match item.content {
         Content::Penalty { value, .. } => value < MIN_COST,
         _ => false,
@@ -486,8 +568,8 @@ fn is_forced_break(item: &Item) -> bool {
 
 /// Computes the adjustment ratios of all lines given a set of line lengths and breakpoint indices.
 /// This allows to speed up the adaptation of glue items.
-fn compute_adjustment_ratios_with_breakpoints(
-    items: &Vec<Item>,
+fn compute_adjustment_ratios_with_breakpoints<'a>(
+    items: &'a Vec<Item<'a>>,
     line_lengths: &Vec<Pt>,
     breakpoints: &Vec<usize>,
 ) -> Vec<f64> {
@@ -570,11 +652,11 @@ fn compute_adjustment_ratio(
 
 /// Generates a list of positioned items from a list of items making up a paragraph.
 /// The generated list is ready to be rendered.
-pub fn positionate_items(
-    items: &Vec<Item>,
+pub fn positionate_items<'a>(
+    items: &'a Vec<Item<'a>>,
     line_lengths: &Vec<Pt>,
     breakpoints: &Vec<usize>,
-) -> Vec<Vec<PositionedItem>> {
+) -> Vec<Vec<PositionedItem<'a>>> {
     let adjustment_ratios =
         compute_adjustment_ratios_with_breakpoints(&items, &line_lengths, &breakpoints);
     let mut lines_breakdown: Vec<Vec<PositionedItem>> = Vec::new();
@@ -593,13 +675,13 @@ pub fn positionate_items(
 
         for p in beginning..breakpoints[breakpoint_line + 1] {
             match items[p].content {
-                Content::BoundingBox { glyph, .. } => {
+                Content::BoundingBox(ref glyph) => {
                     positioned_items.push(PositionedItem {
                         index: p,
                         line: breakpoint_line,
                         horizontal_offset: horizontal_offset,
                         width: items[p].width,
-                        glyph,
+                        glyph: glyph.clone(),
                     });
                     horizontal_offset += items[p].width;
                 }
@@ -622,15 +704,16 @@ pub fn positionate_items(
                     }
                 }
                 Content::Penalty { .. } => {
-                    if p == breakpoints[breakpoint_line + 1] && items[p].width > Pt(0.0) {
-                        positioned_items.push(PositionedItem {
-                            index: p,
-                            line: breakpoint_line,
-                            horizontal_offset: horizontal_offset,
-                            width: items[p].width,
-                            glyph: '-',
-                        })
-                    }
+                    // TODO Fix dash glyph
+                    // if p == breakpoints[breakpoint_line + 1] && items[p].width > Pt(0.0) {
+                    //     positioned_items.push(PositionedItem {
+                    //         index: p,
+                    //         line: breakpoint_line,
+                    //         horizontal_offset: horizontal_offset,
+                    //         width: items[p].width,
+                    //         glyph: '-',
+                    //     })
+                    // }
                 }
             }
         }
@@ -648,9 +731,10 @@ mod tests {
     use crate::typography::items::Content;
     use crate::typography::paragraphs::{
         algorithm, compute_adjustment_ratios_with_breakpoints, find_legal_breakpoints,
-        itemize_paragraph,
+        itemize_ast,
     };
     use crate::{Error, Result};
+    use crate::parser::ast::Ast;
     use hyphenation::*;
     use printpdf::Pt;
     use std::path::PathBuf;
@@ -658,20 +742,19 @@ mod tests {
     #[test]
     fn test_paragraph_itemization() -> Result<()> {
         let words = "Lorem ipsum dolor sit amet.";
+        let ast = Ast::Paragraph(vec![Ast::Text(words.into())]);
 
         let en_us = Standard::from_embedded(Language::EnglishUS)?;
 
         let (_, font_manager) = Config::with_title("Test").init()?;
+        let config = font_manager.default_config();
 
-        let regular_font_name = "CMU Serif Roman";
-        // let bold_font_name = "CMU Serif Bold";
-
-        let font = font_manager
-            .get(regular_font_name)
-            .ok_or(Error::FontNotFound(PathBuf::from(regular_font_name)))?;
+        // No indentation, meaning no leading empty box.
+        let paragraph = itemize_ast(&ast, &config, Pt(10.0), &en_us, Pt(0.0));
+        assert_eq!(paragraph.items.len(), 32);
 
         // Indentated paragraph, implying the presence of a leading empty box.
-        let paragraph = itemize_paragraph(words, Pt(85.0), &font, Pt(12.0), &en_us);
+        let paragraph = itemize_ast(&ast, &config, Pt(10.0), &en_us, Pt(7.5));
         assert_eq!(paragraph.items.len(), 33);
 
         Ok(())
@@ -680,24 +763,19 @@ mod tests {
     #[test]
     fn test_legal_breakpoints() -> Result<()> {
         let words = "Lorem ipsum dolor sit amet.";
+        let ast = Ast::Paragraph(vec![Ast::Text(words.into())]);
 
         let en_us = Standard::from_embedded(Language::EnglishUS)?;
 
         let (_, font_manager) = Config::with_title("Test").init()?;
-
-        let regular_font_name = "CMU Serif Roman";
-        // let bold_font_name = "CMU Serif Bold";
-
-        let font = font_manager
-            .get(regular_font_name)
-            .ok_or(Error::FontNotFound(PathBuf::from(regular_font_name)))?;
+        let config = font_manager.default_config();
 
         // Indentated paragraph, implying the presence of a leading empty box.
-        let paragraph = itemize_paragraph(words, Pt(85.0), &font, Pt(12.0), &en_us);
+        let paragraph = itemize_ast(&ast, &config, Pt(10.0), &en_us, Pt(7.5));
 
         let legal_breakpoints = find_legal_breakpoints(&paragraph);
         // [ ] Lorem ip-sum do-lor sit amet.
-        assert_eq!(legal_breakpoints, [0, 1, 7, 10, 14, 17, 21, 25, 31, 32]);
+        assert_eq!(legal_breakpoints, [0, 7, 10, 14, 17, 21, 25, 31, 32]);
 
         Ok(())
     }
@@ -738,20 +816,16 @@ mod tests {
 
         let words = "The hallway smelt of boiled cabbage and old rag mats. At one end of it a coloured poster, too large for indoor display, had been tacked to the wall. It depicted simply an enormous face, more than a metre wide: the face of a man of about forty-five, with a heavy black moustache and ruggedly handsome features. Winston made for the stairs. It was no use trying the lift. Even at the best of times it was seldom working, and at present the electric current was cut off during daylight hours. It was part of the economy drive in preparation for Hate Week. The flat was seven flights up, and Winston, who was thirty-nine and had a varicose ulcer above his right ankle, went slowly, resting several times on the way. On each landing, opposite the lift-shaft, the poster with the enormous face gazed from the wall. It was one of those pictures which are so contrived that the eyes follow you about when you move. BIG BROTHER IS WATCHING YOU, the caption beneath it ran.";
 
+        let ast = Ast::Paragraph(vec![Ast::Text(words.into())]);
+
         let en_us = Standard::from_embedded(Language::EnglishUS)?;
 
         let (_, font_manager) = Config::with_title("Test").init()?;
-
-        let regular_font_name = "CMU Serif Roman";
-        // let bold_font_name = "CMU Serif Bold";
-
-        let font = font_manager
-            .get(regular_font_name)
-            .ok_or(Error::FontNotFound(PathBuf::from(regular_font_name)))?;
+        let config = font_manager.default_config();
 
         let indentation = Pt(18.0);
 
-        let paragraph = itemize_paragraph(words, indentation, &font, Pt(12.0), &en_us);
+        let paragraph = itemize_ast(&ast, &config, Pt(12.0), &en_us, indentation);
 
         let lines_length = vec![Pt(400.0)];
         let breakpoints = algorithm(&paragraph, &lines_length);
@@ -770,7 +844,7 @@ mod tests {
         let mut current_line = 0;
         for (c, item) in paragraph.items.iter().enumerate() {
             match item.content {
-                Content::BoundingBox { glyph } => print!("{}", glyph),
+                Content::BoundingBox(ref glyph) => print!("{}", glyph.glyph),
                 Content::Glue { .. } => {
                     if breakpoints.contains(&c) {
                         print!("       [{:?}]", adjustment_ratios[current_line]);

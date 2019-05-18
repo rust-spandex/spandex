@@ -3,31 +3,25 @@
 /// Replicates a char n times.
 pub fn replicate(c: char, n: usize) -> String {
     let mut string = String::new();
-    for _ in 0 .. n {
+    for _ in 0..n {
         string.push(c);
     }
     string
-}
-
-/// Returns true if the character passed as parameter changes the type of parsing we're going to do.
-pub fn should_stop(c: char) -> bool {
-    c == '*' || c == '/' || c == '$'
 }
 
 /// Returns true if the char at specified byte is a \n.
 pub fn is_new_line(content: &str, byte: usize) -> bool {
     content.is_char_boundary(byte)
         && content.is_char_boundary(byte + 1)
-        && &content[byte .. byte + 1] == "\n"
+        && &content[byte..byte + 1] == "\n"
 }
 
 /// Computes the column of a specified byte depending on its line and offset.
 pub fn compute_column(content: &str, start: usize, current: usize) -> usize {
-
     let mut column = 0;
     let mut pointer = start;
 
-    for c in content[start .. ].chars() {
+    for c in content[start..].chars() {
         if pointer == current {
             break;
         }
@@ -43,14 +37,13 @@ pub fn compute_column(content: &str, start: usize, current: usize) -> usize {
 ///
 /// Returns 0 is no \n was found.
 pub fn previous_new_line(content: &str, byte: usize) -> usize {
-
     let mut i = byte;
 
-    while i != 0 && ! is_new_line(content, i) {
+    while i != 0 && !is_new_line(content, i) {
         i -= 1;
     }
 
-    if &content[i .. i + 1] == "\n" {
+    if &content[i..i + 1] == "\n" {
         i + 1
     } else {
         i
@@ -63,11 +56,9 @@ pub fn previous_new_line(content: &str, byte: usize) -> usize {
 pub fn next_new_line(content: &str, byte: usize) -> usize {
     let mut i = byte;
 
-    while i != content.len() && ! is_new_line(content, i) {
+    while i != content.len() && !is_new_line(content, i) {
         i += 1;
     }
 
     i
 }
-
-

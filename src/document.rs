@@ -5,36 +5,27 @@ use std::fs::File;
 use std::io::BufWriter;
 use std::path::Path;
 
-use printpdf::{PdfDocument, PdfDocumentReference, PdfLayerReference, PdfPageReference};
+use printpdf::{Pt, PdfDocument, PdfDocumentReference, PdfLayerReference, PdfPageReference};
 
-use pulldown_cmark::{Event, Parser, Tag};
+use hyphenation::load::Load;
+use hyphenation::{Language, Standard};
 
 use crate::font::{Font, FontConfig};
-use crate::parser::Ast;
+use crate::parser::ast::Ast;
+use crate::typography::paragraphs::itemize_ast;
 use crate::typography::justification::{Justifier, NaiveJustifier};
-use printpdf::Pt;
 
 /// The struct that manages the counters for the document.
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub struct Counters {
-    /// The section counter.
-    pub sections: usize,
-
-    /// The subsection couter.
-    pub subsections: usize,
-
-    /// The subsubsection counter.
-    pub subsubsections: usize,
+    /// The counters.
+    pub counters: Vec<usize>,
 }
 
 impl Counters {
     /// Creates a new empty counters.
     pub fn new() -> Counters {
-        Counters {
-            sections: 0,
-            subsections: 0,
-            subsubsections: 0,
-        }
+        Counters { counters: vec![0] }
     }
 
     /// Increases the corresponding counter and returns it if it is correct.
@@ -46,56 +37,45 @@ impl Counters {
     /// ```
     /// # use spandex::document::Counters;
     /// let mut counters = Counters::new();
+    /// counters.increment(0);
+    /// assert_eq!(counters.counter(0), 1);
+    /// assert_eq!(counters.counter(1), 0);
+    /// assert_eq!(counters.counter(2), 0);
     /// counters.increment(1);
-    /// assert_eq!(counters.sections, 1);
-    /// assert_eq!(counters.subsections, 0);
-    /// assert_eq!(counters.subsubsections, 0);
-    /// counters.increment(2);
-    /// assert_eq!(counters.subsections, 1);
-    /// counters.increment(2);
-    /// assert_eq!(counters.subsections, 2);
+    /// assert_eq!(counters.counter(1), 1);
     /// counters.increment(1);
-    /// assert_eq!(counters.sections, 2);
-    /// assert_eq!(counters.subsections, 0);
+    /// assert_eq!(counters.counter(1), 2);
+    /// counters.increment(0);
+    /// assert_eq!(counters.counter(0), 2);
+    /// assert_eq!(counters.counter(1), 0);
+    /// println!("{}", counters);
     /// ```
-    pub fn increment(&mut self, counter_id: i32) -> Option<usize> {
-        match counter_id {
-            1 => {
-                self.sections += 1;
-                self.subsections = 0;
-                self.subsubsections = 0;
-                Some(self.sections)
-            }
+    pub fn increment(&mut self, counter_id: usize) -> usize {
+        self.counters.resize(counter_id + 1, 0);
+        self.counters[counter_id] += 1;
+        self.counters[counter_id]
+    }
 
-            2 => {
-                self.subsections += 1;
-                self.subsubsections = 0;
-                Some(self.subsections)
-            }
-
-            3 => {
-                self.subsubsections += 1;
-                Some(self.subsubsections)
-            }
-
-            _ => {
-                warn!("sub sub sub sections are not supported");
-                None
-            }
+    /// Returns a specific value of a counter.
+    pub fn counter(&self, counter_id: usize) -> usize {
+        match self.counters.get(counter_id) {
+            Some(i) => *i,
+            None => 0,
         }
     }
 }
 
 impl fmt::Display for Counters {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "{}", self.sections)?;
-        if self.subsections > 0 {
-            write!(fmt, ".{}", self.subsections)?;
-        }
-        if self.subsubsections > 0 {
-            write!(fmt, ".{}", self.subsubsections)?;
-        }
-        Ok(())
+        write!(
+            fmt,
+            "{}",
+            self.counters
+                .iter()
+                .map(|x| x.to_string())
+                .collect::<Vec<_>>()
+                .join(".")
+        )
     }
 }
 
@@ -178,151 +158,72 @@ impl Document {
 
     /// Renders an AST to the document.
     pub fn render(&mut self, ast: &Ast, font_config: &FontConfig, size: Pt) {
-        println!("{:?}", ast);
-        self.render_aux(ast, font_config, size, vec![]);
-    }
-
-    /// Renders an ast to the document with a certain buffer.
-    fn render_aux(
-        &mut self,
-        ast: &Ast,
-        font_config: &FontConfig,
-        size: Pt,
-        buffer: Vec<String>,
-    ) -> Vec<String> {
-        let mut buffer = buffer;
+        let en = Standard::from_embedded(Language::EnglishUS).unwrap();
 
         match ast {
-            Ast::Title { level, content } => {
-                let size = size + Pt(3.0 * (4 - level) as f64).into();
-                let buffer = self.render_aux(content, font_config, size, vec![]);
-                self.write_paragraph::<NaiveJustifier>(
-                    &buffer.join(" "),
-                    font_config.regular,
-                    size,
-                );
-                self.new_line(size);
-            }
-
-            Ast::Bold(content) => {
-                buffer = self.render_aux(content, font_config, size, buffer);
-            }
-
-            Ast::Italic(content) => {
-                buffer = self.render_aux(content, font_config, size, buffer);
-            }
-
-            Ast::InlineMath(_content) => {
-                unimplemented!();
-            }
-
-            Ast::Text(content) => {
-                buffer.push(content.to_owned());
-            }
-
             Ast::Group(children) => {
                 for child in children {
-                    buffer = self.render_aux(child, font_config, size, buffer);
+                    self.render(child, font_config, size);
                 }
             }
 
-            Ast::Paragraph(children) => {
-                for child in children {
-                    buffer = self.render_aux(child, font_config, size, buffer);
+            Ast::Title { level, content } => {
+                self.counters.increment(*level as usize);
+                match &**content {
+                    Ast::Group(children) => {
+                        let mut new_children = vec![Ast::Text(format!("{}", self.counters))];
+                        new_children.extend_from_slice(children);
+                        let new_ast = Ast::Title {
+                            level: *level,
+                            content: Box::new(Ast::Group(new_children)),
+                        };
+                        self.write_paragraph::<NaiveJustifier>(&new_ast, font_config, size, &en);
+                    }
+                    _ => self.write_paragraph::<NaiveJustifier>(ast, font_config, size, &en),
                 }
-                self.write_paragraph::<NaiveJustifier>(
-                    &buffer.join(" "),
-                    font_config.regular,
-                    size,
-                );
-                buffer = vec![];
                 self.new_line(size);
             }
 
-            Ast::Newline | Ast::Error(_) => (),
-        }
-
-        buffer
-    }
-
-    /// Writes markdown content on the document.
-    pub fn write_markdown(&mut self, markdown: &str, font_config: &FontConfig, size: Pt) {
-        let mut current_size = size;
-        let mut content = String::new();
-
-        let parser = Parser::new(markdown);
-
-        for event in parser {
-            match event {
-                Event::Start(Tag::Header(i)) => {
-                    if self.counters.increment(i).is_some() {
-                        content.push_str(&format!("{}", self.counters));
-                    }
-
-                    current_size = size + Pt(3.0 * (4 - i) as f64).into();
-                }
-
-                Event::Start(Tag::Item) => {
-                    content.push_str(" - ");
-                }
-
-                Event::Text(ref text) => {
-                    content.push(' ');
-                    content.push_str(text);
-                }
-
-                Event::End(Tag::Paragraph) | Event::End(Tag::Item) => {
-                    self.write_paragraph::<NaiveJustifier>(
-                        &content,
-                        font_config.regular,
-                        current_size,
-                    );
-                    self.new_line(current_size);
-
-                    content.clear();
-                    current_size = size;
-                }
-
-                Event::End(Tag::Header(_)) => {
-                    self.write_paragraph::<NaiveJustifier>(
-                        &content,
-                        font_config.bold,
-                        current_size,
-                    );
-                    self.new_line(current_size);
-
-                    content.clear();
-                    current_size = size;
-                }
-
-                _ => (),
+            Ast::Paragraph(_) => {
+                self.write_paragraph::<NaiveJustifier>(ast, font_config, size, &en);
+                self.new_line(size);
+                self.new_line(size);
             }
-            trace!("{:?}", event);
+
+            _ => (),
         }
     }
 
     /// Writes content on the document.
-    pub fn write_content(&mut self, content: &str, font: &Font, size: Pt) {
+    pub fn write_content(&mut self, content: &str, font_config: &FontConfig, size: Pt) {
+        let en = Standard::from_embedded(Language::EnglishUS).unwrap();
+
         for paragraph in content.split("\n") {
-            self.write_paragraph::<NaiveJustifier>(paragraph, font, size);
+            let ast = Ast::Text(paragraph.to_owned());
+            self.write_paragraph::<NaiveJustifier>(&ast, font_config, size, &en);
             self.new_line(size);
         }
     }
 
     /// Writes a paragraph on the document.
-    pub fn write_paragraph<J: Justifier>(&mut self, paragraph: &str, font: &Font, size: Pt) {
-        let size_i64 = Into::<Pt>::into(size).0 as i64;
-
-        let justified = J::justify(paragraph, self.window.width, font, size);
+    pub fn write_paragraph<'a, J: Justifier>(
+        &mut self,
+        paragraph: &Ast,
+        font_config: &FontConfig,
+        size: Pt,
+        dict: &Standard,
+    ) {
+        let paragraph = itemize_ast(paragraph, font_config, size, dict, Pt(0.0));
+        let justified = J::justify(&paragraph, self.window.width);
 
         for line in justified {
             for glyph in line {
                 self.layer.use_text(
-                    glyph.0.to_string(),
-                    size_i64,
+                    glyph.0.glyph.to_string(),
+                    Into::<Pt>::into(glyph.0.scale).0 as i64,
                     (self.window.x + glyph.1).into(),
                     self.cursor.1.into(),
-                    font.printpdf(),
+                    glyph.0.font.printpdf(),
                 );
             }
 

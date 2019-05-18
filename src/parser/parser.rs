@@ -5,16 +5,28 @@
 
 use nom::rest;
 
-use crate::parser::{Span, Ast, ToPosition, EmptyError, ErrorType};
+use crate::ligature::ligature;
+use crate::parser::ast::Ast;
+use crate::parser::error::{EmptyError, ErrorType};
+use crate::parser::warning::{EmptyWarning, WarningType};
+use crate::parser::{Span, ToPosition};
 
 /// Returns true if the character passed as parameter changes the type of parsing we're going to do.
 pub fn should_stop(c: char) -> bool {
-    c == '*' || c == '/' || c == '$'
+    c == '*' || c == '/' || c == '$' || c == '|'
 }
 
 /// Creates an error.
 pub fn error(span: Span, ty: ErrorType) -> Ast {
     Ast::Error(EmptyError {
+        position: span.position(),
+        ty,
+    })
+}
+
+/// Creates a warning.
+pub fn warning(span: Span, ty: WarningType) -> Ast {
+    Ast::Warning(EmptyWarning {
         position: span.position(),
         ty,
     })
@@ -41,7 +53,6 @@ named!(pub parse_inline_math<Span, Ast>,
     map!(preceded!(tag!("$"), take_until_and_consume!("$")), { |x: Span| Ast::InlineMath(x.fragment.0.into())} )
 );
 
-
 /// Parses a styled element.
 named!(pub parse_styled<Span, Ast>,
     alt!(
@@ -49,14 +60,22 @@ named!(pub parse_styled<Span, Ast>,
     )
 );
 
+/// Parses a comment.
+named!(pub parse_comment<Span, Ast>,
+    map!(preceded!(tag!("||"), alt!(take_until_and_consume!("\n") | call!(rest))), { |_|  Ast::Newline })
+);
+
 /// Parses some multiline inline content.
 named!(pub parse_any<Span, Ast>,
     alt!(
-        parse_styled
-        | map!(tag!("*"), |x| error(x, ErrorType::UnmatchedStar))
-        | map!(tag!("/"), |x| error(x, ErrorType::UnmatchedSlash))
-        | map!(tag!("$"), |x| error(x, ErrorType::UnmatchedDollar))
-        | take_till!(should_stop) => { |x: Span| { Ast::Text(x.to_string()) } }
+        tag!("**") => { |x| warning(x, WarningType::ConsecutiveStars) }
+        | parse_comment
+        | parse_styled
+        | tag!("*") => { |x| error(x, ErrorType::UnmatchedStar) }
+        | tag!("/") => { |x| error(x, ErrorType::UnmatchedSlash) }
+        | tag!("$") => { |x| error(x, ErrorType::UnmatchedDollar) }
+        | tag!("|") => { |_| { Ast::Text(String::from("|")) } }
+        | take_till!(should_stop) => { |x: Span| { Ast::Text(ligature(x.fragment.0)) } }
     )
 );
 
@@ -96,7 +115,7 @@ named!(pub parse_title<Span, Ast>,
         level: parse_title_level >>
         content: parse_line >> ({
             Ast::Title {
-                level: level as u8,
+                level: (level - 1) as u8,
                 content: Box::new(content)
             }
         })
@@ -131,4 +150,3 @@ named!(pub parse<Span, Ast>,
         })
     )
 );
-

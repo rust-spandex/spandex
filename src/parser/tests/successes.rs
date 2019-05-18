@@ -1,7 +1,7 @@
 //! This module contains the tests that should success and checks that the ast is correct.
 
-use std::error::Error;
 use crate::parser::{parse, Ast};
+use std::error::Error;
 
 #[test]
 fn test_title_1() -> Result<(), Box<Error>> {
@@ -10,14 +10,10 @@ fn test_title_1() -> Result<(), Box<Error>> {
 
     let ast = p.unwrap().ast;
 
-    let expected_ast = Ast::Group(vec![
-        Ast::Title {
-            level: 1,
-            content: Box::new(Ast::Group(vec![
-                Ast::Text("A title".into()),
-            ])),
-        }
-    ]);
+    let expected_ast = Ast::Group(vec![Ast::Title {
+        level: 0,
+        content: Box::new(Ast::Group(vec![Ast::Text("A title".into())])),
+    }]);
 
     assert_eq!(expected_ast, ast);
 
@@ -31,14 +27,10 @@ fn test_title_2() -> Result<(), Box<Error>> {
 
     let ast = p.unwrap().ast;
 
-    let expected_ast = Ast::Group(vec![
-        Ast::Title {
-            level: 2,
-            content: Box::new(Ast::Group(vec![
-                Ast::Text("A subtitle".into())
-            ])),
-        }
-    ]);
+    let expected_ast = Ast::Group(vec![Ast::Title {
+        level: 1,
+        content: Box::new(Ast::Group(vec![Ast::Text("A subtitle".into())])),
+    }]);
 
     assert_eq!(expected_ast, ast);
 
@@ -54,21 +46,16 @@ fn test_titles() -> Result<(), Box<Error>> {
 
     let expected_ast = Ast::Group(vec![
         Ast::Title {
-            level: 1,
-            content: Box::new(Ast::Group(vec![
-                Ast::Text("A title".into())
-            ])),
+            level: 0,
+            content: Box::new(Ast::Group(vec![Ast::Text("A title".into())])),
         },
         Ast::Title {
-            level: 2,
-            content: Box::new(Ast::Group(vec![
-                Ast::Text("With its subtitle".into())
-            ])),
-        }
+            level: 1,
+            content: Box::new(Ast::Group(vec![Ast::Text("With its subtitle".into())])),
+        },
     ]);
 
     assert_eq!(expected_ast, ast);
 
     Ok(())
 }
-

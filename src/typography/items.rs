@@ -1,31 +1,29 @@
 //! Various blocks holding information and specifications about the structure
 //! of a paragraph.
-use crate::font::Font;
+use crate::typography::Glyph;
+
 use printpdf::Pt;
 
 /// Top abstraction of an item, which is a specification for a box, a glue
 /// or a penalty.
 #[derive(Debug)]
-pub struct Item {
+pub struct Item<'a> {
     /// The width of the item in scaled units.
     pub width: Pt,
 
     /// The type of the item.
-    pub content: Content,
+    pub content: Content<'a>,
 }
 
 /// Possible available types for an item.
 #[derive(Debug)]
-pub enum Content {
+pub enum Content<'a> {
     /// A bounding box refers to something that is meant to be typeset.
     ///
     /// Though it holds the glyph it's representing, this item is
     /// essentially a black box as the only revelant information
     /// about it for splitting a paragraph into lines is its width.
-    BoundingBox {
-        /// The glyph that is meant to be typeset.
-        glyph: char,
-    },
+    BoundingBox(Glyph<'a>),
     /// Glue is a blank space which can see its width altered in specified ways.
     ///
     /// It can either stretch or shrink up to a certain limit, and is used as
@@ -49,25 +47,17 @@ pub enum Content {
     },
 }
 
-impl Item {
+impl<'a> Item<'a> {
     /// Creates a box for a particular glyph and font.
-    pub fn from_glyph(glyph: char, font: &Font, font_size: Pt) -> Item {
+    pub fn from_glyph(glyph: Glyph<'a>) -> Item<'a> {
         Item {
-            width: font.char_width(glyph, font_size),
-            content: Content::BoundingBox { glyph },
-        }
-    }
-
-    /// Creates a bounding box from its width in scaled points and its glyph.
-    pub fn bounding_box(width: Pt, glyph: char) -> Item {
-        Item {
-            width,
-            content: Content::BoundingBox { glyph },
+            width: glyph.font.char_width(glyph.glyph, glyph.scale),
+            content: Content::BoundingBox(glyph),
         }
     }
 
     /// Creates some glue.
-    pub fn glue(ideal_spacing: Pt, stretchability: Pt, shrinkability: Pt) -> Item {
+    pub fn glue(ideal_spacing: Pt, stretchability: Pt, shrinkability: Pt) -> Item<'a> {
         Item {
             width: ideal_spacing,
             content: Content::Glue {
@@ -78,7 +68,7 @@ impl Item {
     }
 
     /// Creates a penalty.
-    pub fn penalty(width: Pt, value: f64, flagged: bool) -> Item {
+    pub fn penalty(width: Pt, value: f64, flagged: bool) -> Item<'a> {
         Item {
             width,
             content: Content::Penalty { value, flagged },
@@ -88,7 +78,7 @@ impl Item {
 
 /// Holds the information of an item that's ready to be rendered.
 #[derive(Debug)]
-pub struct PositionedItem {
+pub struct PositionedItem<'a> {
     /// The index of the item within the list of items that make up
     /// the paragraph in which is stands.
     pub index: usize,
@@ -103,5 +93,5 @@ pub struct PositionedItem {
     pub width: Pt,
 
     /// The glyph that should be layed out within this item.
-    pub glyph: char,
+    pub glyph: Glyph<'a>,
 }

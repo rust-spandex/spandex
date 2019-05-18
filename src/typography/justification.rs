@@ -1,31 +1,22 @@
 //! This module contains the trait and implementation of justification algorithms.
 
-use hyphenation::load::Load;
-use hyphenation::{Language, Standard};
 use printpdf::Pt;
 
-use crate::font::Font;
 use crate::typography::items::Content;
-use crate::typography::paragraphs::{itemize_paragraph, Paragraph};
+use crate::typography::Glyph;
+use crate::typography::paragraphs::Paragraph;
 
 /// An algorithm that justifies a paragraph.
 pub trait Justifier {
-    /// Computes the paragraph decomposition of the string and justifies it.
-    fn justify(content: &str, text_width: Pt, font: &Font, size: Pt) -> Vec<Vec<(char, Pt)>> {
-        let en = Standard::from_embedded(Language::EnglishUS).unwrap();
-        let paragraph = itemize_paragraph(content, Pt(0.0), font, size, &en);
-        Self::justify_paragraph(&paragraph, text_width)
-    }
-
     /// Justifies the paragraph passed as parameter.
-    fn justify_paragraph(paragraph: &Paragraph, text_width: Pt) -> Vec<Vec<(char, Pt)>>;
+    fn justify<'a>(paragraph: &'a Paragraph<'a>, text_width: Pt) -> Vec<Vec<(Glyph<'a>, Pt)>>;
 }
 
 /// A naive justifier, that goes to the next line once a word overtakes the text width.
 pub struct NaiveJustifier;
 
 impl Justifier for NaiveJustifier {
-    fn justify_paragraph(paragraph: &Paragraph, text_width: Pt) -> Vec<Vec<(char, Pt)>> {
+    fn justify<'a>(paragraph: &'a Paragraph<'a>, text_width: Pt) -> Vec<Vec<(Glyph<'a>, Pt)>> {
         let mut ret = vec![];
         let mut current_line = vec![];
         let mut current_word = vec![];
@@ -45,10 +36,8 @@ impl Justifier for NaiveJustifier {
                 Content::Penalty { .. } => (),
             }
 
-            if current_x > text_width {
+            if current_x > text_width && current_line.len() > 1 {
                 current_x = Pt(0.0);
-
-                debug_assert!(current_line.len() > 1);
 
                 let last_word = current_line.pop().unwrap();
 
@@ -60,15 +49,21 @@ impl Justifier for NaiveJustifier {
                 }
 
                 let available_space = text_width - occupied_width;
-                let word_space = available_space / ((current_line.len() - 1) as f64);
+
+                let word_space = if current_line.len() > 1 {
+                    available_space / (current_line.len() - 1) as f64
+                } else {
+                    Pt(7.5)
+                };
+
                 let mut current_x = Pt(0.0);
                 let mut final_line = vec![];
 
                 for word in current_line {
                     for item in &word {
                         match item.content {
-                            Content::BoundingBox { glyph } => {
-                                final_line.push((glyph, current_x));
+                            Content::BoundingBox(ref glyph) => {
+                                final_line.push((glyph.clone(), current_x));
                                 current_x += item.width;
                             }
 
@@ -93,8 +88,8 @@ impl Justifier for NaiveJustifier {
         for word in current_line {
             for item in word {
                 match item.content {
-                    Content::BoundingBox { glyph } => {
-                        final_line.push((glyph, current_x));
+                    Content::BoundingBox(ref glyph) => {
+                        final_line.push((glyph.clone(), current_x));
                         current_x += item.width;
                     }
                     _ => (),

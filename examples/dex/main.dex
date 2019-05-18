@@ -1,11 +1,24 @@
 # Hello world
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam eget ornare libero, a faucibus elit. Mauris iaculis nisi eu quam eleifend, porta tincidunt est porta. Nullam condimentum consectetur leo, tincidunt blandit tellus tincidunt non. Nulla eleifend tellus ac fermentum finibus. Nulla rutrum, ipsum sit amet fringilla porta, tortor arcu commodo orci, ut scelerisque urna nisi ut nisl. Phasellus ut cursus dui. Donec urna odio, elementum et aliquet non, faucibus eget augue. In hac habitasse platea dictumst. Nullam luctus nunc ac dictum porta. Phasellus rhoncus metus nec nibh tincidunt, volutpat consectetur ipsum maximus. In in turpis vulputate, tempor dui placerat, dapibus ex. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia Curae; Cras pretium tortor et purus auctor, at scelerisque dolor tempus.
+|| This is a comment
 
-Maecenas vel eros in massa vehicula vulputate quis vel tortor. Aenean magna eros, vehicula at egestas sit amet, aliquam et enim. Nam quis diam tempor, egestas eros a, ullamcorper lorem. Fusce pulvinar vitae nulla et rhoncus. Cras volutpat sapien eu magna pharetra pretium. Fusce non est non odio facilisis ultricies. Suspendisse potenti.
+Lorem ipsum dolor sit amet, *consectetur* adipisicing elit, sed do eiusmod
+tempor incididunt ut /labore et dolore magna aliqua/. Ut enim ad minim veniam,
+quis nostrud exercitation ullamco || This is another comment right in the middle
+laboris nisi ut aliquip ex ea commodo consequat. /*Duis aute irure dolor*/ in
+reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
+*Excepteur sint occaecat* cupidatat non proident, sunt in culpa qui officia
+deserunt mollit anim id est laborum.
+|| Since there is not empty line, the following will still be in the same
+|| paragraph.
+Lorem ipsum dolor sit amet, *consectetur* adipisicing elit.
 
-Sed et nibh in velit pulvinar hendrerit vitae tempus nulla. Fusce tristique leo eget consequat scelerisque. In hac habitasse platea dictumst. Ut faucibus neque ligula, vel bibendum velit faucibus quis. Maecenas eleifend erat elit, ut tempor ligula tempor eget. Aliquam venenatis mauris orci, vel iaculis nisl malesuada accumsan. Aliquam sodales vulputate vestibulum. Vestibulum mauris eros, feugiat in est nec, fringilla aliquet mi. Nulla facilisi. Donec consectetur nisl sit amet venenatis posuere. Morbi nulla lacus, efficitur vitae auctor eget, imperdiet viverra nunc. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Fusce imperdiet bibendum pharetra.
 
-Phasellus dictum, mauris non ultrices euismod, nisl tortor euismod lorem, in luctus dolor tellus nec justo. Fusce at fermentum nunc. Nunc feugiat augue fringilla, convallis augue id, ultricies eros. Suspendisse sagittis odio eu scelerisque laoreet. Cras rhoncus nec urna a rhoncus. Nulla dignissim pulvinar arcu in eleifend. Etiam ut egestas odio. Mauris in odio quis diam scelerisque.
+## Hello to you
 
-Aliquam venenatis, lectus at euismod ullamcorper, tortor orci molestie massa, ac ultricies odio enim non nunc. Mauris finibus eros et urna aliquam, vitae laoreet enim mollis. Nam et nisl arcu. Phasellus tristique sem lorem, et finibus purus suscipit iaculis. Nulla placerat neque sed massa consequat lobortis. Aenean aliquam, est sed porttitor volutpat, sapien nisl molestie enim, id aliquam metus ante in est. Nulla non auctor nunc. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla facilisi. Donec sodales tempor dolor non viverra. Duis ornare congue magna, a posuere metus ultrices sagittis. Fusce sed tortor id diam convallis ullamcorper. Donec congue ligula in lacinia consequat. Maecenas laoreet turpis est, vel feugiat dui sagittis molestie. Donec vel ultrices enim. Pellentesque libero turpis, vestibulum et lorem vitae, malesuada lobortis dolor.
+Lorem ipsum dolor sit amet, *consectetur* adipisicing elit, sed do eiusmod
+tempor incididunt ut /labore et dolore magna aliqua/. Ut enim ad minim veniam,
+quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo
+consequat.
+
+Voici un exemple d'affichage avec ligature. | Ceci *n'est pas* un commentaire.
