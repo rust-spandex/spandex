@@ -1,6 +1,8 @@
-[![Build Status](https://travis-ci.org/rust-spandex/spandex.svg?branch=master)](https://travis-ci.org/rust-spandex/spandex)
-
 # SpanDeX
+
+[![Build Status](https://travis-ci.org/rust-spandex/spandex.svg?branch=master)](https://travis-ci.org/rust-spandex/spandex)
+[![Crate](https://img.shields.io/crates/v/spandex.svg)](https://crates.io/crates/spandex)
+
 
 ## Install
 
@@ -15,7 +17,7 @@ curl https://sh.rustup.rs -sSf | sh
 Then, install SpanDeX
 
 ``` sh
-cargo install --git https://github.com/tforgione/spandex
+cargo install spandex
 ```
 
 ## Usage

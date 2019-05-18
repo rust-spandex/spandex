@@ -1,9 +1,15 @@
 [package]
 name = "spandex"
-version = "0.1.0"
+version = "0.0.2"
 description = "A modern LaTeX alternative"
 authors = ["Thomas Forgione <thomas@forgione.fr>", "Matthieu Le Boucher <matt.leboucher@gmail.com>"]
 edition = "2018"
+license = "MPL-2.0"
+homepage = "https://rust-spandex.github.io"
+repository = "https://github.com/rust-spandex/spandex"
+
+[badges]
+travis-ci = { repository = "rust-spandex/spandex", branch = "master" }
 
 [dependencies]
 freetype-rs = "0.19.1"
