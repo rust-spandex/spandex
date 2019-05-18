@@ -1,6 +1,6 @@
 [package]
 name = "spandex"
-version = "0.0.2"
+version = "0.0.3"
 description = "A modern LaTeX alternative"
 authors = ["Thomas Forgione <thomas@forgione.fr>", "Matthieu Le Boucher <matt.leboucher@gmail.com>"]
 edition = "2018"
