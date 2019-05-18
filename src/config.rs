@@ -70,6 +70,8 @@ impl<'a> Visitor<'a> for PtVisitor {
 #[cfg(test)]
 mod test {
 
+    use std::f64;
+
     use printpdf::Pt;
     use serde::{Deserialize, Serialize};
 
@@ -96,7 +98,7 @@ mod test {
             };
             let encoded: Vec<u8> = bincode::serialize(&value).unwrap();
             let decoded: Test = bincode::deserialize(&encoded[..]).unwrap();
-            assert_eq!(value.as_f64(), decoded.as_f64());
+            assert!((value.as_f64() - decoded.as_f64()).abs() < f64::EPSILON);
         }
     }
 }

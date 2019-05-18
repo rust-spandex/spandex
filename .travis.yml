@@ -8,6 +8,11 @@ notifications:
     on_success: never
     on_failure: always
 
+script:
+  - rustup component add clippy
+  - cargo clippy -D warnings
+  - cargo test
+
 before_deploy:
   - cargo doc --no-deps --lib
 
