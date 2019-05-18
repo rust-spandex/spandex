@@ -6,7 +6,9 @@ authors = ["Thomas Forgione <thomas@forgione.fr>", "Matthieu Le Boucher <matt.le
 edition = "2018"
 license = "MPL-2.0"
 homepage = "https://rust-spandex.github.io"
+documentation = "https://rust-spandex.github.io/spandex"
 repository = "https://github.com/rust-spandex/spandex"
+readme = "README.md"
 
 [badges]
 travis-ci = { repository = "rust-spandex/spandex", branch = "master" }
