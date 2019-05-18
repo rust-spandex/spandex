@@ -1,7 +1,8 @@
 //! This module contains the tests that should success and checks that the ast is correct.
 
-use crate::parser::{parse, Ast};
 use std::error::Error;
+
+use crate::parser::{parse, Ast};
 
 #[test]
 fn test_title_1() -> Result<(), Box<Error>> {

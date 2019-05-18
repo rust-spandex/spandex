@@ -1,9 +1,9 @@
 //! This crate contains the parser for spandex.
 
-pub mod utils;
-pub mod parser;
-pub mod error;
 pub mod ast;
+pub mod error;
+pub mod parser;
+pub mod utils;
 pub mod warning;
 
 #[cfg(test)]
@@ -87,4 +87,3 @@ pub fn parse<'a, P: AsRef<Path>>(path: P) -> Result<Parsed, Errors> {
         })
     }
 }
-

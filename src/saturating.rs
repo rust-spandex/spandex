@@ -1,7 +1,7 @@
 //! This module contains a useful trait to deal with saturating operations.
 
-use num_rational::Ratio;
 use num_integer::Integer;
+use num_rational::Ratio;
 
 use crate::units::Sp;
 
@@ -32,7 +32,7 @@ macro_rules! impl_saturating {
                 self.saturating_pow(rhs)
             }
         }
-    }
+    };
 }
 
 impl_saturating!(i8);
@@ -86,6 +86,7 @@ impl<T: Clone + Integer + Saturating> Saturating for Ratio<T> {
 mod tests {
 
     use num_rational::Ratio;
+
     use crate::saturating::Saturating;
     use crate::units::Sp;
 

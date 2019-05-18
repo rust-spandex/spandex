@@ -5,10 +5,10 @@
 pub mod config;
 pub mod document;
 pub mod font;
+pub mod ligature;
 pub mod parser;
 pub mod typography;
 pub mod units;
-pub mod ligature;
 
 use std::fs::File;
 use std::io::Read;
@@ -18,8 +18,8 @@ use std::{error, fmt, io, result};
 use printpdf::Pt;
 
 use crate::config::Config;
-use crate::parser::parse;
 use crate::parser::error::Errors;
+use crate::parser::parse;
 
 macro_rules! impl_from_error {
     ($type: ty, $variant: path, $from: ty) => {

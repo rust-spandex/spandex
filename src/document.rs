@@ -5,15 +5,14 @@ use std::fs::File;
 use std::io::BufWriter;
 use std::path::Path;
 
-use printpdf::{Pt, PdfDocument, PdfDocumentReference, PdfLayerReference, PdfPageReference};
-
 use hyphenation::load::Load;
 use hyphenation::{Language, Standard};
+use printpdf::{PdfDocument, PdfDocumentReference, PdfLayerReference, PdfPageReference, Pt};
 
 use crate::font::{Font, FontConfig};
 use crate::parser::ast::Ast;
-use crate::typography::paragraphs::itemize_ast;
 use crate::typography::justification::{Justifier, NaiveJustifier};
+use crate::typography::paragraphs::itemize_ast;
 
 /// The struct that manages the counters for the document.
 #[derive(Clone)]

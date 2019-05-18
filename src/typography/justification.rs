@@ -3,8 +3,8 @@
 use printpdf::Pt;
 
 use crate::typography::items::Content;
-use crate::typography::Glyph;
 use crate::typography::paragraphs::Paragraph;
+use crate::typography::Glyph;
 
 /// An algorithm that justifies a paragraph.
 pub trait Justifier {

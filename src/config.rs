@@ -3,14 +3,15 @@
 //! root of the SpanDeX project. Mandatory measurements take default values
 //! that are also provided by this module.
 
-use crate::document::{Document, Window};
-use crate::font::FontManager;
-use crate::Result as CResult;
-use serde::de::{self, Visitor};
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::{fmt, result};
 
 use printpdf::{Mm, Pt};
+use serde::de::{self, Visitor};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+use crate::document::{Document, Window};
+use crate::font::FontManager;
+use crate::Result as CResult;
 
 /// Serializes a `Pt` structure.
 pub fn serialize_pt<S: Serializer>(pt: &Pt, serializer: S) -> result::Result<S::Ok, S::Error> {
@@ -57,10 +58,11 @@ impl<'a> Visitor<'a> for PtVisitor {
 #[cfg(test)]
 mod test {
 
-    use crate::config::{deserialize_pt, serialize_pt};
     use printpdf::Pt;
     use rand::Rng;
     use serde::{Deserialize, Serialize};
+
+    use crate::config::{deserialize_pt, serialize_pt};
 
     #[derive(Serialize, Deserialize)]
     pub struct Test {

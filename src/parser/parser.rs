@@ -9,7 +9,7 @@ use crate::ligature::ligature;
 use crate::parser::ast::Ast;
 use crate::parser::error::{EmptyError, ErrorType};
 use crate::parser::warning::{EmptyWarning, WarningType};
-use crate::parser::{Span, position};
+use crate::parser::{position, Span};
 
 /// Returns true if the character passed as parameter changes the type of parsing we're going to do.
 pub fn should_stop(c: char) -> bool {

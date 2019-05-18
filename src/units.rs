@@ -2,17 +2,17 @@
 //! to go from one to another easily.
 //!
 //! The main conversion rules used so far are that 1 in = 72.27 pt = 2.54 cm and 1 pt = 65,536 sp.
-use core::ops::Neg;
-use num_integer::Integer;
-use num_traits::identities::{One, Zero};
-use num_traits::{Num, Pow, Signed};
+
 use std::cmp::Ordering;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, Rem, Sub, SubAssign};
 use std::{f64, fmt, i64};
 
-use serde::{Deserialize, Serialize};
-
+use core::ops::Neg;
+use num_integer::Integer;
+use num_traits::identities::{One, Zero};
+use num_traits::{Num, Pow, Signed};
 use printpdf::{Mm as PMm, Pt as PPt};
+use serde::{Deserialize, Serialize};
 
 /// Measure of what is supposed to be positive infinity.
 ///

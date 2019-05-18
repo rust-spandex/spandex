@@ -6,12 +6,11 @@ use std::io::Cursor;
 use std::path::{Path, PathBuf};
 
 use freetype::{face, Face, Library};
-
 use printpdf::types::plugins::graphics::two_dimensional::font::IndirectFontRef;
+use printpdf::Pt;
 
 use crate::document::Document;
 use crate::{Error, Result};
-use printpdf::Pt;
 
 /// A font that contains the printpdf object font needed to render text and the freetype font
 /// needed to measure text.
@@ -249,7 +248,6 @@ impl FontManager {
             Err(_) => unreachable!("Default font not found, this should never happen"),
         }
     }
-
 }
 
 /// A style for a font. It can be bold, italic, both or none.

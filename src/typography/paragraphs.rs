@@ -2,10 +2,12 @@
 //! semantics of "paragraph". That is, the logic to split a sequence of
 //! words into lines.
 
-use crate::font::{FontStyle, FontConfig};
-use crate::typography::items::{Content, Item, PositionedItem};
-use crate::typography::Glyph;
-use crate::parser::ast::Ast;
+use std::cmp::Ordering;
+use std::collections::HashMap;
+use std::f64;
+use std::fmt;
+use std::hash::{Hash, Hasher};
+use std::slice::Iter;
 
 use hyphenation::*;
 use petgraph::graph::NodeIndex;
@@ -13,13 +15,11 @@ use petgraph::stable_graph::StableGraph;
 use petgraph::visit::Dfs;
 use petgraph::visit::IntoNodeIdentifiers;
 use printpdf::Pt;
-use std::cmp::Ordering;
-use std::collections::HashMap;
-use std::f64;
-use std::fmt;
-use std::hash::{Hash, Hasher};
-use std::slice::Iter;
-use std::vec::Vec;
+
+use crate::font::{FontConfig, FontStyle};
+use crate::parser::ast::Ast;
+use crate::typography::items::{Content, Item, PositionedItem};
+use crate::typography::Glyph;
 
 const DASH_GLYPH: char = '-';
 const SPACE_WIDTH: Pt = Pt(5.0);
@@ -559,7 +559,7 @@ pub fn algorithm<'a>(paragraph: &'a Paragraph<'a>, lines_length: &Vec<Pt>) -> Ve
 }
 
 /// Checks whether or not a given item encodes a forced linebreak.
-fn is_forced_break<'a> (item: &'a Item<'a>) -> bool {
+fn is_forced_break<'a>(item: &'a Item<'a>) -> bool {
     match item.content {
         Content::Penalty { value, .. } => value < MIN_COST,
         _ => false,
@@ -728,13 +728,12 @@ pub fn positionate_items<'a>(
 #[cfg(test)]
 mod tests {
     use crate::config::Config;
+    use crate::parser::ast::Ast;
     use crate::typography::items::Content;
     use crate::typography::paragraphs::{
-        algorithm, compute_adjustment_ratios_with_breakpoints, find_legal_breakpoints,
-        itemize_ast,
+        algorithm, compute_adjustment_ratios_with_breakpoints, find_legal_breakpoints, itemize_ast,
     };
     use crate::{Error, Result};
-    use crate::parser::ast::Ast;
     use hyphenation::*;
     use printpdf::Pt;
     use std::path::PathBuf;

@@ -1,8 +1,9 @@
 //! Various blocks holding information and specifications about the structure
 //! of a paragraph.
-use crate::typography::Glyph;
 
 use printpdf::Pt;
+
+use crate::typography::Glyph;
 
 /// Top abstraction of an item, which is a specification for a box, a glue
 /// or a penalty.
