@@ -32,7 +32,8 @@ fn run() -> Result<(), Error> {
         .author(crate_authors!("\n"))
         .about(crate_description!())
         .setting(AppSettings::ColoredHelp)
-        .subcommand( SubCommand::with_name("init")
+        .subcommand(
+            SubCommand::with_name("init")
                 .about("Creates a new default SpanDeX project")
                 .arg(Arg::with_name("TITLE").required(false)),
         )
