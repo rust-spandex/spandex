@@ -678,9 +678,12 @@ pub fn positionate_items<'a>(
             breakpoint_index + 1
         };
 
+        let mut previous_glyph = None;
+
         for p in beginning..breakpoints[breakpoint_line + 1] {
             match items[p].content {
                 Content::BoundingBox(ref glyph) => {
+                    previous_glyph = Some(glyph.clone());
                     positioned_items.push(PositionedItem {
                         index: p,
                         line: breakpoint_line,
@@ -709,16 +712,18 @@ pub fn positionate_items<'a>(
                     }
                 }
                 Content::Penalty { .. } => {
-                    // TODO Fix dash glyph
-                    // if p == breakpoints[breakpoint_line + 1] && items[p].width > Pt(0.0) {
-                    //     positioned_items.push(PositionedItem {
-                    //         index: p,
-                    //         line: breakpoint_line,
-                    //         horizontal_offset: horizontal_offset,
-                    //         width: items[p].width,
-                    //         glyph: '-',
-                    //     })
-                    // }
+                    let glyph = previous_glyph.clone().unwrap();
+                    positioned_items.push(PositionedItem {
+                        index: p,
+                        line: breakpoint_line,
+                        horizontal_offset,
+                        width: items[p].width,
+                        glyph: Glyph {
+                            glyph: '-',
+                            font: glyph.font,
+                            scale: glyph.scale,
+                        },
+                    })
                 }
             }
         }
@@ -732,16 +737,17 @@ pub fn positionate_items<'a>(
 /// Unit tests for the paragraphs typesetting.
 #[cfg(test)]
 mod tests {
+
+    use hyphenation::*;
+    use printpdf::Pt;
+
     use crate::config::Config;
     use crate::parser::ast::Ast;
     use crate::typography::items::Content;
     use crate::typography::paragraphs::{
         algorithm, compute_adjustment_ratios_with_breakpoints, find_legal_breakpoints, itemize_ast,
     };
-    use crate::{Error, Result};
-    use hyphenation::*;
-    use printpdf::Pt;
-    use std::path::PathBuf;
+    use crate::Result;
 
     #[test]
     fn test_paragraph_itemization() -> Result<()> {
@@ -755,11 +761,11 @@ mod tests {
 
         // No indentation, meaning no leading empty box.
         let paragraph = itemize_ast(&ast, &config, Pt(10.0), &en_us, Pt(0.0));
-        assert_eq!(paragraph.items.len(), 32);
+        assert_eq!(paragraph.items.len(), 31);
 
         // Indentated paragraph, implying the presence of a leading empty box.
         let paragraph = itemize_ast(&ast, &config, Pt(10.0), &en_us, Pt(7.5));
-        assert_eq!(paragraph.items.len(), 33);
+        assert_eq!(paragraph.items.len(), 32);
 
         Ok(())
     }
@@ -779,7 +785,7 @@ mod tests {
 
         let legal_breakpoints = find_legal_breakpoints(&paragraph);
         // [ ] Lorem ip-sum do-lor sit amet.
-        assert_eq!(legal_breakpoints, [0, 7, 10, 14, 17, 21, 25, 31, 32]);
+        assert_eq!(legal_breakpoints, [0, 6, 9, 13, 16, 20, 24, 30, 31]);
 
         Ok(())
     }
