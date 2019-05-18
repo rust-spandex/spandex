@@ -718,18 +718,20 @@ pub fn positionate_items<'a>(
                     }
                 }
                 Content::Penalty { .. } => {
-                    let glyph = previous_glyph.clone().unwrap();
-                    positioned_items.push(PositionedItem {
-                        index: p,
-                        line: breakpoint_line,
-                        horizontal_offset,
-                        width: item.width,
-                        glyph: Glyph {
-                            glyph: '-',
-                            font: glyph.font,
-                            scale: glyph.scale,
-                        },
-                    })
+                    if p == breakpoints[breakpoint_line + 1] && items[p].width > Pt(0.0) {
+                        let glyph = previous_glyph.clone().unwrap();
+                        positioned_items.push(PositionedItem {
+                            index: p,
+                            line: breakpoint_line,
+                            horizontal_offset,
+                            width: item.width,
+                            glyph: Glyph {
+                                glyph: '-',
+                                font: glyph.font,
+                                scale: glyph.scale,
+                            },
+                        })
+                    }
                 }
             }
         }
