@@ -15,7 +15,7 @@ use crate::typography::justification::{Justifier, LatexJustifier};
 use crate::typography::paragraphs::itemize_ast;
 
 /// The struct that manages the counters for the document.
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct Counters {
     /// The counters.
     pub counters: Vec<usize>,
@@ -71,7 +71,7 @@ impl fmt::Display for Counters {
             "{}",
             self.counters
                 .iter()
-                .map(|x| x.to_string())
+                .map(std::string::ToString::to_string)
                 .collect::<Vec<_>>()
                 .join(".")
         )
@@ -140,7 +140,7 @@ impl Document {
             layer,
             window,
             cursor: (window.x, window.height + window.y),
-            page_size: (width.into(), height.into()),
+            page_size: (width, height),
             counters: Counters::new(),
         }
     }
@@ -197,7 +197,7 @@ impl Document {
     pub fn write_content(&mut self, content: &str, font_config: &FontConfig, size: Pt) {
         let en = Standard::from_embedded(Language::EnglishUS).unwrap();
 
-        for paragraph in content.split("\n") {
+        for paragraph in content.split('\n') {
             let ast = Ast::Text(paragraph.to_owned());
             self.write_paragraph::<LatexJustifier>(&ast, font_config, size, &en);
             self.new_line(size);
@@ -205,7 +205,7 @@ impl Document {
     }
 
     /// Writes a paragraph on the document.
-    pub fn write_paragraph<'a, J: Justifier>(
+    pub fn write_paragraph<J: Justifier>(
         &mut self,
         paragraph: &Ast,
         font_config: &FontConfig,

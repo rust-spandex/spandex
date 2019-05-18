@@ -3,7 +3,7 @@
 //! words into lines.
 
 use std::cmp::Ordering;
-use std::collections::HashMap;
+use std::collections::hash_map::{Entry, HashMap};
 use std::f64;
 use std::fmt;
 use std::hash::{Hash, Hasher};
@@ -35,7 +35,7 @@ const PLUS_INFINITY: Pt = Pt(f64::INFINITY);
 pub const IDEAL_SPACING: Pt = Pt(5.0);
 
 /// Holds a list of items describing a paragraph.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Paragraph<'a> {
     /// Sequence of items representing the structure of the paragraph.
     pub items: Vec<Item<'a>>,
@@ -88,7 +88,7 @@ pub fn itemize_ast_aux<'a>(
 ) {
     match ast {
         Ast::Title { level, content } => {
-            let size = size + Pt(3.0 * ((4 - *level as isize).max(1)) as f64).into();
+            let size = size + Pt(3.0 * ((4 - *level as isize).max(1)) as f64);
             itemize_ast_aux(
                 content,
                 font_config,
@@ -202,7 +202,7 @@ pub fn add_word_to_paragraph<'a>(
 }
 
 /// Returns the glue based on the spatial context of the cursor.
-fn glue_from_context<'a>(_previous_glyph: Option<Glyph<'a>>, ideal_spacing: Pt) -> Item<'a> {
+fn glue_from_context(_previous_glyph: Option<Glyph>, ideal_spacing: Pt) -> Item {
     // Todo: make this glue context dependent.
     Item::glue(ideal_spacing, SPACE_WIDTH, SPACE_WIDTH * 0.5)
 }
@@ -299,15 +299,11 @@ impl Hash for Node {
 /// Returns the length of the line of given index, from a list of
 /// potential line lengths. If the list is too short, the line
 /// length will default to `DEFAULT_LINE_LENGTH`.
-fn get_line_length(lines_length: &Vec<Pt>, index: usize) -> Pt {
+fn get_line_length(lines_length: &[Pt], index: usize) -> Pt {
     if index < lines_length.len() {
         lines_length[index]
     } else {
-        if lines_length.len() == 1 {
-            lines_length[0]
-        } else {
-            DEFAULT_LINE_LENGTH
-        }
+        *lines_length.first().unwrap_or(&DEFAULT_LINE_LENGTH)
     }
 }
 
@@ -342,7 +338,8 @@ fn compute_fitness(adjustment_ratio: f64) -> i64 {
 ///
 /// It returns the indexes of items which have been chosen as
 /// breakpoints.
-pub fn algorithm<'a>(paragraph: &'a Paragraph<'a>, lines_length: &Vec<Pt>) -> Vec<usize> {
+#[allow(clippy::cyclomatic_complexity)]
+pub fn algorithm<'a>(paragraph: &'a Paragraph<'a>, lines_length: &[Pt]) -> Vec<usize> {
     let mut graph = StableGraph::<_, f64>::new();
     let mut sum_width = Pt(0.0);
     let mut sum_stretch = Pt(0.0);
@@ -448,7 +445,7 @@ pub fn algorithm<'a>(paragraph: &'a Paragraph<'a>, lines_length: &Vec<Pt>) -> Ve
                     let fitness = compute_fitness(adjustment_ratio);
 
                     if a.index > 0 && (fitness - a.fitness).abs() > 1 {
-                        demerits = demerits + ADJACENT_LOOSE_TIGHT_PENALTY;
+                        demerits += ADJACENT_LOOSE_TIGHT_PENALTY;
                     }
 
                     // TODO: Ignore the width of potential subsequent glue or
@@ -497,7 +494,7 @@ pub fn algorithm<'a>(paragraph: &'a Paragraph<'a>, lines_length: &Vec<Pt>) -> Ve
 
         // If there is a feasible break at b, then append the best such break
         // as an active node.
-        if feasible_breakpoints.len() > 0 {
+        if !feasible_breakpoints.is_empty() {
             let (mut last_best_node, mut last_node_parent_id) = feasible_breakpoints[0];
 
             for (node, parent_id) in feasible_breakpoints.iter() {
@@ -516,13 +513,14 @@ pub fn algorithm<'a>(paragraph: &'a Paragraph<'a>, lines_length: &Vec<Pt>) -> Ve
                 last_best_node.total_demerits,
             );
 
-            if !lines_best_node.contains_key(&last_best_node.line) {
-                lines_best_node.insert(last_best_node.line, (last_best_node, inserted_node));
-                farthest_line += 1;
-            } else {
-                if let Some((best_node_on_current_line, _)) =
-                    lines_best_node.get(&last_best_node.line)
-                {
+            match lines_best_node.entry(last_best_node.line) {
+                Entry::Vacant(entry) => {
+                    entry.insert((last_best_node, inserted_node));
+                    farthest_line += 1;
+                }
+
+                Entry::Occupied(entry) => {
+                    let (best_node_on_current_line, _) = entry.get();
                     if last_best_node.total_demerits < best_node_on_current_line.total_demerits {
                         lines_best_node
                             .insert(last_best_node.line, (last_best_node, inserted_node));
@@ -531,16 +529,14 @@ pub fn algorithm<'a>(paragraph: &'a Paragraph<'a>, lines_length: &Vec<Pt>) -> Ve
             }
         }
 
-        match item.content {
-            Content::Glue {
-                shrinkability,
-                stretchability,
-            } => {
-                sum_width += item.width;
-                sum_shrink += shrinkability;
-                sum_stretch += stretchability;
-            }
-            _ => {}
+        if let Content::Glue {
+            shrinkability,
+            stretchability,
+        } = item.content
+        {
+            sum_width += item.width;
+            sum_shrink += shrinkability;
+            sum_stretch += stretchability;
         }
     }
 
@@ -574,9 +570,9 @@ fn is_forced_break<'a>(item: &'a Item<'a>) -> bool {
 /// Computes the adjustment ratios of all lines given a set of line lengths and breakpoint indices.
 /// This allows to speed up the adaptation of glue items.
 fn compute_adjustment_ratios_with_breakpoints<'a>(
-    items: &'a Vec<Item<'a>>,
-    line_lengths: &Vec<Pt>,
-    breakpoints: &Vec<usize>,
+    items: &[Item<'a>],
+    line_lengths: &[Pt],
+    breakpoints: &[usize],
 ) -> Vec<f64> {
     let mut adjustment_ratios: Vec<f64> = Vec::new();
 
@@ -597,22 +593,28 @@ fn compute_adjustment_ratios_with_breakpoints<'a>(
             *breakpoint_index + 1
         };
 
-        for p in beginning..next_breakpoint {
-            match items[p].content {
+        let range = items
+            .iter()
+            .enumerate()
+            .take(next_breakpoint)
+            .skip(beginning);
+
+        for (p, item) in range {
+            match item.content {
                 Content::BoundingBox { .. } => actual_length += items[p].width,
                 Content::Glue {
                     shrinkability,
                     stretchability,
                 } => {
                     if p != beginning && p != next_breakpoint {
-                        actual_length += items[p].width;
+                        actual_length += item.width;
                         line_shrink += shrinkability;
                         line_stretch += stretchability;
                     }
                 }
                 Content::Penalty { .. } => {
                     if p == next_breakpoint {
-                        actual_length += items[p].width;
+                        actual_length += item.width;
                     }
                 }
             }
@@ -646,24 +648,22 @@ fn compute_adjustment_ratio(
         } else {
             f64::INFINITY
         }
+    } else if total_shrinkability != Pt(0.0) {
+        ((desired_length.0 - actual_length.0) / total_shrinkability.0)
     } else {
-        if total_shrinkability != Pt(0.0) {
-            ((desired_length.0 - actual_length.0) / total_shrinkability.0)
-        } else {
-            f64::INFINITY
-        }
+        f64::INFINITY
     }
 }
 
 /// Generates a list of positioned items from a list of items making up a paragraph.
 /// The generated list is ready to be rendered.
 pub fn positionate_items<'a>(
-    items: &'a Vec<Item<'a>>,
-    line_lengths: &Vec<Pt>,
-    breakpoints: &Vec<usize>,
+    items: &[Item<'a>],
+    line_lengths: &[Pt],
+    breakpoints: &[usize],
 ) -> Vec<Vec<PositionedItem<'a>>> {
     let adjustment_ratios =
-        compute_adjustment_ratios_with_breakpoints(&items, &line_lengths, &breakpoints);
+        compute_adjustment_ratios_with_breakpoints(items, line_lengths, breakpoints);
     let mut lines_breakdown: Vec<Vec<PositionedItem>> = Vec::new();
 
     for breakpoint_line in 0..(breakpoints.len() - 1) {
@@ -680,25 +680,31 @@ pub fn positionate_items<'a>(
 
         let mut previous_glyph = None;
 
-        for p in beginning..breakpoints[breakpoint_line + 1] {
+        let range = items
+            .iter()
+            .enumerate()
+            .take(breakpoints[breakpoint_line + 1])
+            .skip(beginning);
+
+        for (p, item) in range {
             match items[p].content {
                 Content::BoundingBox(ref glyph) => {
                     previous_glyph = Some(glyph.clone());
                     positioned_items.push(PositionedItem {
                         index: p,
                         line: breakpoint_line,
-                        horizontal_offset: horizontal_offset,
-                        width: items[p].width,
+                        horizontal_offset,
+                        width: item.width,
                         glyph: glyph.clone(),
                     });
-                    horizontal_offset += items[p].width;
+                    horizontal_offset += item.width;
                 }
                 Content::Glue {
                     shrinkability,
                     stretchability,
                 } => {
                     if p != beginning && p != breakpoints[breakpoint_line + 1] {
-                        let width = items[p].width;
+                        let width = item.width;
 
                         let gap = if adjustment_ratio < 0.0 {
                             width + shrinkability * adjustment_ratio
@@ -717,7 +723,7 @@ pub fn positionate_items<'a>(
                         index: p,
                         line: breakpoint_line,
                         horizontal_offset,
-                        width: items[p].width,
+                        width: item.width,
                         glyph: Glyph {
                             glyph: '-',
                             font: glyph.font,
@@ -857,8 +863,7 @@ mod tests {
                 Content::BoundingBox(ref glyph) => print!("{}", glyph.glyph),
                 Content::Glue { .. } => {
                     if breakpoints.contains(&c) {
-                        print!("       [{:?}]", adjustment_ratios[current_line]);
-                        print!("\n");
+                        println!("       [{:?}]", adjustment_ratios[current_line]);
                         current_line += 1;
                     } else {
                         print!(" ");
@@ -866,8 +871,7 @@ mod tests {
                 }
                 Content::Penalty { .. } => {
                     if breakpoints.contains(&c) {
-                        print!("-      [{:?}]", adjustment_ratios[current_line]);
-                        print!("\n");
+                        println!("-      [{:?}]", adjustment_ratios[current_line]);
                         current_line += 1;
                     }
                 }

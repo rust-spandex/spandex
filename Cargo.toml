@@ -9,6 +9,8 @@ homepage = "https://rust-spandex.github.io"
 documentation = "https://rust-spandex.github.io/spandex"
 repository = "https://github.com/rust-spandex/spandex"
 readme = "README.md"
+keywords = ["tex", "latex", "typesetting"]
+categories = ["template-engine", "visualization", "text-processing"]
 
 [badges]
 travis-ci = { repository = "rust-spandex/spandex", branch = "master" }
@@ -21,11 +23,7 @@ toml = "0.5.0"
 serde = { version = "1.0", features = ["derive"] }
 hyphenation = { version = "0.7.1", features = ["embed_all"] }
 petgraph = "0.4.13"
-num-rational = "0.2.1"
-num-integer = "0.1.39"
-num-traits = "0.2.6"
 nom = "4.2.3"
 nom_locate = "0.3.1"
 colored = "1.8.0"
 bincode = "1.1.4"
-rand = "0.6.5"

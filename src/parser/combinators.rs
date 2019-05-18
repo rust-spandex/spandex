@@ -2,6 +2,8 @@
 
 // This module contains marcos that can't be documented, so we'll allow missing docs here.
 #![allow(missing_docs)]
+// Allow redundant closure because of nom.
+#![allow(clippy::redundant_closure)]
 
 use nom::*;
 
@@ -81,12 +83,12 @@ named!(pub parse_any<Span, Ast>,
 
 /// Parses some text content.
 named!(pub parse_group<Span, Ast>,
-    map!(many0!(parse_any), |x| Ast::Group(x))
+    map!(many0!(parse_any), Ast::Group)
 );
 
 /// Parses a paragraph of text content.
 named!(pub parse_paragraph<Span, Ast>,
-    map!(many0!(parse_any), |x| Ast::Paragraph(x))
+    map!(many0!(parse_any), Ast::Paragraph)
 );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -97,7 +99,7 @@ named!(pub parse_paragraph<Span, Ast>,
 named!(pub parse_line<Span, Ast>,
     alt!(
         map!(preceded!(take_until_and_consume!("\n"), take!(0)), |x| { error(x, ErrorType::MultipleLinesTitle) })
-        | map!(many0!(parse_any), |x| Ast::Group(x))
+        | map!(many0!(parse_any), Ast::Group)
     )
 );
 

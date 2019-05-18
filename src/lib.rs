@@ -1,6 +1,8 @@
 //! This crate contains all the tools we need to generate nice pdf documents.
 
 #![warn(missing_docs)]
+#![warn(clippy::cargo)]
+#![allow(clippy::multiple_crate_versions)]
 
 pub mod config;
 pub mod document;
@@ -8,7 +10,6 @@ pub mod font;
 pub mod ligature;
 pub mod parser;
 pub mod typography;
-pub mod units;
 
 use std::fs::File;
 use std::io::Read;

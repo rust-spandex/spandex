@@ -1,17 +1,24 @@
 //! This module contains the tests that should fail and checks that the error messages are correct.
 
-use std::error::Error;
-
 use crate::parser::error::ErrorType;
 use crate::parser::parse;
+use crate::{Error, Result};
+
+macro_rules! to_dex_error {
+    ($expr: expr) => {
+        match $expr {
+            Err(Error::DexError(e)) => e,
+            _ => panic!(),
+        }
+    };
+}
 
 #[test]
-fn test_unmatched_star() -> Result<(), Box<Error>> {
+fn test_unmatched_star() -> Result<()> {
     let p = parse("assets/tests/errors/test-unmatched-star.dex");
     assert!(p.is_err());
 
-    let p = p.err().unwrap();
-    assert_eq!(p.errors.len(), 1);
+    let p = to_dex_error!(p);
 
     let p = &p.errors[0];
     assert_eq!(p.ty, ErrorType::UnmatchedStar);
@@ -22,11 +29,11 @@ fn test_unmatched_star() -> Result<(), Box<Error>> {
 }
 
 #[test]
-fn test_unmatched_slash() -> Result<(), Box<Error>> {
+fn test_unmatched_slash() -> Result<()> {
     let p = parse("assets/tests/errors/test-unmatched-slash.dex");
     assert!(p.is_err());
 
-    let p = p.err().unwrap();
+    let p = to_dex_error!(p);
     assert_eq!(p.errors.len(), 1);
 
     let p = &p.errors[0];
@@ -38,11 +45,11 @@ fn test_unmatched_slash() -> Result<(), Box<Error>> {
 }
 
 #[test]
-fn test_unmatched_dollar() -> Result<(), Box<Error>> {
+fn test_unmatched_dollar() -> Result<()> {
     let p = parse("assets/tests/errors/test-unmatched-dollar.dex");
     assert!(p.is_err());
 
-    let p = p.err().unwrap();
+    let p = to_dex_error!(p);
     assert_eq!(p.errors.len(), 1);
 
     let p = &p.errors[0];
@@ -54,11 +61,11 @@ fn test_unmatched_dollar() -> Result<(), Box<Error>> {
 }
 
 #[test]
-fn test_mixed_star_slash() -> Result<(), Box<Error>> {
+fn test_mixed_star_slash() -> Result<()> {
     let p = parse("assets/tests/errors/test-mixed-star-slash.dex");
     assert!(p.is_err());
 
-    let p = p.err().unwrap();
+    let p = to_dex_error!(p);
     assert_eq!(p.errors.len(), 1);
 
     let p = &p.errors[0];
@@ -71,11 +78,10 @@ fn test_mixed_star_slash() -> Result<(), Box<Error>> {
 }
 
 #[test]
-fn test_title_no_new_line() -> Result<(), Box<Error>> {
+fn test_title_no_new_line() -> Result<()> {
     let p = parse("assets/tests/errors/test-title-no-new-line.dex");
-    assert!(p.is_err());
 
-    let p = p.err().unwrap();
+    let p = to_dex_error!(p);
     assert_eq!(p.errors.len(), 1);
 
     let p = &p.errors[0];
@@ -89,11 +95,11 @@ fn test_title_no_new_line() -> Result<(), Box<Error>> {
 }
 
 #[test]
-fn test_accent() -> Result<(), Box<Error>> {
+fn test_accent() -> Result<()> {
     let p = parse("assets/tests/errors/test-accent.dex");
     assert!(p.is_err());
 
-    let p = p.err().unwrap();
+    let p = to_dex_error!(p);
 
     println!("{}", p);
     assert_eq!(p.errors.len(), 1);

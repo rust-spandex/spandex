@@ -61,13 +61,9 @@ impl Justifier for NaiveJustifier {
 
                 for word in current_line {
                     for item in &word {
-                        match item.content {
-                            Content::BoundingBox(ref glyph) => {
-                                final_line.push((glyph.clone(), current_x));
-                                current_x += item.width;
-                            }
-
-                            _ => (),
+                        if let Content::BoundingBox(ref glyph) = item.content {
+                            final_line.push((glyph.clone(), current_x));
+                            current_x += item.width;
                         }
                     }
 
@@ -87,12 +83,9 @@ impl Justifier for NaiveJustifier {
         // There is still content in current_line
         for word in current_line {
             for item in word {
-                match item.content {
-                    Content::BoundingBox(ref glyph) => {
-                        final_line.push((glyph.clone(), current_x));
-                        current_x += item.width;
-                    }
-                    _ => (),
+                if let Content::BoundingBox(ref glyph) = item.content {
+                    final_line.push((glyph.clone(), current_x));
+                    current_x += item.width;
                 }
             }
             current_x += IDEAL_SPACING;
@@ -108,7 +101,7 @@ impl Justifier for NaiveJustifier {
 pub struct LatexJustifier;
 
 impl Justifier for LatexJustifier {
-    fn justify<'a>(paragraph: &'a Paragraph<'a>, text_width: Pt) -> Vec<Vec<(Glyph<'a>, Pt)>> {
+    fn justify<'a>(paragraph: &Paragraph<'a>, text_width: Pt) -> Vec<Vec<(Glyph<'a>, Pt)>> {
         let lines_length = vec![text_width];
         let breakpoints = algorithm(&paragraph, &lines_length);
         let positioned_items = positionate_items(&paragraph.items, &lines_length, &breakpoints);

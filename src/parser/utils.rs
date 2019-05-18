@@ -13,7 +13,7 @@ pub fn replicate(c: char, n: usize) -> String {
 pub fn is_new_line(content: &str, byte: usize) -> bool {
     content.is_char_boundary(byte)
         && content.is_char_boundary(byte + 1)
-        && &content[byte..byte + 1] == "\n"
+        && &content[byte..=byte] == "\n"
 }
 
 /// Computes the column of a specified byte depending on its line and offset.
@@ -43,7 +43,7 @@ pub fn previous_new_line(content: &str, byte: usize) -> usize {
         i -= 1;
     }
 
-    if &content[i..i + 1] == "\n" {
+    if &content[i..=i] == "\n" {
         i + 1
     } else {
         i

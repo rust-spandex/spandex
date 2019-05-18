@@ -1,7 +1,6 @@
 use std::env::current_dir;
 use std::fs::{create_dir_all, File};
 use std::io::{Read, Write};
-use std::path::PathBuf;
 use std::process::exit;
 
 use clap::{crate_authors, crate_description, crate_version, App, AppSettings, Arg, SubCommand};
@@ -42,8 +41,7 @@ fn run() -> Result<(), Error> {
     let matches = app.clone().get_matches();
 
     if let Some(init) = matches.subcommand_matches("init") {
-        let mut current_dir =
-            PathBuf::from(unwrap!(current_dir().ok(), Error::CannotReadCurrentDir));
+        let mut current_dir = unwrap!(current_dir().ok(), Error::CannotReadCurrentDir);
         let current_dir_name = current_dir.clone();
         let current_dir_name = unwrap!(current_dir_name.file_name(), Error::CannotReadCurrentDir);
         let current_dir_name = unwrap!(current_dir_name.to_str(), Error::CannotReadCurrentDir);
@@ -69,18 +67,17 @@ fn run() -> Result<(), Error> {
 
         current_dir.push("spandex.toml");
         let mut file = File::create(&current_dir)?;
-        file.write(toml.as_bytes())?;
+        file.write_all(toml.as_bytes())?;
 
         // Write an hello world file
         current_dir.pop();
         current_dir.push("main.dex");
 
         let mut file = File::create(&current_dir)?;
-        file.write("# Hello world".as_bytes())?;
-    } else if let Some(_) = matches.subcommand_matches("build") {
+        file.write_all(b"# Hello world")?;
+    } else if matches.subcommand_matches("build").is_some() {
         // Look up for spandex config file
-        let mut current_dir =
-            PathBuf::from(unwrap!(current_dir().ok(), Error::CannotReadCurrentDir));
+        let mut current_dir = unwrap!(current_dir().ok(), Error::CannotReadCurrentDir);
         let config_path = loop {
             current_dir.push("spandex.toml");
 

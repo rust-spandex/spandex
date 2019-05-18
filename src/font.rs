@@ -55,7 +55,11 @@ impl Font {
 
         // vertical scale for the space character
         let vert_scale = {
-            if let Ok(_) = self.freetype.load_char(0x0020, face::LoadFlag::NO_SCALE) {
+            if self
+                .freetype
+                .load_char(0x0020, face::LoadFlag::NO_SCALE)
+                .is_ok()
+            {
                 self.freetype.glyph().metrics().vertAdvance
             } else {
                 1000
@@ -63,10 +67,12 @@ impl Font {
         };
 
         // calculate the width of the text in unscaled units
-        let width = if let Ok(_) = self
+        let is_ok = self
             .freetype
             .load_char(c as usize, face::LoadFlag::NO_SCALE)
-        {
+            .is_ok();
+
+        let width = if is_ok {
             self.freetype.glyph().metrics().horiAdvance
         } else {
             0
@@ -81,7 +87,11 @@ impl Font {
 
         // vertical scale for the space character
         let vert_scale = {
-            if let Ok(_) = self.freetype.load_char(0x0020, face::LoadFlag::NO_SCALE) {
+            if self
+                .freetype
+                .load_char(0x0020, face::LoadFlag::NO_SCALE)
+                .is_ok()
+            {
                 self.freetype.glyph().metrics().vertAdvance
             } else {
                 1000
@@ -90,18 +100,19 @@ impl Font {
 
         // calculate the width of the text in unscaled units
         let sum_width = text.chars().fold(0, |acc, ch| {
-            if let Ok(_) = self
+            let is_ok = self
                 .freetype
                 .load_char(ch as usize, face::LoadFlag::NO_SCALE)
-            {
-                let glyph_w = self.freetype.glyph().metrics().horiAdvance;
-                acc + glyph_w
+                .is_ok();
+
+            if is_ok {
+                acc + self.freetype.glyph().metrics().horiAdvance
             } else {
                 acc
             }
         });
 
-        Pt(sum_width as f64 / (vert_scale as f64 / scale)).into()
+        Pt(sum_width as f64 / (vert_scale as f64 / scale))
     }
 
     /// Returns a reference to the printpdf font.
@@ -219,24 +230,24 @@ impl FontManager {
             regular: self
                 .fonts
                 .get(regular)
-                .ok_or(Error::FontNotFound(PathBuf::from(regular)))?,
+                .ok_or_else(|| Error::FontNotFound(PathBuf::from(regular)))?,
             bold: self
                 .fonts
                 .get(bold)
-                .ok_or(Error::FontNotFound(PathBuf::from(bold)))?,
+                .ok_or_else(|| Error::FontNotFound(PathBuf::from(bold)))?,
             italic: self
                 .fonts
                 .get(italic)
-                .ok_or(Error::FontNotFound(PathBuf::from(italic)))?,
+                .ok_or_else(|| Error::FontNotFound(PathBuf::from(italic)))?,
             bold_italic: self
                 .fonts
                 .get(bold_italic)
-                .ok_or(Error::FontNotFound(PathBuf::from(bold_italic)))?,
+                .ok_or_else(|| Error::FontNotFound(PathBuf::from(bold_italic)))?,
         })
     }
 
     /// Returns the default configuration for computer modern fonts.
-    pub fn default_config<'a>(&'a self) -> FontConfig<'a> {
+    pub fn default_config(&self) -> FontConfig {
         let regular = "CMU Serif Roman";
         let bold = "CMU Serif Bold";
         let italic = "CMU Serif Italic";

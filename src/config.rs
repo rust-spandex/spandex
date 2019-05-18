@@ -14,6 +14,8 @@ use crate::font::FontManager;
 use crate::Result as CResult;
 
 /// Serializes a `Pt` structure.
+// This is required to use in macro `serialize_with`.
+#[allow(clippy::trivially_copy_pass_by_ref)]
 pub fn serialize_pt<S: Serializer>(pt: &Pt, serializer: S) -> result::Result<S::Ok, S::Error> {
     serializer.serialize_f64(pt.0)
 }
@@ -23,7 +25,17 @@ pub fn deserialize_pt<'a, D: Deserializer<'a>>(deserializer: D) -> Result<Pt, D:
     deserializer.deserialize_f64(PtVisitor)
 }
 
-macro_rules! visit {
+macro_rules! visit_from {
+    ($visit: ident, $ty: ty) => {
+        fn $visit<E>(self, value: $ty) -> Result<Self::Value, E>
+            where E: de::Error
+        {
+            Ok(Pt(f64::from(value)))
+        }
+    }
+}
+
+macro_rules! visit_as {
     ($visit: ident, $ty: ty) => {
         fn $visit<E>(self, value: $ty) -> Result<Self::Value, E>
             where E: de::Error
@@ -43,23 +55,22 @@ impl<'a> Visitor<'a> for PtVisitor {
         formatter.write_str("a floatting point number")
     }
 
-    visit!(visit_u8, u8);
-    visit!(visit_u16, u16);
-    visit!(visit_u32, u32);
-    visit!(visit_u64, u64);
-    visit!(visit_i8, i8);
-    visit!(visit_i16, i16);
-    visit!(visit_i32, i32);
-    visit!(visit_i64, i64);
-    visit!(visit_f32, f32);
-    visit!(visit_f64, f64);
+    visit_from!(visit_u8, u8);
+    visit_from!(visit_u16, u16);
+    visit_from!(visit_u32, u32);
+    visit_as!(visit_u64, u64);
+    visit_from!(visit_i8, i8);
+    visit_from!(visit_i16, i16);
+    visit_from!(visit_i32, i32);
+    visit_as!(visit_i64, i64);
+    visit_from!(visit_f32, f32);
+    visit_from!(visit_f64, f64);
 }
 
 #[cfg(test)]
 mod test {
 
     use printpdf::Pt;
-    use rand::Rng;
     use serde::{Deserialize, Serialize};
 
     use crate::config::{deserialize_pt, serialize_pt};
@@ -79,9 +90,10 @@ mod test {
 
     #[test]
     fn test() {
-        for _ in 0..1000 {
-            let num = rand::thread_rng().gen_range(-10000.0, 10000.0);
-            let value = Test { value: Pt(num) };
+        for value in -500..500 {
+            let value = Test {
+                value: Pt(f64::from(value)),
+            };
             let encoded: Vec<u8> = bincode::serialize(&value).unwrap();
             let decoded: Test = bincode::deserialize(&encoded[..]).unwrap();
             assert_eq!(value.as_f64(), decoded.as_f64());

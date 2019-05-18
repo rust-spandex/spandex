@@ -1,8 +1,8 @@
 //! This crate contains the parser for spandex.
 
 pub mod ast;
+pub mod combinators;
 pub mod error;
-pub mod parser;
 pub mod utils;
 pub mod warning;
 
@@ -19,6 +19,7 @@ use nom_locate::LocatedSpan;
 use crate::parser::ast::Ast;
 use crate::parser::error::Errors;
 use crate::parser::warning::Warnings;
+use crate::Error;
 
 /// This type will allow us to know where we are while we're parsing the content.
 pub type Span<'a> = LocatedSpan<CompleteStr<'a>>;
@@ -56,15 +57,15 @@ pub struct Parsed {
 }
 
 /// Parses a dex file.
-pub fn parse<'a, P: AsRef<Path>>(path: P) -> Result<Parsed, Errors> {
+pub fn parse<P: AsRef<Path>>(path: P) -> Result<Parsed, Error> {
     let path = path.as_ref();
-    let mut file = File::open(&path).unwrap();
+    let mut file = File::open(&path)?;
     let mut content = String::new();
-    file.read_to_string(&mut content).unwrap();
+    file.read_to_string(&mut content)?;
 
-    let ast = match parser::parse(Span::new(CompleteStr(&content))) {
+    let ast = match combinators::parse(Span::new(CompleteStr(&content))) {
         Ok((_, ast)) => ast,
-        Err(_) => panic!(),
+        Err(_) => unreachable!(),
     };
 
     let errors = ast.errors();
@@ -80,10 +81,10 @@ pub fn parse<'a, P: AsRef<Path>>(path: P) -> Result<Parsed, Errors> {
             },
         })
     } else {
-        Err(Errors {
+        Err(Error::DexError(Errors {
             path: PathBuf::from(&path),
             content,
             errors,
-        })
+        }))
     }
 }
