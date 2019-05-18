@@ -2,11 +2,6 @@
 
 #![warn(missing_docs)]
 
-#[macro_use]
-extern crate log;
-#[macro_use]
-extern crate nom;
-
 pub mod config;
 pub mod document;
 pub mod font;

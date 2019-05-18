@@ -3,13 +3,13 @@
 // This module contains marcos that can't be documented, so we'll allow missing docs here.
 #![allow(missing_docs)]
 
-use nom::rest;
+use nom::*;
 
 use crate::ligature::ligature;
 use crate::parser::ast::Ast;
 use crate::parser::error::{EmptyError, ErrorType};
 use crate::parser::warning::{EmptyWarning, WarningType};
-use crate::parser::{Span, ToPosition};
+use crate::parser::{Span, position};
 
 /// Returns true if the character passed as parameter changes the type of parsing we're going to do.
 pub fn should_stop(c: char) -> bool {
@@ -19,7 +19,7 @@ pub fn should_stop(c: char) -> bool {
 /// Creates an error.
 pub fn error(span: Span, ty: ErrorType) -> Ast {
     Ast::Error(EmptyError {
-        position: span.position(),
+        position: position(&span),
         ty,
     })
 }
@@ -27,7 +27,7 @@ pub fn error(span: Span, ty: ErrorType) -> Ast {
 /// Creates a warning.
 pub fn warning(span: Span, ty: WarningType) -> Ast {
     Ast::Warning(EmptyWarning {
-        position: span.position(),
+        position: position(&span),
         ty,
     })
 }

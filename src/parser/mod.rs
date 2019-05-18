@@ -36,21 +36,12 @@ pub struct Position {
     pub offset: usize,
 }
 
-/// A trait that serves the purpose to add the position method to span.
-pub trait ToPosition {
-
-    /// Convers self to a position.
-    fn position(&self) -> Position;
-
-}
-
-impl<'a> ToPosition for Span<'a> {
-    fn position(&self) -> Position {
-        Position {
-            line: self.line,
-            column: self.get_utf8_column(),
-            offset: self.offset,
-        }
+/// Returns the position of a span.
+pub fn position<'a>(span: &Span<'a>) -> Position {
+    Position {
+        line: span.line,
+        column: span.get_utf8_column(),
+        offset: span.offset,
     }
 }
 

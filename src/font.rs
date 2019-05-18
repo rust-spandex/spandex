@@ -195,7 +195,7 @@ impl FontManager {
         let name = match (font.freetype.family_name(), font.freetype.style_name()) {
             (Some(family), Some(style)) => format!("{} {}", family, style),
             _ => {
-                error!("Failed to create a built in font, this is a implementation error");
+                eprintln!("Failed to create a built in font, this is a implementation error");
                 unreachable!();
             }
         };

@@ -1,6 +1,3 @@
-#[macro_use]
-extern crate log;
-
 use std::env::current_dir;
 use std::path::PathBuf;
 use std::process::exit;
@@ -22,13 +19,8 @@ macro_rules! unwrap {
 }
 
 fn main() {
-    beautylog::init(log::LevelFilter::Trace).ok();
-
     if let Err(e) = run() {
-        match e {
-            Error::DexError(e) => println!("{}", e),
-            _ => error!("{}", e),
-        }
+        eprintln!("{}", e);
         exit(1);
     }
 }
