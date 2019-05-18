@@ -31,7 +31,11 @@ const MIN_ADJUSTMENT_RATIO: f64 = -1.0;
 const MAX_ADJUSTMENT_RATIO: f64 = 10.0;
 const PLUS_INFINITY: Pt = Pt(f64::INFINITY);
 
+/// The ideal spacing between two words.
+pub const IDEAL_SPACING: Pt = Pt(5.0);
+
 /// Holds a list of items describing a paragraph.
+#[derive(Debug)]
 pub struct Paragraph<'a> {
     /// Sequence of items representing the structure of the paragraph.
     pub items: Vec<Item<'a>>,
@@ -121,7 +125,7 @@ pub fn itemize_ast_aux<'a>(
 
         Ast::Text(content) => {
             let font = font_config.for_style(current_style);
-            let ideal_spacing = Pt(7.5);
+            let ideal_spacing = IDEAL_SPACING;
             let mut previous_glyph = None;
             let mut current_word = vec![];
 
@@ -129,8 +133,8 @@ pub fn itemize_ast_aux<'a>(
             // word. This includes potential punctuation marks.
             for c in content.chars() {
                 if c.is_whitespace() {
-                    buffer.push(glue_from_context(previous_glyph, ideal_spacing));
                     add_word_to_paragraph(current_word, dictionary, buffer);
+                    buffer.push(glue_from_context(previous_glyph, ideal_spacing));
                     current_word = vec![];
                 } else {
                     current_word.push(Glyph::new(c, font, size));
@@ -139,8 +143,9 @@ pub fn itemize_ast_aux<'a>(
                 previous_glyph = Some(Glyph::new(c, font, size));
             }
 
+            // Current word is empty if content ends with a whitespace.
+
             if !current_word.is_empty() {
-                buffer.push(glue_from_context(previous_glyph, ideal_spacing));
                 add_word_to_paragraph(current_word, dictionary, buffer);
             }
         }

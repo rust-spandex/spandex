@@ -3,7 +3,7 @@
 use printpdf::Pt;
 
 use crate::typography::items::Content;
-use crate::typography::paragraphs::Paragraph;
+use crate::typography::paragraphs::{algorithm, positionate_items, Paragraph, IDEAL_SPACING};
 use crate::typography::Glyph;
 
 /// An algorithm that justifies a paragraph.
@@ -22,7 +22,7 @@ impl Justifier for NaiveJustifier {
         let mut current_word = vec![];
         let mut current_x = Pt(0.0);
 
-        for item in paragraph.iter().skip(1) {
+        for item in paragraph.iter() {
             match item.content {
                 Content::BoundingBox { .. } => {
                     current_x += item.width;
@@ -30,7 +30,7 @@ impl Justifier for NaiveJustifier {
                 }
                 Content::Glue { .. } => {
                     current_line.push(current_word);
-                    current_x += Pt(7.5);
+                    current_x += item.width;
                     current_word = vec![];
                 }
                 Content::Penalty { .. } => (),
@@ -53,7 +53,7 @@ impl Justifier for NaiveJustifier {
                 let word_space = if current_line.len() > 1 {
                     available_space / (current_line.len() - 1) as f64
                 } else {
-                    Pt(7.5)
+                    IDEAL_SPACING
                 };
 
                 let mut current_x = Pt(0.0);
@@ -95,11 +95,34 @@ impl Justifier for NaiveJustifier {
                     _ => (),
                 }
             }
-            current_x += Pt(7.5);
+            current_x += IDEAL_SPACING;
         }
 
         ret.push(final_line);
 
         ret
+    }
+}
+
+/// The LaTeX style justifier.
+pub struct LatexJustifier;
+
+impl Justifier for LatexJustifier {
+    fn justify<'a>(paragraph: &'a Paragraph<'a>, text_width: Pt) -> Vec<Vec<(Glyph<'a>, Pt)>> {
+        let lines_length = vec![text_width];
+        let breakpoints = algorithm(&paragraph, &lines_length);
+        let positioned_items = positionate_items(&paragraph.items, &lines_length, &breakpoints);
+
+        let mut output = vec![];
+
+        for items in positioned_items {
+            let mut line = vec![];
+            for item in items {
+                line.push((item.glyph.clone(), item.horizontal_offset));
+            }
+            output.push(line);
+        }
+
+        output
     }
 }

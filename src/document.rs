@@ -11,7 +11,7 @@ use printpdf::{PdfDocument, PdfDocumentReference, PdfLayerReference, PdfPageRefe
 
 use crate::font::{Font, FontConfig};
 use crate::parser::ast::Ast;
-use crate::typography::justification::{Justifier, NaiveJustifier};
+use crate::typography::justification::{Justifier, LatexJustifier};
 use crate::typography::paragraphs::itemize_ast;
 
 /// The struct that manages the counters for the document.
@@ -170,21 +170,21 @@ impl Document {
                 self.counters.increment(*level as usize);
                 match &**content {
                     Ast::Group(children) => {
-                        let mut new_children = vec![Ast::Text(format!("{}", self.counters))];
+                        let mut new_children = vec![Ast::Text(format!("{}  ", self.counters))];
                         new_children.extend_from_slice(children);
                         let new_ast = Ast::Title {
                             level: *level,
                             content: Box::new(Ast::Group(new_children)),
                         };
-                        self.write_paragraph::<NaiveJustifier>(&new_ast, font_config, size, &en);
+                        self.write_paragraph::<LatexJustifier>(&new_ast, font_config, size, &en);
                     }
-                    _ => self.write_paragraph::<NaiveJustifier>(ast, font_config, size, &en),
+                    _ => self.write_paragraph::<LatexJustifier>(ast, font_config, size, &en),
                 }
                 self.new_line(size);
             }
 
             Ast::Paragraph(_) => {
-                self.write_paragraph::<NaiveJustifier>(ast, font_config, size, &en);
+                self.write_paragraph::<LatexJustifier>(ast, font_config, size, &en);
                 self.new_line(size);
                 self.new_line(size);
             }
@@ -199,7 +199,7 @@ impl Document {
 
         for paragraph in content.split("\n") {
             let ast = Ast::Text(paragraph.to_owned());
-            self.write_paragraph::<NaiveJustifier>(&ast, font_config, size, &en);
+            self.write_paragraph::<LatexJustifier>(&ast, font_config, size, &en);
             self.new_line(size);
         }
     }
