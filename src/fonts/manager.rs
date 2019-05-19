@@ -4,7 +4,7 @@ use crate::fonts::Font;
 use crate::{Error, Result};
 use freetype::Library;
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 /// This struct holds the different fonts.
 pub struct FontManager {

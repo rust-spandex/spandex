@@ -5,10 +5,8 @@ pub mod justification;
 pub mod ligatures;
 pub mod utils;
 
-use printpdf::Pt;
 use std::slice::Iter;
 
-use crate::fonts::Font;
 use crate::layout::paragraphs::items::Item;
 
 /// Holds a list of items describing a paragraph.

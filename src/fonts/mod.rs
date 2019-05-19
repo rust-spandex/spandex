@@ -4,7 +4,6 @@ pub mod configuration;
 pub mod manager;
 pub mod styles;
 
-use std::collections::HashMap;
 use std::fs::File;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
@@ -15,10 +14,6 @@ use printpdf::Pt;
 
 use crate::document::Document;
 use crate::{Error, Result};
-
-use crate::fonts::configuration::FontConfig;
-use crate::fonts::manager::FontManager;
-use crate::fonts::styles::FontStyle;
 
 /// A font that contains the printpdf object font needed to render text and the freetype font
 /// needed to measure text.

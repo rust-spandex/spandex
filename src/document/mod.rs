@@ -3,7 +3,6 @@
 pub mod configuration;
 pub mod counters;
 
-use std::fmt;
 use std::fs::File;
 use std::io::BufWriter;
 use std::path::Path;

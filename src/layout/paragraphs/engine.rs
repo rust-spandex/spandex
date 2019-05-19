@@ -2,11 +2,8 @@
 //! semantics of "paragraph". That is, the logic to split a sequence of
 //! words into lines.
 
-use std::cmp::Ordering;
 use std::collections::hash_map::{Entry, HashMap};
 use std::f64;
-use std::fmt;
-use std::slice::Iter;
 
 use petgraph::graph::NodeIndex;
 use petgraph::stable_graph::StableGraph;
@@ -14,12 +11,9 @@ use petgraph::visit::Dfs;
 use petgraph::visit::IntoNodeIdentifiers;
 use printpdf::Pt;
 
-use crate::fonts::configuration::FontConfig;
-use crate::fonts::styles::FontStyle;
 use crate::layout::paragraphs::items::{Content, Item, PositionedItem};
 use crate::layout::paragraphs::Paragraph;
 use crate::layout::Glyph;
-use crate::parser::ast::Ast;
 
 use crate::layout::constants::{
     ADJACENT_LOOSE_TIGHT_PENALTY, MAX_ADJUSTMENT_RATIO, MAX_COST, MIN_ADJUSTMENT_RATIO,
@@ -29,7 +23,7 @@ use crate::layout::paragraphs::utils::linebreak::{
     compute_adjustment_ratio, compute_adjustment_ratios_with_breakpoints, compute_demerits,
     compute_fitness, is_forced_break,
 };
-use crate::layout::paragraphs::utils::paragraphs::{get_line_length, glue_from_context};
+use crate::layout::paragraphs::utils::paragraphs::get_line_length;
 
 /// Finds the optimal sequence of breakpoints that minimize
 /// the amount of demerits while breaking a paragraph down

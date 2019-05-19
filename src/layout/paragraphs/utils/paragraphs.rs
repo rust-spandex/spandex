@@ -1,5 +1,5 @@
 use crate::layout::constants::{DASH_GLYPH, DEFAULT_LINE_LENGTH, SPACE_WIDTH};
-use crate::layout::paragraphs::items::{Content, Item};
+use crate::layout::paragraphs::items::Item;
 use crate::layout::paragraphs::Paragraph;
 use crate::layout::Glyph;
 use hyphenation::*;
