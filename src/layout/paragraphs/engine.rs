@@ -15,13 +15,11 @@ use crate::layout::paragraphs::items::{Content, Item, PositionedItem};
 use crate::layout::paragraphs::Paragraph;
 use crate::layout::Glyph;
 
-use crate::layout::constants::{
-    ADJACENT_LOOSE_TIGHT_PENALTY, MAX_ADJUSTMENT_RATIO, MAX_COST, MIN_ADJUSTMENT_RATIO,
-};
+use crate::layout::constants::{MAX_ADJUSTMENT_RATIO, MIN_ADJUSTMENT_RATIO};
 use crate::layout::paragraphs::graph::Node;
 use crate::layout::paragraphs::utils::linebreak::{
-    compute_adjustment_ratio, compute_adjustment_ratios_with_breakpoints, compute_demerits,
-    compute_fitness, is_forced_break,
+    compute_adjustment_ratio, compute_adjustment_ratios_with_breakpoints,
+    create_node_for_feasible_breakpoint, is_forced_break, Measures,
 };
 use crate::layout::paragraphs::utils::paragraphs::get_line_length;
 
@@ -31,7 +29,6 @@ use crate::layout::paragraphs::utils::paragraphs::get_line_length;
 ///
 /// It returns the indexes of items which have been chosen as
 /// breakpoints.
-#[allow(clippy::cyclomatic_complexity)]
 pub fn algorithm<'a>(paragraph: &'a Paragraph<'a>, lines_length: &[Pt]) -> Vec<usize> {
     let mut graph = StableGraph::<_, f64>::new();
     let mut sum_width = Pt(0.0);
@@ -123,63 +120,21 @@ pub fn algorithm<'a>(paragraph: &'a Paragraph<'a>, lines_length: &[Pt]) -> Vec<u
                 if adjustment_ratio >= MIN_ADJUSTMENT_RATIO
                     && adjustment_ratio <= MAX_ADJUSTMENT_RATIO
                 {
-                    // This is a feasible breakpoint.
-                    let badness = adjustment_ratio.abs().powi(3);
-                    let penalty = match item.content {
-                        Content::Penalty { value, .. } => value,
-                        _ => 0.0,
+                    let measures_sum = Measures {
+                        width: sum_width,
+                        shrinkability: sum_shrink,
+                        stretchability: sum_stretch,
                     };
 
-                    let mut demerits = compute_demerits(penalty, badness);
+                    let new_node = create_node_for_feasible_breakpoint(
+                        b,
+                        a,
+                        adjustment_ratio,
+                        &item,
+                        &paragraph.items,
+                        &measures_sum,
+                    );
 
-                    // TODO: support double hyphenation penalty.
-
-                    // Compute fitness class.
-                    let fitness = compute_fitness(adjustment_ratio);
-
-                    if a.index > 0 && (fitness - a.fitness).abs() > 1 {
-                        demerits += ADJACENT_LOOSE_TIGHT_PENALTY;
-                    }
-
-                    // TODO: Ignore the width of potential subsequent glue or
-                    // non-breakable penalty item to avoid rendering glue or
-                    // penalties at the beginning of lines.
-
-                    let mut width_to_next_box = Pt(0.0);
-                    let mut shrink_to_next_box = Pt(0.0);
-                    let mut stretch_to_next_box = Pt(0.0);
-
-                    for c in b..paragraph.items.len() {
-                        let next_item = &paragraph.items[c];
-
-                        width_to_next_box += item.width;
-
-                        match next_item.content {
-                            Content::BoundingBox { .. } => break,
-                            Content::Glue {
-                                shrinkability,
-                                stretchability,
-                            } => {
-                                shrink_to_next_box += shrinkability;
-                                stretch_to_next_box += stretchability;
-                            }
-                            Content::Penalty { value, .. } => {
-                                if value >= MAX_COST {
-                                    break;
-                                }
-                            }
-                        }
-                    }
-
-                    let new_node = Node {
-                        index: b,
-                        line: a.line + 1,
-                        fitness,
-                        total_width: sum_width + width_to_next_box,
-                        total_shrink: sum_shrink + shrink_to_next_box,
-                        total_stretch: sum_stretch + stretch_to_next_box,
-                        total_demerits: a.total_demerits + demerits,
-                    };
                     feasible_breakpoints.push((new_node, node));
                 }
             }

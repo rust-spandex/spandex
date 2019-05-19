@@ -1,11 +1,25 @@
 //! Utility functions for the various stages of the line breaking algorithm.
 
-use crate::layout::constants::MIN_COST;
-use crate::layout::paragraphs::items::{Content, Item};
+use crate::layout::constants::{ADJACENT_LOOSE_TIGHT_PENALTY, MAX_COST, MIN_COST};
+use crate::layout::paragraphs::graph::Node;
 use crate::layout::paragraphs::utils::paragraphs::get_line_length;
+
+use crate::layout::paragraphs::items::{Content, Item};
 use crate::layout::paragraphs::Paragraph;
 use printpdf::Pt;
 use std::f64;
+
+/// Accumulator to hold the three key related measures.
+pub struct Measures {
+    /// Measure of the width accumulated so far.
+    pub width: Pt,
+
+    /// Measure of the shrinkability accumulated so far.
+    pub shrinkability: Pt,
+
+    /// Measure of the stretchability accumulated so far.
+    pub stretchability: Pt,
+}
 
 /// Computes the adjusment ratio of a line of items, based on their combined
 /// width, stretchability and shrinkability. This essentially tells how much
@@ -158,4 +172,84 @@ pub fn find_legal_breakpoints(paragraph: &Paragraph) -> Vec<usize> {
     }
 
     legal_breakpoints
+}
+
+/// Handles a feasible breakpoint and adds it to the current graph of
+/// feasible breakpoints if it's good enough.
+#[inline]
+pub fn create_node_for_feasible_breakpoint(
+    b: usize,
+    a: &Node,
+    adjustment_ratio: f64,
+    item: &Item,
+    items: &[Item],
+    measures_sum: &Measures,
+) -> Node {
+    // This is a feasible breakpoint.
+    let badness = adjustment_ratio.abs().powi(3);
+    let penalty = match item.content {
+        Content::Penalty { value, .. } => value,
+        _ => 0.0,
+    };
+
+    let mut demerits = compute_demerits(penalty, badness);
+
+    // TODO: support double hyphenation penalty.
+
+    // Compute fitness class.
+    let fitness = compute_fitness(adjustment_ratio);
+
+    if a.index > 0 && (fitness - a.fitness).abs() > 1 {
+        demerits += ADJACENT_LOOSE_TIGHT_PENALTY;
+    }
+
+    // TODO: Ignore the width of potential subsequent glue or
+    // non-breakable penalty item to avoid rendering glue or
+    // penalties at the beginning of lines.
+    let measures_to_next_box = get_measures_to_next_box(b, item, items);
+
+    Node {
+        index: b,
+        line: a.line + 1,
+        fitness,
+        total_width: measures_sum.width + measures_to_next_box.width,
+        total_shrink: measures_sum.shrinkability + measures_to_next_box.shrinkability,
+        total_stretch: measures_sum.stretchability + measures_to_next_box.stretchability,
+        total_demerits: a.total_demerits + demerits,
+    }
+}
+
+/// Computes the accumulated measures from the current linebreak
+/// to the next bounding box in the provided items.
+#[inline]
+pub fn get_measures_to_next_box(b: usize, item: &Item, items: &[Item]) -> Measures {
+    let mut width_to_next_box = Pt(0.0);
+    let mut shrink_to_next_box = Pt(0.0);
+    let mut stretch_to_next_box = Pt(0.0);
+
+    for next_item in &items[b..] {
+        width_to_next_box += item.width;
+
+        match next_item.content {
+            Content::BoundingBox { .. } => break,
+            Content::Glue {
+                shrinkability,
+                stretchability,
+            } => {
+                shrink_to_next_box += shrinkability;
+                stretch_to_next_box += stretchability;
+            }
+            Content::Penalty { value, .. } => {
+                if value >= MAX_COST {
+                    break;
+                }
+            }
+        }
+    }
+
+    Measures {
+        width: width_to_next_box,
+        shrinkability: shrink_to_next_box,
+        stretchability: stretch_to_next_box,
+    }
 }
