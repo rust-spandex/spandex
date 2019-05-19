@@ -10,7 +10,7 @@ use serde::de::{self, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::document::{Document, Window};
-use crate::font::FontManager;
+use crate::fonts::manager::FontManager;
 use crate::Result as CResult;
 
 /// Serializes a `Pt` structure.
@@ -75,7 +75,7 @@ mod test {
     use printpdf::Pt;
     use serde::{Deserialize, Serialize};
 
-    use crate::config::{deserialize_pt, serialize_pt};
+    use crate::document::configuration::{deserialize_pt, serialize_pt};
 
     #[derive(Serialize, Deserialize)]
     pub struct Test {

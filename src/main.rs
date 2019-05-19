@@ -5,7 +5,7 @@ use std::process::exit;
 
 use clap::{crate_authors, crate_description, crate_version, App, AppSettings, Arg, SubCommand};
 
-use spandex::config::Config;
+use spandex::document::configuration::Config;
 use spandex::{build, Error};
 
 macro_rules! unwrap {

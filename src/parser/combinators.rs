@@ -7,7 +7,7 @@
 
 use nom::*;
 
-use crate::ligature::ligature;
+use crate::layout::paragraphs::ligatures::ligature;
 use crate::parser::ast::Ast;
 use crate::parser::error::{EmptyError, ErrorType};
 use crate::parser::warning::{EmptyWarning, WarningType};

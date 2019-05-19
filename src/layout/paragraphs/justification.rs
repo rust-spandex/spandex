@@ -2,9 +2,11 @@
 
 use printpdf::Pt;
 
-use crate::typography::items::Content;
-use crate::typography::paragraphs::{algorithm, positionate_items, Paragraph, IDEAL_SPACING};
-use crate::typography::Glyph;
+use crate::layout::constants::IDEAL_SPACING;
+use crate::layout::paragraphs::engine::{algorithm, positionate_items};
+use crate::layout::paragraphs::items::Content;
+use crate::layout::paragraphs::Paragraph;
+use crate::layout::Glyph;
 
 /// An algorithm that justifies a paragraph.
 pub trait Justifier {

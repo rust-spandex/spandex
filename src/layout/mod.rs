@@ -1,12 +1,10 @@
-//! This module holds all the mathematical logic around typesetting.
+//! Logic for laying out the various pieces that make up a document.
 
-pub mod items;
-pub mod justification;
+pub mod constants;
 pub mod paragraphs;
 
+use crate::fonts::Font;
 use printpdf::Pt;
-
-use crate::font::Font;
 
 /// A glyph with its font style.
 #[derive(Debug, Clone)]

@@ -3,7 +3,7 @@
 
 use printpdf::Pt;
 
-use crate::typography::Glyph;
+use crate::layout::Glyph;
 
 /// Top abstraction of an item, which is a specification for a box, a glue
 /// or a penalty.

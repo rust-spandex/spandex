@@ -1,6 +1,8 @@
 //! This module allows to create beautiful documents.
 
-use std::fmt;
+pub mod configuration;
+pub mod counters;
+
 use std::fs::File;
 use std::io::BufWriter;
 use std::path::Path;
@@ -9,74 +11,12 @@ use hyphenation::load::Load;
 use hyphenation::{Language, Standard};
 use printpdf::{PdfDocument, PdfDocumentReference, PdfLayerReference, PdfPageReference, Pt};
 
-use crate::font::{Font, FontConfig};
+use crate::document::counters::Counters;
+use crate::fonts::configuration::FontConfig;
+use crate::fonts::Font;
+use crate::layout::paragraphs::justification::{Justifier, LatexJustifier};
+use crate::layout::paragraphs::utils::ast::itemize_ast;
 use crate::parser::ast::Ast;
-use crate::typography::justification::{Justifier, LatexJustifier};
-use crate::typography::paragraphs::itemize_ast;
-
-/// The struct that manages the counters for the document.
-#[derive(Clone, Default)]
-pub struct Counters {
-    /// The counters.
-    pub counters: Vec<usize>,
-}
-
-impl Counters {
-    /// Creates a new empty counters.
-    pub fn new() -> Counters {
-        Counters { counters: vec![0] }
-    }
-
-    /// Increases the corresponding counter and returns it if it is correct.
-    ///
-    /// The counters of the subsections will be reinitialized.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use spandex::document::Counters;
-    /// let mut counters = Counters::new();
-    /// counters.increment(0);
-    /// assert_eq!(counters.counter(0), 1);
-    /// assert_eq!(counters.counter(1), 0);
-    /// assert_eq!(counters.counter(2), 0);
-    /// counters.increment(1);
-    /// assert_eq!(counters.counter(1), 1);
-    /// counters.increment(1);
-    /// assert_eq!(counters.counter(1), 2);
-    /// counters.increment(0);
-    /// assert_eq!(counters.counter(0), 2);
-    /// assert_eq!(counters.counter(1), 0);
-    /// println!("{}", counters);
-    /// ```
-    pub fn increment(&mut self, counter_id: usize) -> usize {
-        self.counters.resize(counter_id + 1, 0);
-        self.counters[counter_id] += 1;
-        self.counters[counter_id]
-    }
-
-    /// Returns a specific value of a counter.
-    pub fn counter(&self, counter_id: usize) -> usize {
-        match self.counters.get(counter_id) {
-            Some(i) => *i,
-            None => 0,
-        }
-    }
-}
-
-impl fmt::Display for Counters {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            fmt,
-            "{}",
-            self.counters
-                .iter()
-                .map(std::string::ToString::to_string)
-                .collect::<Vec<_>>()
-                .join(".")
-        )
-    }
-}
 
 /// The window that is the part of the page on which we're allowed to write.
 #[derive(Copy, Clone)]
