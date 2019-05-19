@@ -4,12 +4,10 @@
 #![warn(clippy::cargo)]
 #![allow(clippy::multiple_crate_versions)]
 
-pub mod config;
 pub mod document;
-pub mod font;
-pub mod ligature;
+pub mod fonts;
+pub mod layout;
 pub mod parser;
-pub mod typography;
 
 use std::fs::File;
 use std::io::Read;
@@ -18,7 +16,7 @@ use std::{error, fmt, io, result};
 
 use printpdf::Pt;
 
-use crate::config::Config;
+use crate::document::configuration::Config;
 use crate::parser::error::Errors;
 use crate::parser::parse;
 

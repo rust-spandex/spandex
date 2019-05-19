@@ -6,331 +6,30 @@ use std::cmp::Ordering;
 use std::collections::hash_map::{Entry, HashMap};
 use std::f64;
 use std::fmt;
-use std::hash::{Hash, Hasher};
 use std::slice::Iter;
 
-use hyphenation::*;
 use petgraph::graph::NodeIndex;
 use petgraph::stable_graph::StableGraph;
 use petgraph::visit::Dfs;
 use petgraph::visit::IntoNodeIdentifiers;
 use printpdf::Pt;
 
-use crate::font::{FontConfig, FontStyle};
+use crate::fonts::configuration::FontConfig;
+use crate::fonts::styles::FontStyle;
+use crate::layout::paragraphs::items::{Content, Item, PositionedItem};
+use crate::layout::paragraphs::Paragraph;
+use crate::layout::Glyph;
 use crate::parser::ast::Ast;
-use crate::typography::items::{Content, Item, PositionedItem};
-use crate::typography::Glyph;
 
-const DASH_GLYPH: char = '-';
-const SPACE_WIDTH: Pt = Pt(5.0);
-const DEFAULT_LINE_LENGTH: Pt = Pt(680.0);
-const MIN_COST: f64 = -1000.0;
-const MAX_COST: f64 = 1000.0;
-const ADJACENT_LOOSE_TIGHT_PENALTY: f64 = 50.0;
-const MIN_ADJUSTMENT_RATIO: f64 = -1.0;
-const MAX_ADJUSTMENT_RATIO: f64 = 10.0;
-const PLUS_INFINITY: Pt = Pt(f64::INFINITY);
-
-/// The ideal spacing between two words.
-pub const IDEAL_SPACING: Pt = Pt(5.0);
-
-/// Holds a list of items describing a paragraph.
-#[derive(Debug, Default)]
-pub struct Paragraph<'a> {
-    /// Sequence of items representing the structure of the paragraph.
-    pub items: Vec<Item<'a>>,
-}
-
-impl<'a> Paragraph<'a> {
-    /// Instantiates a new paragraph.
-    pub fn new() -> Paragraph<'a> {
-        Paragraph { items: Vec::new() }
-    }
-
-    /// Pushes an item at the end of the paragraph.
-    pub fn push(&mut self, item: Item<'a>) {
-        self.items.push(item)
-    }
-
-    /// Returns an iterator to the items of the paragraph.
-    pub fn iter(&self) -> Iter<Item> {
-        self.items.iter()
-    }
-}
-
-/// Parses an AST into a sequence of items.
-pub fn itemize_ast<'a>(
-    ast: &Ast,
-    font_config: &'a FontConfig,
-    size: Pt,
-    dictionary: &Standard,
-    indent: Pt,
-) -> Paragraph<'a> {
-    let mut p = Paragraph::new();
-    let current_style = FontStyle::regular();
-
-    if indent > Pt(0.0) {
-        p.push(Item::glue(indent, Pt(0.0), Pt(0.0)));
-    }
-
-    itemize_ast_aux(ast, font_config, size, dictionary, current_style, &mut p);
-    p
-}
-
-/// Parses an AST into a sequence of items.
-pub fn itemize_ast_aux<'a>(
-    ast: &Ast,
-    font_config: &'a FontConfig,
-    size: Pt,
-    dictionary: &Standard,
-    current_style: FontStyle,
-    buffer: &mut Paragraph<'a>,
-) {
-    match ast {
-        Ast::Title { level, content } => {
-            let size = size + Pt(3.0 * ((4 - *level as isize).max(1)) as f64);
-            itemize_ast_aux(
-                content,
-                font_config,
-                size,
-                dictionary,
-                current_style.bold(),
-                buffer,
-            );
-            buffer.push(Item::glue(Pt(0.0), PLUS_INFINITY, Pt(0.0)));
-            buffer.push(Item::penalty(Pt(0.0), f64::NEG_INFINITY, false));
-        }
-
-        Ast::Bold(content) => {
-            itemize_ast_aux(
-                content,
-                font_config,
-                size,
-                dictionary,
-                current_style.bold(),
-                buffer,
-            );
-        }
-
-        Ast::Italic(content) => {
-            itemize_ast_aux(
-                content,
-                font_config,
-                size,
-                dictionary,
-                current_style.italic(),
-                buffer,
-            );
-        }
-
-        Ast::Text(content) => {
-            let font = font_config.for_style(current_style);
-            let ideal_spacing = IDEAL_SPACING;
-            let mut previous_glyph = None;
-            let mut current_word = vec![];
-
-            // Turn each word of the paragraph into a sequence of boxes for the caracters of the
-            // word. This includes potential punctuation marks.
-            for c in content.chars() {
-                if c.is_whitespace() {
-                    add_word_to_paragraph(current_word, dictionary, buffer);
-                    buffer.push(glue_from_context(previous_glyph, ideal_spacing));
-                    current_word = vec![];
-                } else {
-                    current_word.push(Glyph::new(c, font, size));
-                }
-
-                previous_glyph = Some(Glyph::new(c, font, size));
-            }
-
-            // Current word is empty if content ends with a whitespace.
-
-            if !current_word.is_empty() {
-                add_word_to_paragraph(current_word, dictionary, buffer);
-            }
-        }
-
-        Ast::Group(children) => {
-            for child in children {
-                itemize_ast_aux(child, font_config, size, dictionary, current_style, buffer);
-            }
-        }
-
-        Ast::Paragraph(children) => {
-            for child in children {
-                itemize_ast_aux(child, font_config, size, dictionary, current_style, buffer);
-            }
-
-            // Appends two items to ensure the end of any paragraph is treated properly: a glue
-            // specifying the available space at the right of the last tine, and a penalty item to
-            // force a line break.
-            buffer.push(Item::glue(Pt(0.0), PLUS_INFINITY, Pt(0.0)));
-            buffer.push(Item::penalty(Pt(0.0), f64::NEG_INFINITY, false));
-        }
-
-        _ => (),
-    }
-}
-
-/// Adds a word to a buffer.
-pub fn add_word_to_paragraph<'a>(
-    word: Vec<Glyph<'a>>,
-    dictionary: &Standard,
-    buffer: &mut Paragraph<'a>,
-) {
-    // Reached end of current word, handle hyphenation.
-    let to_hyphenate = word
-        .iter()
-        .map(|x: &Glyph| x.glyph.to_string())
-        .collect::<Vec<_>>()
-        .join("");
-
-    let hyphenated = dictionary.hyphenate(&to_hyphenate);
-    let break_indices = &hyphenated.breaks;
-
-    for (i, g) in word.iter().enumerate() {
-        if break_indices.contains(&i) {
-            buffer.push(Item::penalty(Pt(0.0), 50.0, true));
-        }
-
-        buffer.push(Item::from_glyph(g.clone()));
-
-        if g.glyph == DASH_GLYPH {
-            buffer.push(Item::penalty(Pt(0.0), 50.0, true));
-        }
-    }
-}
-
-/// Returns the glue based on the spatial context of the cursor.
-fn glue_from_context(_previous_glyph: Option<Glyph>, ideal_spacing: Pt) -> Item {
-    // Todo: make this glue context dependent.
-    Item::glue(ideal_spacing, SPACE_WIDTH, SPACE_WIDTH * 0.5)
-}
-
-/// Finds all the legal breakpoints within a paragraph. A legal breakpoint
-/// is an item index such that this item is either a peanalty which isn't
-/// infinite or a glue following a bounding box.
-pub fn find_legal_breakpoints(paragraph: &Paragraph) -> Vec<usize> {
-    let mut legal_breakpoints: Vec<usize> = Vec::new();
-    legal_breakpoints.push(0);
-
-    let mut last_item_was_box = false;
-
-    for (i, item) in paragraph.items.iter().enumerate() {
-        match item.content {
-            Content::Penalty { value, .. } => {
-                if value < f64::INFINITY {
-                    legal_breakpoints.push(i);
-                }
-
-                last_item_was_box = false;
-            }
-            Content::Glue { .. } => {
-                if last_item_was_box {
-                    legal_breakpoints.push(i)
-                }
-
-                last_item_was_box = false;
-            }
-            Content::BoundingBox { .. } => last_item_was_box = true,
-        }
-    }
-
-    legal_breakpoints
-}
-
-/// Aggregates various measures up to and from a feasible breakpoint.
-#[derive(Copy, Clone)]
-struct Node {
-    /// Index of the item represented by the node, within the paragraph.
-    pub index: usize,
-
-    /// Line at which the item lives within the paragraph.
-    pub line: usize,
-
-    /// The fitness class of the item represented by the node.
-    pub fitness: i64,
-
-    /// Total width from the previous breakpoint to this one.
-    pub total_width: Pt,
-
-    /// Total stretchability from the previous breakpoint to this one.
-    pub total_stretch: Pt,
-
-    /// Total shrinkability from the previous breakpoint to this one.
-    pub total_shrink: Pt,
-
-    /// Accumulated demerits from previous breakpoints.
-    pub total_demerits: f64,
-}
-
-impl fmt::Debug for Node {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.index)
-    }
-}
-
-impl PartialOrd for Node {
-    fn partial_cmp(&self, other: &Node) -> Option<Ordering> {
-        Some(self.index.cmp(&other.index))
-    }
-}
-
-impl Ord for Node {
-    fn cmp(&self, other: &Node) -> Ordering {
-        self.index.cmp(&other.index)
-    }
-}
-
-impl PartialEq for Node {
-    fn eq(&self, other: &Node) -> bool {
-        self.index == other.index
-    }
-}
-
-impl Eq for Node {}
-
-impl Hash for Node {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.index.hash(state);
-    }
-}
-
-/// Returns the length of the line of given index, from a list of
-/// potential line lengths. If the list is too short, the line
-/// length will default to `DEFAULT_LINE_LENGTH`.
-fn get_line_length(lines_length: &[Pt], index: usize) -> Pt {
-    if index < lines_length.len() {
-        lines_length[index]
-    } else {
-        *lines_length.first().unwrap_or(&DEFAULT_LINE_LENGTH)
-    }
-}
-
-/// Computes the demerits of a line based on its accumulated penalty
-/// and badness.
-fn compute_demerits(penalty: f64, badness: f64) -> f64 {
-    if penalty >= 0.0 {
-        (1.0 + badness + penalty).powi(2)
-    } else if penalty > MIN_COST {
-        (1.0 + badness).powi(2) - penalty.powi(2)
-    } else {
-        (1.0 + badness).powi(2)
-    }
-}
-
-/// Computes the fitness class of a line based on its adjustment ratio.
-fn compute_fitness(adjustment_ratio: f64) -> i64 {
-    if adjustment_ratio < -0.5 {
-        0
-    } else if adjustment_ratio < 0.5 {
-        1
-    } else if adjustment_ratio < 1.0 {
-        2
-    } else {
-        3
-    }
-}
+use crate::layout::constants::{
+    ADJACENT_LOOSE_TIGHT_PENALTY, MAX_ADJUSTMENT_RATIO, MAX_COST, MIN_ADJUSTMENT_RATIO,
+};
+use crate::layout::paragraphs::graph::Node;
+use crate::layout::paragraphs::utils::linebreak::{
+    compute_adjustment_ratio, compute_adjustment_ratios_with_breakpoints, compute_demerits,
+    compute_fitness, is_forced_break,
+};
+use crate::layout::paragraphs::utils::paragraphs::{get_line_length, glue_from_context};
 
 /// Finds the optimal sequence of breakpoints that minimize
 /// the amount of demerits while breaking a paragraph down
@@ -559,102 +258,6 @@ pub fn algorithm<'a>(paragraph: &'a Paragraph<'a>, lines_length: &[Pt]) -> Vec<u
     result
 }
 
-/// Checks whether or not a given item encodes a forced linebreak.
-fn is_forced_break<'a>(item: &'a Item<'a>) -> bool {
-    match item.content {
-        Content::Penalty { value, .. } => value < MIN_COST,
-        _ => false,
-    }
-}
-
-/// Computes the adjustment ratios of all lines given a set of line lengths and breakpoint indices.
-/// This allows to speed up the adaptation of glue items.
-fn compute_adjustment_ratios_with_breakpoints<'a>(
-    items: &[Item<'a>],
-    line_lengths: &[Pt],
-    breakpoints: &[usize],
-) -> Vec<f64> {
-    let mut adjustment_ratios: Vec<f64> = Vec::new();
-
-    for (breakpoint_line, breakpoint_index) in breakpoints.iter().enumerate() {
-        let desired_length = get_line_length(line_lengths, breakpoint_line);
-        let mut actual_length = Pt(0.0);
-        let mut line_shrink = Pt(0.0);
-        let mut line_stretch = Pt(0.0);
-        let next_breakpoint = if breakpoint_line < breakpoints.len() - 1 {
-            breakpoints[breakpoint_line + 1]
-        } else {
-            items.len() - 1
-        };
-
-        let beginning = if breakpoint_line == 0 {
-            *breakpoint_index
-        } else {
-            *breakpoint_index + 1
-        };
-
-        let range = items
-            .iter()
-            .enumerate()
-            .take(next_breakpoint)
-            .skip(beginning);
-
-        for (p, item) in range {
-            match item.content {
-                Content::BoundingBox { .. } => actual_length += items[p].width,
-                Content::Glue {
-                    shrinkability,
-                    stretchability,
-                } => {
-                    if p != beginning && p != next_breakpoint {
-                        actual_length += item.width;
-                        line_shrink += shrinkability;
-                        line_stretch += stretchability;
-                    }
-                }
-                Content::Penalty { .. } => {
-                    if p == next_breakpoint {
-                        actual_length += item.width;
-                    }
-                }
-            }
-        }
-
-        adjustment_ratios.push(compute_adjustment_ratio(
-            actual_length,
-            desired_length,
-            line_stretch,
-            line_shrink,
-        ));
-    }
-
-    adjustment_ratios
-}
-
-/// Computes the adjusment ratio of a line of items, based on their combined
-/// width, stretchability and shrinkability. This essentially tells how much
-/// effort has to be produce to fit the line to the desired width.
-fn compute_adjustment_ratio(
-    actual_length: Pt,
-    desired_length: Pt,
-    total_stretchability: Pt,
-    total_shrinkability: Pt,
-) -> f64 {
-    if actual_length == desired_length {
-        0.0
-    } else if actual_length < desired_length {
-        if total_stretchability != Pt(0.0) {
-            ((desired_length.0 - actual_length.0) / total_stretchability.0)
-        } else {
-            f64::INFINITY
-        }
-    } else if total_shrinkability != Pt(0.0) {
-        ((desired_length.0 - actual_length.0) / total_shrinkability.0)
-    } else {
-        f64::INFINITY
-    }
-}
-
 /// Generates a list of positioned items from a list of items making up a paragraph.
 /// The generated list is ready to be rendered.
 pub fn positionate_items<'a>(
@@ -749,12 +352,14 @@ mod tests {
     use hyphenation::*;
     use printpdf::Pt;
 
-    use crate::config::Config;
-    use crate::parser::ast::Ast;
-    use crate::typography::items::Content;
-    use crate::typography::paragraphs::{
-        algorithm, compute_adjustment_ratios_with_breakpoints, find_legal_breakpoints, itemize_ast,
+    use crate::document::configuration::Config;
+    use crate::layout::paragraphs::engine::algorithm;
+    use crate::layout::paragraphs::items::Content;
+    use crate::layout::paragraphs::utils::ast::itemize_ast;
+    use crate::layout::paragraphs::utils::linebreak::{
+        compute_adjustment_ratios_with_breakpoints, find_legal_breakpoints,
     };
+    use crate::parser::ast::Ast;
     use crate::Result;
 
     #[test]
