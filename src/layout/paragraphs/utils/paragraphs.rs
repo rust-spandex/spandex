@@ -1,3 +1,5 @@
+//! Utility functions for manipulating and typesetting a `Paragraph`.
+
 use crate::layout::constants::{DASH_GLYPH, DEFAULT_LINE_LENGTH, SPACE_WIDTH};
 use crate::layout::paragraphs::items::Item;
 use crate::layout::paragraphs::Paragraph;

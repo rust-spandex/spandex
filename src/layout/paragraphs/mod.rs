@@ -1,3 +1,5 @@
+//! Logic for laying out a paragraph.
+
 pub mod engine;
 pub mod graph;
 pub mod items;

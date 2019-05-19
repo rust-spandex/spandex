@@ -1,3 +1,5 @@
+//! Different style variants of a `Font`.
+
 /// A style for a font. It can be bold, italic, both or none.
 #[derive(Copy, Clone, Debug)]
 pub struct FontStyle {

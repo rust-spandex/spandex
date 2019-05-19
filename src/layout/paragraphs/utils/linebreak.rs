@@ -1,3 +1,5 @@
+//! Utility functions for the various stages of the line breaking algorithm.
+
 use crate::layout::constants::MIN_COST;
 use crate::layout::paragraphs::items::{Content, Item};
 use crate::layout::paragraphs::utils::paragraphs::get_line_length;

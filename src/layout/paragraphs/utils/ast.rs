@@ -1,3 +1,6 @@
+//! Utility functions for manipulating an abstract syntax tree representing
+//! a paragraph.
+
 use crate::fonts::configuration::FontConfig;
 use crate::fonts::styles::FontStyle;
 use crate::layout::constants::{IDEAL_SPACING, PLUS_INFINITY};

@@ -1,3 +1,5 @@
+//! Logic for laying out the various pieces that make up a document.
+
 pub mod constants;
 pub mod paragraphs;
 

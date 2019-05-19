@@ -1,3 +1,6 @@
+//! Font manager that detects, loads and handles the different fonts
+//! available on the system.
+
 use crate::document::Document;
 use crate::fonts::configuration::FontConfig;
 use crate::fonts::Font;

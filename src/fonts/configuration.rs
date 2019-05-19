@@ -1,3 +1,5 @@
+//! Configuration for a `Font` used to typeset a document.
+
 use crate::fonts::styles::FontStyle;
 use crate::fonts::Font;
 

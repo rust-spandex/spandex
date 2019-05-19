@@ -1,3 +1,7 @@
+//! Structure used in the graph part of the line breaking algorithm. It allows
+//! to store the accumulated statistics of line breaks and allows a
+//! dynamic programming approach.
+
 use printpdf::Pt;
 use std::cmp::Ordering;
 use std::fmt;

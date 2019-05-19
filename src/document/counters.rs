@@ -1,3 +1,6 @@
+//! Logic for recursive counters in a document for titles and other
+//! counted items.
+
 use std::fmt;
 
 /// The struct that manages the counters for the document.

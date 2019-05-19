@@ -1,3 +1,5 @@
+//! Various constants used for laying out the items of a document.
+
 use printpdf::Pt;
 use std::f64;
 
