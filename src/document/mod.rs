@@ -100,26 +100,21 @@ impl Document {
         let en = Standard::from_embedded(Language::EnglishUS).unwrap();
 
         match ast {
-            Ast::Group(children) => {
+            Ast::File(_, children) => {
                 for child in children {
                     self.render(child, font_config, size);
                 }
             }
 
-            Ast::Title { level, content } => {
+            Ast::Title { level, children } => {
                 self.counters.increment(*level as usize);
-                match &**content {
-                    Ast::Group(children) => {
-                        let mut new_children = vec![Ast::Text(format!("{}  ", self.counters))];
-                        new_children.extend_from_slice(children);
-                        let new_ast = Ast::Title {
-                            level: *level,
-                            content: Box::new(Ast::Group(new_children)),
-                        };
-                        self.write_paragraph::<LatexJustifier>(&new_ast, font_config, size, &en);
-                    }
-                    _ => self.write_paragraph::<LatexJustifier>(ast, font_config, size, &en),
-                }
+                let mut new_children = vec![Ast::Text(format!("{}  ", self.counters))];
+                new_children.extend_from_slice(children);
+                let new_ast = Ast::Title {
+                    level: *level,
+                    children: new_children,
+                };
+                self.write_paragraph::<LatexJustifier>(&new_ast, font_config, size, &en);
                 self.new_line(size);
             }
 

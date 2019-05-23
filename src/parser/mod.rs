@@ -9,15 +9,10 @@ pub mod warning;
 #[cfg(test)]
 mod tests;
 
-use std::fs::File;
-use std::io::Read;
-use std::path::{Path, PathBuf};
-
 use nom::types::CompleteStr;
 use nom_locate::LocatedSpan;
 
 use crate::parser::ast::Ast;
-use crate::parser::error::Errors;
 use crate::parser::warning::Warnings;
 use crate::Error;
 
@@ -56,35 +51,4 @@ pub struct Parsed {
     pub warnings: Warnings,
 }
 
-/// Parses a dex file.
-pub fn parse<P: AsRef<Path>>(path: P) -> Result<Parsed, Error> {
-    let path = path.as_ref();
-    let mut file = File::open(&path)?;
-    let mut content = String::new();
-    file.read_to_string(&mut content)?;
-
-    let ast = match combinators::parse(Span::new(CompleteStr(&content))) {
-        Ok((_, ast)) => ast,
-        Err(_) => unreachable!(),
-    };
-
-    let errors = ast.errors();
-    let warnings = ast.warnings();
-
-    if errors.is_empty() {
-        Ok(Parsed {
-            ast,
-            warnings: Warnings {
-                path: PathBuf::from(&path),
-                warnings,
-                content,
-            },
-        })
-    } else {
-        Err(Error::DexError(Errors {
-            path: PathBuf::from(&path),
-            content,
-            errors,
-        }))
-    }
-}
+pub use combinators::parse;

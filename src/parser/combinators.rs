@@ -5,13 +5,18 @@
 // Allow redundant closure because of nom.
 #![allow(clippy::redundant_closure)]
 
+use std::fs::File;
+use std::io::Read;
+use std::path::{Path, PathBuf};
+
+use nom::types::CompleteStr;
 use nom::*;
 
 use crate::layout::paragraphs::ligatures::ligature;
 use crate::parser::ast::Ast;
-use crate::parser::error::{EmptyError, ErrorType};
-use crate::parser::warning::{EmptyWarning, WarningType};
-use crate::parser::{position, Span};
+use crate::parser::error::{EmptyError, ErrorType, Errors};
+use crate::parser::warning::{EmptyWarning, WarningType, Warnings};
+use crate::parser::{position, Error, Parsed, Span};
 
 /// Returns true if the character passed as parameter changes the type of parsing we're going to do.
 pub fn should_stop(c: char) -> bool {
@@ -38,7 +43,7 @@ pub fn warning(span: Span, ty: WarningType) -> Ast {
 named!(pub parse_bold<Span, Ast>,
     map!(
         map_res!(preceded!(tag!("*"), take_until_and_consume!("*")), parse_group),
-        { |(_,x)| Ast::Bold(Box::new(x)) }
+        { |(_,x)| Ast::Bold(x) }
     )
 );
 
@@ -46,7 +51,7 @@ named!(pub parse_bold<Span, Ast>,
 named!(pub parse_italic<Span, Ast>,
     map!(
         map_res!(preceded!(tag!("/"), take_until_and_consume!("/")), parse_group),
-        { |(_,x)| Ast::Italic(Box::new(x)) }
+        { |(_,x)| Ast::Italic(x) }
     )
 );
 
@@ -82,8 +87,8 @@ named!(pub parse_any<Span, Ast>,
 );
 
 /// Parses some text content.
-named!(pub parse_group<Span, Ast>,
-    map!(many0!(parse_any), Ast::Group)
+named!(pub parse_group<Span, Vec<Ast>>,
+    many0!(parse_any)
 );
 
 /// Parses a paragraph of text content.
@@ -96,10 +101,10 @@ named!(pub parse_paragraph<Span, Ast>,
 ////////////////////////////////////////////////////////////////////////////////
 
 /// Parses a paragraph on a single line.
-named!(pub parse_line<Span, Ast>,
+named!(pub parse_line<Span, Vec<Ast>>,
     alt!(
-        map!(preceded!(take_until_and_consume!("\n"), take!(0)), |x| { error(x, ErrorType::MultipleLinesTitle) })
-        | map!(many0!(parse_any), Ast::Group)
+        map!(preceded!(take_until_and_consume!("\n"), take!(0)), |x| { vec![error(x, ErrorType::MultipleLinesTitle)] })
+        | many0!(parse_any)
     )
 );
 
@@ -118,7 +123,7 @@ named!(pub parse_title<Span, Ast>,
         content: parse_line >> ({
             Ast::Title {
                 level: (level - 1) as u8,
-                content: Box::new(content)
+                children: content
             }
         })
     )
@@ -145,10 +150,45 @@ named!(pub parse_bloc_content<Span, Ast>,
 );
 
 /// Parses a whole dex file.
-named!(pub parse<Span, Ast>,
+named!(pub parse_content<Span, Vec<Ast>>,
     do_parse!(
-        title: many1!(map_res!(call!(get_bloc), parse_bloc_content)) >> ({
-            Ast::Group(title.into_iter().map(|x| x.1).collect())
+        content: many1!(map_res!(call!(get_bloc), parse_bloc_content)) >> ({
+            content.into_iter().map(|x| x.1).collect()
         })
     )
 );
+
+/// Parses a whole dex file from a name.
+pub fn parse<P: AsRef<Path>>(path: P) -> Result<Parsed, Error> {
+    let path = path.as_ref();
+    let mut file = File::open(&path)?;
+    let mut content = String::new();
+    file.read_to_string(&mut content)?;
+
+    let elements = match parse_content(Span::new(CompleteStr(&content))) {
+        Ok((_, elements)) => elements,
+        Err(_) => unreachable!(),
+    };
+
+    let ast = Ast::File(PathBuf::from(path), elements);
+
+    let errors = ast.errors();
+    let warnings = ast.warnings();
+
+    if errors.is_empty() {
+        Ok(Parsed {
+            ast,
+            warnings: Warnings {
+                path: PathBuf::from(&path),
+                warnings,
+                content,
+            },
+        })
+    } else {
+        Err(Error::DexError(Errors {
+            path: PathBuf::from(&path),
+            content,
+            errors,
+        }))
+    }
+}

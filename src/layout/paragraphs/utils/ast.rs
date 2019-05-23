@@ -42,40 +42,46 @@ pub fn itemize_ast_aux<'a>(
     buffer: &mut Paragraph<'a>,
 ) {
     match ast {
-        Ast::Title { level, content } => {
+        Ast::Title { level, children } => {
             let size = size + Pt(3.0 * ((4 - *level as isize).max(1)) as f64);
-            itemize_ast_aux(
-                content,
-                font_config,
-                size,
-                dictionary,
-                current_style.bold(),
-                buffer,
-            );
+            for child in children {
+                itemize_ast_aux(
+                    child,
+                    font_config,
+                    size,
+                    dictionary,
+                    current_style.bold(),
+                    buffer,
+                );
+            }
             buffer.push(Item::glue(Pt(0.0), PLUS_INFINITY, Pt(0.0)));
             buffer.push(Item::penalty(Pt(0.0), f64::NEG_INFINITY, false));
         }
 
-        Ast::Bold(content) => {
-            itemize_ast_aux(
-                content,
-                font_config,
-                size,
-                dictionary,
-                current_style.bold(),
-                buffer,
-            );
+        Ast::Bold(children) => {
+            for child in children {
+                itemize_ast_aux(
+                    child,
+                    font_config,
+                    size,
+                    dictionary,
+                    current_style.bold(),
+                    buffer,
+                );
+            }
         }
 
-        Ast::Italic(content) => {
-            itemize_ast_aux(
-                content,
-                font_config,
-                size,
-                dictionary,
-                current_style.italic(),
-                buffer,
-            );
+        Ast::Italic(children) => {
+            for child in children {
+                itemize_ast_aux(
+                    child,
+                    font_config,
+                    size,
+                    dictionary,
+                    current_style.italic(),
+                    buffer,
+                );
+            }
         }
 
         Ast::Text(content) => {
@@ -105,7 +111,7 @@ pub fn itemize_ast_aux<'a>(
             }
         }
 
-        Ast::Group(children) => {
+        Ast::File(_, children) => {
             for child in children {
                 itemize_ast_aux(child, font_config, size, dictionary, current_style, buffer);
             }
