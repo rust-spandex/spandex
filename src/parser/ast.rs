@@ -43,6 +43,9 @@ pub enum Ast {
     /// An empty line.
     Newline,
 
+    /// A list of paragraphs.
+    List(Vec<Ast>),
+
     /// An error.
     ///
     /// Error will be stored in the abstract syntax tree so we can keep parsing what's parsable and
@@ -63,7 +66,8 @@ impl Ast {
             | Ast::Paragraph(children)
             | Ast::Title { children, .. }
             | Ast::Bold(children)
-            | Ast::Italic(children) => Some(children),
+            | Ast::Italic(children)
+            | Ast::List(children) => Some(children),
             _ => None,
         }
     }
@@ -156,6 +160,7 @@ impl Ast {
                 new_indent,
                 &format!("File(\"{}\")", path.display()).blue().bold()
             )?,
+            Ast::List(_) => writeln!(fmt, "{}{}", new_indent, "List".blue().bold())?,
             Ast::Paragraph(_) => writeln!(fmt, "{}{}", new_indent, "Paragraph".blue().bold())?,
 
             Ast::Title { level, .. } => writeln!(

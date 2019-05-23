@@ -124,6 +124,29 @@ impl Document {
                 self.new_line(size);
             }
 
+            Ast::List(items) => {
+                for item in items {
+                    match item {
+                        Ast::Paragraph(children) => {
+                            let mut new_children = vec![Ast::Text(String::from("• "))];
+                            new_children.extend_from_slice(children);
+                            let new_ast = Ast::Paragraph(new_children);
+                            self.write_paragraph::<LatexJustifier>(
+                                &new_ast,
+                                font_config,
+                                size,
+                                &en,
+                            );
+                        }
+                        _ => {
+                            unreachable!("list must contain paragraphs");
+                        }
+                    }
+                }
+                self.new_line(size);
+                self.new_line(size);
+            }
+
             _ => (),
         }
     }

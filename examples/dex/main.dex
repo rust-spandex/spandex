@@ -11,6 +11,8 @@ deserunt mollit anim id est laborum.
 || paragraph.
 Lorem ipsum dolor sit amet, *consectetur* adipisicing elit.
 
+  - an item of a *list*
+  - another /item/
 
 ## Hello to you || A comment in a title
 
@@ -18,5 +20,3 @@ Lorem ipsum dolor sit amet, *consectetur* adipisicing elit, sed do eiusmod
 tempor incididunt ut /labore et dolore magna aliqua/. Ut enim ad minim veniam,
 quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo
 consequat.
-
-Voici un exemple d'affichage avec ligature. | Ceci *n'est pas* un commentaire.

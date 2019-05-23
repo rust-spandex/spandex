@@ -86,6 +86,16 @@ named!(pub parse_any<Span, Ast>,
     )
 );
 
+/// Parses a list item.
+named!(pub parse_list_item<Span, Ast>,
+    map!(preceded!(tag!("  - "), map_res!(alt!(terminated!(take_until_and_consume!("\n"), take_until!("  - ")) | rest), parse_group)), |x| Ast::Paragraph(x.1))
+);
+
+/// Parses a list.
+named!(pub parse_list<Span, Ast>,
+    map!(many1!(parse_list_item), |x| Ast::List(x))
+);
+
 /// Parses some text content.
 named!(pub parse_group<Span, Vec<Ast>>,
     many0!(parse_any)
@@ -145,7 +155,9 @@ named!(pub get_bloc<Span, Span>,
 /// Parses a bloc of content.
 named!(pub parse_bloc_content<Span, Ast>,
     alt!(
-        parse_title | parse_paragraph
+        parse_title
+        | parse_list
+        | parse_paragraph
     )
 );
 
