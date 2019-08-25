@@ -32,7 +32,7 @@ pub struct Position {
 }
 
 /// Returns the position of a span.
-pub fn position<'a>(span: &Span<'a>) -> Position {
+pub fn position(span: &Span) -> Position {
     Position {
         line: span.line,
         column: span.get_utf8_column(),
