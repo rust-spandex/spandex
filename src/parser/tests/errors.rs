@@ -8,7 +8,7 @@ macro_rules! to_dex_error {
     ($expr: expr) => {
         match $expr {
             Err(Error::DexError(e)) => e,
-            _ => panic!(),
+            _ => panic!("expected an error but received ok"),
         }
     };
 }
@@ -83,6 +83,8 @@ fn test_title_no_new_line() -> Result<()> {
 
     let p = to_dex_error!(p);
     assert_eq!(p.errors.len(), 1);
+
+    println!("{}", p);
 
     let p = &p.errors[0];
 

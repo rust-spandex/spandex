@@ -9,8 +9,12 @@ use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
-use nom::types::CompleteStr;
-use nom::*;
+use nom::branch::*;
+use nom::bytes::complete::*;
+use nom::combinator::*;
+use nom::multi::*;
+use nom::sequence::*;
+use nom::IResult;
 
 use crate::layout::paragraphs::ligatures::ligature;
 use crate::parser::ast::Ast;
@@ -40,123 +44,240 @@ pub fn warning(span: Span, ty: WarningType) -> Ast {
 }
 
 /// Parses some bold content.
-named!(pub parse_bold<Span, Ast>,
-    map!(
-        map_res!(preceded!(tag!("*"), take_until_and_consume!("*")), parse_group),
-        { |(_,x)| Ast::Bold(x) }
-    )
-);
+/// ```
+/// # use spandex::parser::ast::Ast;
+/// # use spandex::parser::Span;
+/// # use spandex::parser::combinators::parse_bold;
+/// let input = Span::new("*Hello*");
+/// let parse = parse_bold(input).unwrap().1;
+/// assert_eq!(parse, Ast::Bold(vec![Ast::Text(String::from("Hello"))]));
+/// ```
+pub fn parse_bold(input: Span) -> IResult<Span, Ast> {
+    let (input, _) = tag("*")(input)?;
+    let (input, content) = take_until("*")(input)?;
+    let (input, _) = tag("*")(input)?;
+    let (_, content) = parse_group(content)?;
+    Ok((input, Ast::Bold(content)))
+}
 
 /// Parses some italic content.
-named!(pub parse_italic<Span, Ast>,
-    map!(
-        map_res!(preceded!(tag!("/"), take_until_and_consume!("/")), parse_group),
-        { |(_,x)| Ast::Italic(x) }
-    )
-);
+/// ```
+/// # use spandex::parser::ast::Ast;
+/// # use spandex::parser::Span;
+/// # use spandex::parser::combinators::parse_italic;
+/// let input = Span::new("/Hello/");
+/// let parse = parse_italic(input).unwrap().1;
+/// assert_eq!(parse, Ast::Italic(vec![Ast::Text(String::from("Hello"))]));
+/// ```
+pub fn parse_italic(input: Span) -> IResult<Span, Ast> {
+    let (input, _) = tag("/")(input)?;
+    let (input, content) = take_until("/")(input)?;
+    let (input, _) = tag("/")(input)?;
+    let (_, content) = parse_group(content)?;
+    Ok((input, Ast::Italic(content)))
+}
 
 /// Parses some math inline math.
-named!(pub parse_inline_math<Span, Ast>,
-    map!(preceded!(tag!("$"), take_until_and_consume!("$")), { |x: Span| Ast::InlineMath(x.fragment.0.into())} )
-);
+/// ```
+/// # use spandex::parser::ast::Ast;
+/// # use spandex::parser::Span;
+/// # use spandex::parser::combinators::parse_inline_math;
+/// let input = Span::new("$x = 9$");
+/// let parse = parse_inline_math(input).unwrap().1;
+/// assert_eq!(parse, Ast::InlineMath(String::from("x = 9")));
+/// ```
+pub fn parse_inline_math(input: Span) -> IResult<Span, Ast> {
+    let (input, _) = tag("$")(input)?;
+    let (input, content) = take_until("$")(input)?;
+    let (input, _) = tag("$")(input)?;
+    Ok((input, Ast::InlineMath(content.fragment.into())))
+}
 
 /// Parses a styled element.
-named!(pub parse_styled<Span, Ast>,
-    alt!(
-        parse_bold | parse_italic | parse_inline_math
-    )
-);
+pub fn parse_styled(input: Span) -> IResult<Span, Ast> {
+    alt((parse_bold, parse_italic, parse_inline_math))(input)
+}
 
 /// Parses a comment.
-named!(pub parse_comment<Span, Ast>,
-    map!(preceded!(tag!("||"), alt!(take_until_and_consume!("\n") | call!(rest))), { |_|  Ast::Newline })
-);
+pub fn parse_comment(input: Span) -> IResult<Span, Ast> {
+    map(
+        preceded(
+            tag("||"),
+            alt((terminated(take_until("\n"), tag("\n")), rest)),
+        ),
+        { |_| Ast::Newline },
+    )(input)
+}
 
 /// Parses some multiline inline content.
-named!(pub parse_any<Span, Ast>,
-    alt!(
-        tag!("**") => { |x| warning(x, WarningType::ConsecutiveStars) }
-        | parse_comment
-        | parse_styled
-        | tag!("*") => { |x| error(x, ErrorType::UnmatchedStar) }
-        | tag!("/") => { |x| error(x, ErrorType::UnmatchedSlash) }
-        | tag!("$") => { |x| error(x, ErrorType::UnmatchedDollar) }
-        | tag!("|") => { |_| { Ast::Text(String::from("|")) } }
-        | take_till!(should_stop) => { |x: Span| { Ast::Text(ligature(x.fragment.0)) } }
-    )
-);
+pub fn parse_any(input: Span) -> IResult<Span, Ast> {
+    alt((
+        map(tag("**"), |x| warning(x, WarningType::ConsecutiveStars)),
+        parse_comment,
+        parse_styled,
+        map(tag("*"), |x| error(x, ErrorType::UnmatchedStar)),
+        map(tag("/"), |x| error(x, ErrorType::UnmatchedSlash)),
+        map(tag("$"), |x| error(x, ErrorType::UnmatchedDollar)),
+        map(tag("|"), |_| Ast::Text(String::from("|"))),
+        map(take_till1(should_stop), |x: Span| {
+            Ast::Text(ligature(x.fragment))
+        }),
+    ))(input)
+}
 
 /// Parses some text content.
-named!(pub parse_group<Span, Vec<Ast>>,
-    many0!(parse_any)
-);
+/// ```
+/// # use spandex::parser::ast::Ast;
+/// # use spandex::parser::Span;
+/// # use spandex::parser::combinators::parse_group;
+/// let input = Span::new("*Hello* to /you/");
+/// let parsed = parse_group(input).unwrap().1;
+/// assert_eq!(parsed, vec![
+///     Ast::Bold(vec![Ast::Text(String::from("Hello"))]),
+///     Ast::Text(String::from(" to ")),
+///     Ast::Italic(vec![Ast::Text(String::from("you"))]),
+/// ]);
+/// ```
+pub fn parse_group(input: Span) -> IResult<Span, Vec<Ast>> {
+    many0(parse_any)(input)
+}
 
 /// Parses a paragraph of text content.
-named!(pub parse_paragraph<Span, Ast>,
-    map!(many0!(parse_any), Ast::Paragraph)
-);
+/// ```
+/// # use spandex::parser::ast::Ast;
+/// # use spandex::parser::Span;
+/// # use spandex::parser::combinators::parse_paragraph;
+/// let input = Span::new("*Hello* to /you/");
+/// let parsed = parse_paragraph(input).unwrap().1;
+/// assert_eq!(parsed, Ast::Paragraph(vec![
+///     Ast::Bold(vec![Ast::Text(String::from("Hello"))]),
+///     Ast::Text(String::from(" to ")),
+///     Ast::Italic(vec![Ast::Text(String::from("you"))]),
+/// ]));
+/// ```
+pub fn parse_paragraph(input: Span) -> IResult<Span, Ast> {
+    map(parse_group, Ast::Paragraph)(input)
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // For titles
 ////////////////////////////////////////////////////////////////////////////////
 
-/// Parses a paragraph on a single line.
-named!(pub parse_line<Span, Vec<Ast>>,
-    alt!(
-        map!(preceded!(take_until_and_consume!("\n"), take!(0)), |x| { vec![error(x, ErrorType::MultipleLinesTitle)] })
-        | many0!(parse_any)
-    )
-);
+/// Parses a title on a single line.
+/// ```
+/// # use spandex::parser::ast::Ast;
+/// # use spandex::parser::Span;
+/// # use spandex::parser::combinators::parse_line;
+/// let input = Span::new("This is my title");
+/// let parsed = parse_line(input).unwrap().1;
+/// assert_eq!(parsed, vec![Ast::Text(String::from("This is my title"))]);
+/// ```
+pub fn parse_line(input: Span) -> IResult<Span, Vec<Ast>> {
+    alt((
+        map(
+            preceded(preceded(take_until("\n"), tag("\n")), tag("")),
+            |x: Span| vec![error(x, ErrorType::MultipleLinesTitle)],
+        ),
+        many0(parse_any),
+    ))(input)
+}
 
 /// Parses the hashes from the level of a title.
-named!(pub parse_title_level<Span, usize>,
-    map!(
-        terminated!(preceded!(tag!("#"), take_while!(|x| x == '#')), take_while!(char::is_whitespace)),
-        |x| x.fragment.0.len() + 1
-    )
-);
+/// ```
+/// # use spandex::parser::ast::Ast;
+/// # use spandex::parser::Span;
+/// # use spandex::parser::combinators::parse_title_level;
+/// let input = Span::new("# This is my title");
+/// let level = parse_title_level(input).unwrap().1;
+/// assert_eq!(level, 0);
+/// let input = Span::new("### This is my subtitle");
+/// let level = parse_title_level(input).unwrap().1;
+/// assert_eq!(level, 2);
+/// ```
+pub fn parse_title_level(input: Span) -> IResult<Span, usize> {
+    map(
+        terminated(
+            preceded(tag("#"), take_while(|x| x == '#')),
+            take_while(char::is_whitespace),
+        ),
+        |x: Span| x.fragment.len(),
+    )(input)
+}
 
 /// Parses a whole title.
-named!(pub parse_title<Span, Ast>,
-    do_parse!(
-        level: parse_title_level >>
-        content: parse_line >> ({
-            Ast::Title {
-                level: (level - 1) as u8,
-                children: content
-            }
-        })
-    )
-);
+/// ```
+/// # use spandex::parser::ast::Ast;
+/// # use spandex::parser::Span;
+/// # use spandex::parser::combinators::parse_title;
+/// let input = Span::new("# This is my title");
+/// let title = parse_title(input).unwrap().1;
+/// assert_eq!(title, Ast::Title { level: 0, children: vec![
+///     Ast::Text(String::from("This is my title"))]
+/// });
+/// ```
+pub fn parse_title(input: Span) -> IResult<Span, Ast> {
+    let (input, level) = parse_title_level(input)?;
+    let (input, _) = take_while(char::is_whitespace)(input)?;
+    let content = parse_line(input)?.1;
+    Ok((
+        input,
+        Ast::Title {
+            level: level as u8,
+            children: content,
+        },
+    ))
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // For main
 ////////////////////////////////////////////////////////////////////////////////
 
 /// Gets a bloc of content.
-named!(pub get_bloc<Span, Span>,
-    alt!(
-        terminated!(take_until_and_consume!("\n\n"), many0!(tag!("\n")))
-        | terminated!(take_until_and_consume!("\n"), eof!())
-        | call!(rest)
-    )
-);
+/// ```
+/// # use spandex::parser::ast::Ast;
+/// # use spandex::parser::Span;
+/// # use spandex::parser::combinators::get_bloc;
+/// let input = Span::new("First paragraph\n\nSecond paragraph");
+/// let (input, bloc) = get_bloc(input).unwrap();
+/// assert_eq!(bloc.fragment, "First paragraph");
+/// let (input, bloc) = get_bloc(input).unwrap();
+/// assert_eq!(bloc.fragment, "Second paragraph");
+/// ```
+pub fn get_bloc(input: Span) -> IResult<Span, Span> {
+    alt((terminated(take_until("\n\n"), many0(tag("\n"))), rest))(input)
+}
 
 /// Parses a bloc of content.
-named!(pub parse_bloc_content<Span, Ast>,
-    alt!(
-        parse_title | parse_paragraph
-    )
-);
+/// ```
+/// # use spandex::parser::ast::Ast;
+/// # use spandex::parser::Span;
+/// # use spandex::parser::combinators::parse_bloc_content;
+/// let input = Span::new("First paragraph");
+/// let (_, bloc) = parse_bloc_content(input).unwrap();
+/// assert_eq!(bloc, Ast::Paragraph(vec![Ast::Text(String::from("First paragraph"))]));
+/// ```
+pub fn parse_bloc_content(input: Span) -> IResult<Span, Ast> {
+    alt((parse_title, parse_paragraph))(input)
+}
 
 /// Parses a whole dex file.
-named!(pub parse_content<Span, Vec<Ast>>,
-    do_parse!(
-        content: many1!(map_res!(call!(get_bloc), parse_bloc_content)) >> ({
-            content.into_iter().map(|x| x.1).collect()
-        })
-    )
-);
+pub fn parse_content(input: &str) -> IResult<Span, Vec<Ast>> {
+    let mut input = Span::new(input.trim_end());
+    let mut content = vec![];
+
+    loop {
+        let (new_input, bloc) = get_bloc(input)?;
+        input = new_input;
+        let parsed = parse_bloc_content(bloc)?;
+        content.push(parsed.1);
+
+        if input.fragment.is_empty() {
+            break;
+        }
+    }
+
+    Ok((input, content))
+}
 
 /// Parses a whole dex file from a name.
 pub fn parse<P: AsRef<Path>>(path: P) -> Result<Parsed, Error> {
@@ -165,7 +286,7 @@ pub fn parse<P: AsRef<Path>>(path: P) -> Result<Parsed, Error> {
     let mut content = String::new();
     file.read_to_string(&mut content)?;
 
-    let elements = match parse_content(Span::new(CompleteStr(&content))) {
+    let elements = match parse_content(&content) {
         Ok((_, elements)) => elements,
         Err(_) => unreachable!(),
     };

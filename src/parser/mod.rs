@@ -9,7 +9,6 @@ pub mod warning;
 #[cfg(test)]
 mod tests;
 
-use nom::types::CompleteStr;
 use nom_locate::LocatedSpan;
 
 use crate::parser::ast::Ast;
@@ -17,7 +16,7 @@ use crate::parser::warning::Warnings;
 use crate::Error;
 
 /// This type will allow us to know where we are while we're parsing the content.
-pub type Span<'a> = LocatedSpan<CompleteStr<'a>>;
+pub type Span<'a> = LocatedSpan<&'a str>;
 
 /// A position is a span but without the reference to the complete str.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]

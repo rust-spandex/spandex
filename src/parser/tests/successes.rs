@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use crate::parser::{parse, Ast};
 
 #[test]
-fn test_title_1() -> Result<(), Box<Error>> {
+fn test_title_1() -> Result<(), Box<dyn Error>> {
     let path = "assets/tests/successes/test-title-1.dex";
     let p = parse(path);
     assert!(p.is_ok());
@@ -27,7 +27,7 @@ fn test_title_1() -> Result<(), Box<Error>> {
 }
 
 #[test]
-fn test_title_2() -> Result<(), Box<Error>> {
+fn test_title_2() -> Result<(), Box<dyn Error>> {
     let path = "assets/tests/successes/test-title-2.dex";
     let p = parse(path);
     assert!(p.is_ok());
@@ -48,7 +48,7 @@ fn test_title_2() -> Result<(), Box<Error>> {
 }
 
 #[test]
-fn test_titles() -> Result<(), Box<Error>> {
+fn test_titles() -> Result<(), Box<dyn Error>> {
     let path = "assets/tests/successes/test-titles.dex";
     let p = parse(path);
     assert!(p.is_ok());
