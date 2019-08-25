@@ -9,11 +9,12 @@ use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
-use nom::branch::*;
-use nom::bytes::complete::*;
-use nom::combinator::*;
-use nom::multi::*;
-use nom::sequence::*;
+use nom::branch::alt;
+use nom::bytes::complete::{tag, take_till1, take_until};
+use nom::character::complete::{char, line_ending, not_line_ending, space0};
+use nom::combinator::{map, opt, rest};
+use nom::multi::{many0, many1_count};
+use nom::sequence::{delimited, terminated};
 use nom::IResult;
 
 use crate::layout::paragraphs::ligatures::ligature;
@@ -53,11 +54,13 @@ pub fn warning(span: Span, ty: WarningType) -> Ast {
 /// assert_eq!(parse, Ast::Bold(vec![Ast::Text(String::from("Hello"))]));
 /// ```
 pub fn parse_bold(input: Span) -> IResult<Span, Ast> {
-    let (input, _) = tag("*")(input)?;
-    let (input, content) = take_until("*")(input)?;
-    let (input, _) = tag("*")(input)?;
+    let (input, content) = in_between("*", input)?;
     let (_, content) = parse_group(content)?;
     Ok((input, Ast::Bold(content)))
+}
+
+fn in_between<'a>(pattern: &str, input: Span<'a>) -> IResult<Span<'a>, Span<'a>> {
+    delimited(tag(pattern), take_until(pattern), tag(pattern))(input)
 }
 
 /// Parses some italic content.
@@ -70,9 +73,7 @@ pub fn parse_bold(input: Span) -> IResult<Span, Ast> {
 /// assert_eq!(parse, Ast::Italic(vec![Ast::Text(String::from("Hello"))]));
 /// ```
 pub fn parse_italic(input: Span) -> IResult<Span, Ast> {
-    let (input, _) = tag("/")(input)?;
-    let (input, content) = take_until("/")(input)?;
-    let (input, _) = tag("/")(input)?;
+    let (input, content) = in_between("/", input)?;
     let (_, content) = parse_group(content)?;
     Ok((input, Ast::Italic(content)))
 }
@@ -87,26 +88,37 @@ pub fn parse_italic(input: Span) -> IResult<Span, Ast> {
 /// assert_eq!(parse, Ast::InlineMath(String::from("x = 9")));
 /// ```
 pub fn parse_inline_math(input: Span) -> IResult<Span, Ast> {
-    let (input, _) = tag("$")(input)?;
-    let (input, content) = take_until("$")(input)?;
-    let (input, _) = tag("$")(input)?;
+    let (input, content) = in_between("$", input)?;
     Ok((input, Ast::InlineMath(content.fragment.into())))
 }
 
-/// Parses a styled element.
-pub fn parse_styled(input: Span) -> IResult<Span, Ast> {
+/// Parses a delimited element.
+pub fn parse_delimited(input: Span) -> IResult<Span, Ast> {
     alt((parse_bold, parse_italic, parse_inline_math))(input)
 }
 
+fn parse_delimited_unmatch_error(input: Span) -> IResult<Span, Ast> {
+    alt((
+        map(tag("*"), |x| error(x, ErrorType::UnmatchedStar)),
+        map(tag("/"), |x| error(x, ErrorType::UnmatchedSlash)),
+        map(tag("$"), |x| error(x, ErrorType::UnmatchedDollar)),
+    ))(input)
+}
+
 /// Parses a comment.
+/// ```
+/// # use spandex::parser::ast::Ast;
+/// # use spandex::parser::Span;
+/// # use spandex::parser::combinators::parse_comment;
+/// let input = Span::new("|| comment");
+/// let parse = parse_comment(input).unwrap().1;
+/// assert_eq!(parse, Ast::Newline);
+/// ```
 pub fn parse_comment(input: Span) -> IResult<Span, Ast> {
-    map(
-        preceded(
-            tag("||"),
-            alt((terminated(take_until("\n"), tag("\n")), rest)),
-        ),
-        { |_| Ast::Newline },
-    )(input)
+    let (input, _) = tag("||")(input)?;
+    let (input, _) = not_line_ending(input)?;
+    let (input, _) = opt(line_ending)(input)?;
+    Ok((input, Ast::Newline))
 }
 
 /// Parses some multiline inline content.
@@ -114,10 +126,8 @@ pub fn parse_any(input: Span) -> IResult<Span, Ast> {
     alt((
         map(tag("**"), |x| warning(x, WarningType::ConsecutiveStars)),
         parse_comment,
-        parse_styled,
-        map(tag("*"), |x| error(x, ErrorType::UnmatchedStar)),
-        map(tag("/"), |x| error(x, ErrorType::UnmatchedSlash)),
-        map(tag("$"), |x| error(x, ErrorType::UnmatchedDollar)),
+        parse_delimited,
+        parse_delimited_unmatch_error,
         map(tag("|"), |_| Ast::Text(String::from("|"))),
         map(take_till1(should_stop), |x: Span| {
             Ast::Text(ligature(x.fragment))
@@ -167,19 +177,20 @@ pub fn parse_paragraph(input: Span) -> IResult<Span, Ast> {
 /// ```
 /// # use spandex::parser::ast::Ast;
 /// # use spandex::parser::Span;
-/// # use spandex::parser::combinators::parse_line;
+/// # use spandex::parser::combinators::parse_single_line;
 /// let input = Span::new("This is my title");
-/// let parsed = parse_line(input).unwrap().1;
+/// let parsed = parse_single_line(input).unwrap().1;
 /// assert_eq!(parsed, vec![Ast::Text(String::from("This is my title"))]);
 /// ```
-pub fn parse_line(input: Span) -> IResult<Span, Vec<Ast>> {
-    alt((
-        map(
-            preceded(preceded(take_until("\n"), tag("\n")), tag("")),
-            |x: Span| vec![error(x, ErrorType::MultipleLinesTitle)],
-        ),
-        many0(parse_any),
-    ))(input)
+pub fn parse_single_line(input: Span) -> IResult<Span, Vec<Ast>> {
+    alt((parse_two_lines_error, parse_group))(input)
+}
+
+fn parse_two_lines_error(input: Span) -> IResult<Span, Vec<Ast>> {
+    let (input, _) = not_line_ending(input)?;
+    let (input, _) = line_ending(input)?;
+    let (input, span) = not_line_ending(input)?;
+    Ok((input, vec![error(span, ErrorType::MultipleLinesTitle)]))
 }
 
 /// Parses the hashes from the level of a title.
@@ -195,13 +206,7 @@ pub fn parse_line(input: Span) -> IResult<Span, Vec<Ast>> {
 /// assert_eq!(level, 2);
 /// ```
 pub fn parse_title_level(input: Span) -> IResult<Span, usize> {
-    map(
-        terminated(
-            preceded(tag("#"), take_while(|x| x == '#')),
-            take_while(char::is_whitespace),
-        ),
-        |x: Span| x.fragment.len(),
-    )(input)
+    map(many1_count(char('#')), |nb_hashes| nb_hashes - 1)(input)
 }
 
 /// Parses a whole title.
@@ -217,8 +222,8 @@ pub fn parse_title_level(input: Span) -> IResult<Span, usize> {
 /// ```
 pub fn parse_title(input: Span) -> IResult<Span, Ast> {
     let (input, level) = parse_title_level(input)?;
-    let (input, _) = take_while(char::is_whitespace)(input)?;
-    let content = parse_line(input)?.1;
+    let (input, _) = space0(input)?;
+    let (input, content) = parse_single_line(input)?;
     Ok((
         input,
         Ast::Title {
@@ -244,7 +249,7 @@ pub fn parse_title(input: Span) -> IResult<Span, Ast> {
 /// assert_eq!(bloc.fragment, "Second paragraph");
 /// ```
 pub fn get_bloc(input: Span) -> IResult<Span, Span> {
-    alt((terminated(take_until("\n\n"), many0(tag("\n"))), rest))(input)
+    alt((terminated(take_until("\n\n"), many0(line_ending)), rest))(input)
 }
 
 /// Parses a bloc of content.
