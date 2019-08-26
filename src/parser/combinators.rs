@@ -12,9 +12,9 @@ use std::path::{Path, PathBuf};
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take_till1, take_until};
 use nom::character::complete::{char, line_ending, not_line_ending, space0};
-use nom::combinator::{map, opt, rest};
-use nom::multi::{many0, many1_count};
-use nom::sequence::{delimited, terminated};
+use nom::combinator::{map, map_res, opt, rest, verify};
+use nom::multi::{fold_many0, many0, many1_count};
+use nom::sequence::delimited;
 use nom::IResult;
 
 use crate::layout::paragraphs::ligatures::ligature;
@@ -249,7 +249,19 @@ pub fn parse_title(input: Span) -> IResult<Span, Ast> {
 /// assert_eq!(block.fragment, "Second paragraph");
 /// ```
 pub fn get_block(input: Span) -> IResult<Span, Span> {
-    alt((terminated(take_until("\n\n"), many0(line_ending)), rest))(input)
+    let take_until_double_line_ending = |i| {
+        alt((
+            take_until("\r\n\r\n"),
+            take_until("\r\n\n"),
+            take_until("\n\n"),
+        ))(i)
+    };
+    let at_least_1_char = verify(rest, |s: &Span| !s.fragment.is_empty());
+
+    let (input, mut span) = alt((take_until_double_line_ending, at_least_1_char))(input)?;
+    let (input, _) = many0(line_ending)(input)?;
+    span.fragment = span.fragment.trim_end();
+    Ok((input, span))
 }
 
 /// Parses a block of content.
@@ -267,21 +279,11 @@ pub fn parse_block_content(input: Span) -> IResult<Span, Ast> {
 
 /// Parses a whole dex file.
 pub fn parse_content(input: &str) -> IResult<Span, Vec<Ast>> {
-    let mut input = Span::new(input.trim_end());
-    let mut content = vec![];
-
-    loop {
-        let (new_input, block) = get_block(input)?;
-        input = new_input;
-        let parsed = parse_block_content(block)?;
-        content.push(parsed.1);
-
-        if input.fragment.is_empty() {
-            break;
-        }
-    }
-
-    Ok((input, content))
+    let parse_block = map_res(get_block, parse_block_content);
+    fold_many0(parse_block, vec![], |mut content: Vec<_>, (_, block)| {
+        content.push(block);
+        content
+    })(Span::new(input))
 }
 
 /// Parses a whole dex file from a name.
