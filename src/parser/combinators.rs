@@ -237,31 +237,31 @@ pub fn parse_title(input: Span) -> IResult<Span, Ast> {
 // For main
 ////////////////////////////////////////////////////////////////////////////////
 
-/// Gets a bloc of content.
+/// Gets a block of content.
 /// ```
 /// # use spandex::parser::ast::Ast;
 /// # use spandex::parser::Span;
-/// # use spandex::parser::combinators::get_bloc;
+/// # use spandex::parser::combinators::get_block;
 /// let input = Span::new("First paragraph\n\nSecond paragraph");
-/// let (input, bloc) = get_bloc(input).unwrap();
-/// assert_eq!(bloc.fragment, "First paragraph");
-/// let (input, bloc) = get_bloc(input).unwrap();
-/// assert_eq!(bloc.fragment, "Second paragraph");
+/// let (input, block) = get_block(input).unwrap();
+/// assert_eq!(block.fragment, "First paragraph");
+/// let (input, block) = get_block(input).unwrap();
+/// assert_eq!(block.fragment, "Second paragraph");
 /// ```
-pub fn get_bloc(input: Span) -> IResult<Span, Span> {
+pub fn get_block(input: Span) -> IResult<Span, Span> {
     alt((terminated(take_until("\n\n"), many0(line_ending)), rest))(input)
 }
 
-/// Parses a bloc of content.
+/// Parses a block of content.
 /// ```
 /// # use spandex::parser::ast::Ast;
 /// # use spandex::parser::Span;
-/// # use spandex::parser::combinators::parse_bloc_content;
+/// # use spandex::parser::combinators::parse_block_content;
 /// let input = Span::new("First paragraph");
-/// let (_, bloc) = parse_bloc_content(input).unwrap();
-/// assert_eq!(bloc, Ast::Paragraph(vec![Ast::Text(String::from("First paragraph"))]));
+/// let (_, block) = parse_block_content(input).unwrap();
+/// assert_eq!(block, Ast::Paragraph(vec![Ast::Text(String::from("First paragraph"))]));
 /// ```
-pub fn parse_bloc_content(input: Span) -> IResult<Span, Ast> {
+pub fn parse_block_content(input: Span) -> IResult<Span, Ast> {
     alt((parse_title, parse_paragraph))(input)
 }
 
@@ -271,9 +271,9 @@ pub fn parse_content(input: &str) -> IResult<Span, Vec<Ast>> {
     let mut content = vec![];
 
     loop {
-        let (new_input, bloc) = get_bloc(input)?;
+        let (new_input, block) = get_block(input)?;
         input = new_input;
-        let parsed = parse_bloc_content(bloc)?;
+        let parsed = parse_block_content(block)?;
         content.push(parsed.1);
 
         if input.fragment.is_empty() {
