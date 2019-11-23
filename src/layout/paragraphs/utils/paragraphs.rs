@@ -4,8 +4,8 @@ use crate::layout::constants::{DASH_GLYPH, DEFAULT_LINE_LENGTH, SPACE_WIDTH};
 use crate::layout::paragraphs::items::Item;
 use crate::layout::paragraphs::Paragraph;
 use crate::layout::Glyph;
-use hyphenation::*;
 use printpdf::Pt;
+use spandex_hyphenation::*;
 
 /// Adds a word to a buffer.
 pub fn add_word_to_paragraph<'a>(

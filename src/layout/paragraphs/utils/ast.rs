@@ -9,8 +9,8 @@ use crate::layout::paragraphs::utils::paragraphs::{add_word_to_paragraph, glue_f
 use crate::layout::paragraphs::Paragraph;
 use crate::layout::Glyph;
 use crate::parser::ast::Ast;
-use hyphenation::*;
 use printpdf::Pt;
+use spandex_hyphenation::*;
 use std::f64;
 
 /// Parses an AST into a sequence of items.

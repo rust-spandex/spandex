@@ -52,7 +52,7 @@ pub enum Error {
     FontWithoutName(PathBuf),
 
     /// An error occured while loading an hyphenation dictionnary.
-    HyphenationLoadError(hyphenation::load::Error),
+    HyphenationLoadError(spandex_hyphenation::load::Error),
 
     /// Another io error occured.
     IoError(io::Error),
@@ -64,7 +64,11 @@ pub enum Error {
 impl_from_error!(Error, Error::FreetypeError, freetype::Error);
 impl_from_error!(Error, Error::PrintpdfError, printpdf::errors::Error);
 impl_from_error!(Error, Error::IoError, io::Error);
-impl_from_error!(Error, Error::HyphenationLoadError, hyphenation::load::Error);
+impl_from_error!(
+    Error,
+    Error::HyphenationLoadError,
+    spandex_hyphenation::load::Error
+);
 impl_from_error!(Error, Error::DexError, Errors);
 
 impl fmt::Display for Error {

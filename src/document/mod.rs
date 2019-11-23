@@ -7,9 +7,9 @@ use std::fs::File;
 use std::io::BufWriter;
 use std::path::Path;
 
-use hyphenation::load::Load;
-use hyphenation::{Language, Standard};
 use printpdf::{PdfDocument, PdfDocumentReference, PdfLayerReference, PdfPageReference, Pt};
+use spandex_hyphenation::load::Load;
+use spandex_hyphenation::{Language, Standard};
 
 use crate::document::counters::Counters;
 use crate::fonts::configuration::FontConfig;

@@ -20,7 +20,7 @@ freetype-rs = "0.19.1"
 printpdf = { version = "0.2.10", default-features = false }
 toml = "0.5.0"
 serde = { version = "1.0", features = ["derive"] }
-hyphenation = { version = "0.7.1", features = ["embed_all"] }
+spandex-hyphenation = { version = "0.7.4", features = ["embed_all"] }
 petgraph = "0.4.13"
 nom = "5.0.1"
 nom_locate = "1.0.0"
