@@ -24,4 +24,4 @@ spandex-hyphenation = { version = "0.7.4", features = ["embed_all"] }
 petgraph = "0.4.13"
 nom = "5.0.1"
 nom_locate = "1.0.0"
-colored = "1.8.0"
+colored = "1.9.0"
