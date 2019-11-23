@@ -1,9 +1,9 @@
-use std::env::current_dir;
+use std::env::{self, current_dir};
 use std::fs::{create_dir_all, File};
 use std::io::{Read, Write};
 use std::process::exit;
 
-use clap::{crate_description, crate_version, App, AppSettings, Arg, SubCommand};
+use colored::*;
 
 use spandex::document::configuration::Config;
 use spandex::{build, Error};
@@ -17,6 +17,41 @@ macro_rules! unwrap {
     };
 }
 
+fn print_version() {
+    println!("SpanDeX {}", env!("CARGO_PKG_VERSION"));
+}
+
+fn print_help() {
+    println!(
+        r#"{name} {version}
+{description}
+
+{USAGE}
+    {command} [SUBCOMMAND]
+
+{FLAGS}
+    {help_short}, {help_long}       Prints help information
+    {version_short}, {version_long}    Prints version information
+
+{SUBCOMMANDS}
+    {build}           Builds SpanDeX project
+    {init}    Creates new default SpanDeX project"#,
+        name = "SpanDeX".green(),
+        version = env!("CARGO_PKG_VERSION"),
+        description = env!("CARGO_PKG_DESCRIPTION"),
+        USAGE = "USAGE:".yellow(),
+        command = env!("CARGO_PKG_NAME"),
+        FLAGS = "FLAGS:".yellow(),
+        help_short = "-h".green(),
+        help_long = "--help".green(),
+        version_short = "-v".green(),
+        version_long = "--version".green(),
+        SUBCOMMANDS = "SUBCOMMANDS:".yellow(),
+        build = "build".green(),
+        init = "init [title]".green(),
+    );
+}
+
 fn main() {
     if let Err(e) = run() {
         eprintln!("{}", e);
@@ -25,84 +60,100 @@ fn main() {
 }
 
 fn run() -> Result<(), Error> {
-    let mut app = App::new("SpanDeX")
-        .bin_name("spandex")
-        .version(crate_version!())
-        .about(crate_description!())
-        .setting(AppSettings::ColoredHelp)
-        .subcommand(
-            SubCommand::with_name("init")
-                .about("Creates a new default SpanDeX project")
-                .arg(Arg::with_name("TITLE").required(false)),
-        )
-        .subcommand(SubCommand::with_name("build").about("Builds the SpanDeX project"));
+    let args = env::args().collect::<Vec<_>>();
 
-    let matches = app.clone().get_matches();
+    // The first argument is the name of the binary, the second one is the command
+    if args.len() < 2 {
+        eprintln!("{}: {}", "error".red().bold(), "toto");
+        print_help();
+        exit(1);
+    }
 
-    if let Some(init) = matches.subcommand_matches("init") {
-        let mut current_dir = unwrap!(current_dir().ok(), Error::CannotReadCurrentDir);
-        let current_dir_name = current_dir.clone();
-        let current_dir_name = unwrap!(current_dir_name.file_name(), Error::CannotReadCurrentDir);
-        let current_dir_name = unwrap!(current_dir_name.to_str(), Error::CannotReadCurrentDir);
+    if args.contains(&String::from("-h")) || args.contains(&String::from("--help")) {
+        print_help();
+        exit(0);
+    }
 
-        // Initialize the project
-        let title = match init.value_of("TITLE") {
-            // If a title was given, we will create a directory for the project
-            Some(title) => {
-                current_dir.push(title);
-                title
-            }
+    if args.contains(&String::from("-v")) || args.contains(&String::from("--version")) {
+        print_version();
+        exit(0);
+    }
 
-            // If no title was given, use current_dir_name
-            None => current_dir_name,
-        };
+    match args[1].as_ref() {
+        "init" => {
+            let mut current_dir = unwrap!(current_dir().ok(), Error::CannotReadCurrentDir);
+            let current_dir_name = current_dir.clone();
+            let current_dir_name =
+                unwrap!(current_dir_name.file_name(), Error::CannotReadCurrentDir);
+            let current_dir_name = unwrap!(current_dir_name.to_str(), Error::CannotReadCurrentDir);
 
-        // Try to create the directory
-        create_dir_all(&current_dir).ok();
-
-        // Create the default config and save it
-        let config = Config::with_title(title);
-        let toml = toml::to_string(&config).expect("Failed to generate toml");
-
-        current_dir.push("spandex.toml");
-        let mut file = File::create(&current_dir)?;
-        file.write_all(toml.as_bytes())?;
-
-        // Write an hello world file
-        current_dir.pop();
-        current_dir.push("main.dex");
-
-        let mut file = File::create(&current_dir)?;
-        file.write_all(b"# Hello world")?;
-    } else if matches.subcommand_matches("build").is_some() {
-        // Look up for spandex config file
-        let mut current_dir = unwrap!(current_dir().ok(), Error::CannotReadCurrentDir);
-        let config_path = loop {
-            current_dir.push("spandex.toml");
-
-            if current_dir.is_file() {
-                break current_dir;
-            } else {
-                // Remove spandex.toml
-                current_dir.pop();
-
-                // Go to the parent directory
-                if !current_dir.pop() {
-                    return Err(Error::NoConfigFile);
+            // Initialize the project
+            let title = match args.get(2) {
+                // If a title was given, we will create a directory for the project
+                Some(title) => {
+                    current_dir.push(title);
+                    title
                 }
-            }
-        };
 
-        // Read config file
-        let mut file = File::open(&config_path)?;
-        let mut content = String::new();
-        file.read_to_string(&mut content)?;
-        let config: Config = toml::from_str(&content).expect("Failed to parse toml");
-        build(&config)?;
-    } else {
-        // Nothing to do, print help
-        app.print_help().ok();
-        println!();
+                // If no title was given, use current_dir_name
+                None => current_dir_name,
+            };
+
+            // Try to create the directory
+            create_dir_all(&current_dir).ok();
+
+            // Create the default config and save it
+            let config = Config::with_title(title);
+            let toml = toml::to_string(&config).expect("Failed to generate toml");
+
+            current_dir.push("spandex.toml");
+            let mut file = File::create(&current_dir)?;
+            file.write_all(toml.as_bytes())?;
+
+            // Write an hello world file
+            current_dir.pop();
+            current_dir.push("main.dex");
+
+            let mut file = File::create(&current_dir)?;
+            file.write_all(b"# Hello world")?;
+        }
+        "build" => {
+            // Look up for spandex config file
+            let mut current_dir = unwrap!(current_dir().ok(), Error::CannotReadCurrentDir);
+            let config_path = loop {
+                current_dir.push("spandex.toml");
+
+                if current_dir.is_file() {
+                    break current_dir;
+                } else {
+                    // Remove spandex.toml
+                    current_dir.pop();
+
+                    // Go to the parent directory
+                    if !current_dir.pop() {
+                        return Err(Error::NoConfigFile);
+                    }
+                }
+            };
+
+            // Read config file
+            let mut file = File::open(&config_path)?;
+            let mut content = String::new();
+            file.read_to_string(&mut content)?;
+            let config: Config = toml::from_str(&content).expect("Failed to parse toml");
+            build(&config)?;
+        }
+        command => {
+            // Unknwon command
+            eprintln!(
+                "{}: {}{}{}",
+                "error".bold().red(),
+                "command \"",
+                command,
+                "\" does not exist."
+            );
+            print_help();
+        }
     }
 
     Ok(())
