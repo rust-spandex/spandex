@@ -3,7 +3,7 @@ use std::fs::{create_dir_all, File};
 use std::io::{Read, Write};
 use std::process::exit;
 
-use clap::{crate_authors, crate_description, crate_version, App, AppSettings, Arg, SubCommand};
+use clap::{crate_description, crate_version, App, AppSettings, Arg, SubCommand};
 
 use spandex::document::configuration::Config;
 use spandex::{build, Error};
@@ -28,7 +28,6 @@ fn run() -> Result<(), Error> {
     let mut app = App::new("SpanDeX")
         .bin_name("spandex")
         .version(crate_version!())
-        .author(crate_authors!("\n"))
         .about(crate_description!())
         .setting(AppSettings::ColoredHelp)
         .subcommand(
