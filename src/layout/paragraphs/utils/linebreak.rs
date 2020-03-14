@@ -34,12 +34,12 @@ pub fn compute_adjustment_ratio(
         0.0
     } else if actual_length < desired_length {
         if total_stretchability != Pt(0.0) {
-            ((desired_length.0 - actual_length.0) / total_stretchability.0)
+            (desired_length.0 - actual_length.0) / total_stretchability.0
         } else {
             f64::INFINITY
         }
     } else if total_shrinkability != Pt(0.0) {
-        ((desired_length.0 - actual_length.0) / total_shrinkability.0)
+        (desired_length.0 - actual_length.0) / total_shrinkability.0
     } else {
         f64::INFINITY
     }
