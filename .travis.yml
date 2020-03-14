@@ -15,6 +15,7 @@ script:
 
 before_deploy:
   - cargo doc --no-deps --lib
+  - echo  '<meta http-equiv="refresh" content="0; url=spandex/index.html"><a href="spandex/index.html">Redirect</a>' > target/doc/index.html
 
 deploy:
   provider: pages
