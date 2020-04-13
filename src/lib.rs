@@ -20,6 +20,8 @@ use crate::document::configuration::Config;
 use crate::parser::error::Errors;
 use crate::parser::parse;
 
+use crate::layout::errors::ConfigError;
+
 macro_rules! impl_from_error {
     ($type: ty, $variant: path, $from: ty) => {
         impl From<$from> for $type {
@@ -59,6 +61,9 @@ pub enum Error {
 
     /// Some error occured while parsing a dex file.
     DexError(Errors),
+
+    /// The configuration is erroneous.
+    ConfigurationError(ConfigError),
 }
 
 impl_from_error!(Error, Error::FreetypeError, freetype::Error);
@@ -66,6 +71,7 @@ impl_from_error!(Error, Error::PrintpdfError, printpdf::errors::Error);
 impl_from_error!(Error, Error::IoError, io::Error);
 impl_from_error!(Error, Error::HyphenationLoadError, hyphenation::load::Error);
 impl_from_error!(Error, Error::DexError, Errors);
+impl_from_error!(Error, Error::ConfigurationError, ConfigError);
 
 impl fmt::Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
@@ -81,6 +87,7 @@ impl fmt::Display for Error {
             Error::HyphenationLoadError(e) => write!(fmt, "Problem with hyphenation: {}", e),
             Error::IoError(e) => write!(fmt, "an io error occured: {}", e),
             Error::DexError(e) => write!(fmt, "{}", e),
+            Error::ConfigurationError(e) => write!(fmt, "Invalid configuration."),
         }
     }
 }
