@@ -14,8 +14,8 @@ use printpdf::{PdfDocument, PdfDocumentReference, PdfLayerReference, PdfPageRefe
 use crate::document::counters::Counters;
 use crate::fonts::configuration::FontConfig;
 use crate::fonts::Font;
-use crate::layout::paragraphs::justification::{Justifier, LatexJustifier};
-use crate::layout::paragraphs::utils::ast::itemize_ast;
+use crate::layout::paragraphs::justification::LatexJustifier;
+use crate::layout::{write_paragraph, Layout};
 use crate::parser::ast::Ast;
 
 /// The window that is the part of the page on which we're allowed to write.
@@ -43,19 +43,22 @@ pub struct Document {
     page: PdfPageReference,
 
     /// The current layer.
-    layer: PdfLayerReference,
+    pub layer: PdfLayerReference,
 
     /// The window on which we're allowed to write on the page.
-    window: Window,
+    pub window: Window,
 
     /// The cursor, the position where we supposed to write next.
-    cursor: (Pt, Pt),
+    pub cursor: (Pt, Pt),
 
     /// The current page size, in pt.
-    page_size: (Pt, Pt),
+    pub page_size: (Pt, Pt),
 
     /// The counters of the document
     counters: Counters,
+
+    /// The layout of the document.
+    pub layout: Box<dyn Layout>,
 }
 
 impl Document {
@@ -65,6 +68,7 @@ impl Document {
         width: T,
         height: U,
         window: Window,
+        layout: Box<dyn Layout>,
     ) -> Document {
         let width: Pt = width.into();
         let height: Pt = height.into();
@@ -82,6 +86,7 @@ impl Document {
             cursor: (window.x, window.height + window.y),
             page_size: (width, height),
             counters: Counters::new(),
+            layout,
         }
     }
 
@@ -116,15 +121,15 @@ impl Document {
                             level: *level,
                             content: Box::new(Ast::Group(new_children)),
                         };
-                        self.write_paragraph::<LatexJustifier>(&new_ast, font_config, size, &en);
+                        write_paragraph::<LatexJustifier>(&new_ast, font_config, size, &en, self);
                     }
-                    _ => self.write_paragraph::<LatexJustifier>(ast, font_config, size, &en),
+                    _ => write_paragraph::<LatexJustifier>(ast, font_config, size, &en, self),
                 }
                 self.new_line(size);
             }
 
             Ast::Paragraph(_) => {
-                self.write_paragraph::<LatexJustifier>(ast, font_config, size, &en);
+                write_paragraph::<LatexJustifier>(ast, font_config, size, &en, self);
                 self.new_line(size);
                 self.new_line(size);
             }
@@ -139,39 +144,8 @@ impl Document {
 
         for paragraph in content.split('\n') {
             let ast = Ast::Text(paragraph.to_owned());
-            self.write_paragraph::<LatexJustifier>(&ast, font_config, size, &en);
+            write_paragraph::<LatexJustifier>(&ast, font_config, size, &en, self);
             self.new_line(size);
-        }
-    }
-
-    /// Writes a paragraph on the document.
-    pub fn write_paragraph<J: Justifier>(
-        &mut self,
-        paragraph: &Ast,
-        font_config: &FontConfig,
-        size: Pt,
-        dict: &Standard,
-    ) {
-        let paragraph = itemize_ast(paragraph, font_config, size, dict, Pt(0.0));
-        let justified = J::justify(&paragraph, self.window.width);
-
-        for line in justified {
-            for glyph in line {
-                self.layer.use_text(
-                    glyph.0.glyph.to_string(),
-                    Into::<Pt>::into(glyph.0.scale).0 as i64,
-                    (self.window.x + glyph.1).into(),
-                    self.cursor.1.into(),
-                    glyph.0.font.printpdf(),
-                );
-            }
-
-            self.new_line(size);
-            self.cursor.0 = self.window.x;
-
-            if self.cursor.1 <= size + self.window.y {
-                self.new_page();
-            }
         }
     }
 
