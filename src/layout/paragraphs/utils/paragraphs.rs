@@ -1,6 +1,7 @@
 //! Utility functions for manipulating and typesetting a `Paragraph`.
 
 use crate::layout::constants::{DASH_GLYPH, DEFAULT_LINE_LENGTH, SPACE_WIDTH};
+use crate::layout::pages::columns::Column;
 use crate::layout::paragraphs::items::Item;
 use crate::layout::paragraphs::Paragraph;
 use crate::layout::Glyph;
@@ -51,4 +52,47 @@ pub fn get_line_length(lines_length: &[Pt], index: usize) -> Pt {
     } else {
         *lines_length.first().unwrap_or(&DEFAULT_LINE_LENGTH)
     }
+}
+
+/// Decides whether or not a node can fit in a given column.
+pub fn node_fits_in_column(
+    column: &Column,
+    paragraph_skip: Pt,
+    line_skip: Pt,
+    line_height: Pt,
+    node_line_number: usize,
+) -> bool {
+    // Todo: implement logic to avoid orphans and widows.
+
+    return compute_node_vertical_position(
+        column,
+        paragraph_skip,
+        line_skip,
+        line_height,
+        node_line_number,
+    ) <= column.height;
+}
+
+/// Computes the relative vertical position of a node within a given column.
+pub fn compute_node_vertical_position(
+    column: &Column,
+    paragraph_skip: Pt,
+    line_skip: Pt,
+    line_height: Pt,
+    node_line_number: usize,
+) -> Pt {
+    let paragraph_first_line_y = column.current_vertical_position + paragraph_skip;
+    let skipped_space = line_skip * node_line_number as f64;
+    let cumulated_lines_height = line_height * (node_line_number + 1) as f64;
+
+    let node_vertical_position =
+        paragraph_first_line_y + paragraph_skip + skipped_space + cumulated_lines_height;
+
+    println!(
+        "Column current y: {:?}, node line number: {:?}, y: {:?}",
+        column.current_vertical_position, node_line_number, node_vertical_position
+    );
+    // Todo: implement logic to avoid orphans and widows.
+
+    return node_vertical_position;
 }

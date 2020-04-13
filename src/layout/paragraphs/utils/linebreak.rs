@@ -2,7 +2,8 @@
 
 use crate::layout::constants::{ADJACENT_LOOSE_TIGHT_PENALTY, MAX_COST, MIN_COST};
 use crate::layout::paragraphs::graph::Node;
-use crate::layout::paragraphs::utils::paragraphs::get_line_length;
+use crate::layout::paragraphs::utils::paragraphs::compute_node_vertical_position;
+use crate::layout::Layout;
 
 use crate::layout::paragraphs::items::{Content, Item};
 use crate::layout::paragraphs::Paragraph;
@@ -49,13 +50,38 @@ pub fn compute_adjustment_ratio(
 /// This allows to speed up the adaptation of glue items.
 pub fn compute_adjustment_ratios_with_breakpoints<'a>(
     items: &[Item<'a>],
-    line_lengths: &[Pt],
     breakpoints: &[usize],
-) -> Vec<f64> {
-    let mut adjustment_ratios: Vec<f64> = Vec::new();
+    layout: &mut Box<dyn Layout>,
+) -> Vec<(f64, Pt, Pt)> {
+    let mut adjustment_ratios: Vec<(f64, Pt, Pt)> = Vec::new();
+    let mut current_column = layout.current_column();
+    let mut last_reviewed_line: usize = 0;
 
     for (breakpoint_line, breakpoint_index) in breakpoints.iter().enumerate() {
-        let desired_length = get_line_length(line_lengths, breakpoint_line);
+        let node_y = compute_node_vertical_position(
+            &current_column,
+            layout.properties().paragraph_skip,
+            layout.properties().line_skip,
+            layout.properties().line_height,
+            breakpoint_line,
+        );
+
+        if breakpoint_line > last_reviewed_line {
+            // Find a column where the node can fit.
+            while node_y > current_column.height {
+                println!(
+                    "Node at line {:?} has y = {:?} > {:?}",
+                    breakpoint_line, node_y, current_column.height
+                );
+                // Todo: look for columns that are tagged for paragraphs.
+                current_column = layout.get_next_column();
+            }
+
+            last_reviewed_line = breakpoint_line;
+        }
+
+        let desired_length = current_column.width;
+
         let mut actual_length = Pt(0.0);
         let mut line_shrink = Pt(0.0);
         let mut line_stretch = Pt(0.0);
@@ -98,11 +124,10 @@ pub fn compute_adjustment_ratios_with_breakpoints<'a>(
             }
         }
 
-        adjustment_ratios.push(compute_adjustment_ratio(
-            actual_length,
-            desired_length,
-            line_stretch,
-            line_shrink,
+        adjustment_ratios.push((
+            compute_adjustment_ratio(actual_length, desired_length, line_stretch, line_shrink),
+            current_column.x,
+            node_y,
         ));
     }
 

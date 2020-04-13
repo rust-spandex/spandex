@@ -14,6 +14,7 @@ use printpdf::Pt;
 use crate::layout::paragraphs::items::{Content, Item, PositionedItem};
 use crate::layout::paragraphs::Paragraph;
 use crate::layout::Glyph;
+use crate::layout::{get_column_for_line, Layout};
 
 use crate::layout::constants::{MAX_ADJUSTMENT_RATIO, MIN_ADJUSTMENT_RATIO};
 use crate::layout::paragraphs::graph::Node;
@@ -21,7 +22,6 @@ use crate::layout::paragraphs::utils::linebreak::{
     compute_adjustment_ratio, compute_adjustment_ratios_with_breakpoints,
     create_node_for_feasible_breakpoint, is_forced_break, Measures,
 };
-use crate::layout::paragraphs::utils::paragraphs::get_line_length;
 
 /// Finds the optimal sequence of breakpoints that minimize
 /// the amount of demerits while breaking a paragraph down
@@ -29,7 +29,7 @@ use crate::layout::paragraphs::utils::paragraphs::get_line_length;
 ///
 /// It returns the indexes of items which have been chosen as
 /// breakpoints.
-pub fn algorithm<'a>(paragraph: &'a Paragraph<'a>, lines_length: &[Pt]) -> Vec<usize> {
+pub fn algorithm<'a>(paragraph: &'a Paragraph<'a>, layout: &mut Box<dyn Layout>) -> Vec<usize> {
     let mut graph = StableGraph::<_, f64>::new();
     let mut sum_width = Pt(0.0);
     let mut sum_stretch = Pt(0.0);
@@ -94,18 +94,30 @@ pub fn algorithm<'a>(paragraph: &'a Paragraph<'a>, lines_length: &[Pt]) -> Vec<u
         let mut feasible_breakpoints: Vec<(Node, NodeIndex)> = Vec::new();
         let mut node_to_remove: Vec<NodeIndex> = Vec::new();
 
+        // Lines length cache.
+        let mut line_lengths: HashMap<usize, Pt> = HashMap::new();
+
         for node in graph.node_identifiers() {
             if let Some(a) = graph.node_weight(node) {
+                let line_length = match line_lengths.get(&a.line) {
+                    Some(&line_length) => {
+                        // a needs to be on a line of which we don't know the length yet.
+                        // Compute this line length and store it.
+                        line_length
+                    }
+                    _ => {
+                        let (_, column) = get_column_for_line(layout, a.line);
+                        line_lengths.insert(a.line, column.width);
+                        column.width
+                    }
+                };
+
                 let line_shrink = sum_shrink - a.total_shrink;
                 let line_stretch = sum_stretch - a.total_stretch;
                 let actual_width = sum_width - a.total_width;
 
-                let adjustment_ratio = compute_adjustment_ratio(
-                    actual_width,
-                    get_line_length(&lines_length, a.line),
-                    line_stretch,
-                    line_shrink,
-                );
+                let adjustment_ratio =
+                    compute_adjustment_ratio(actual_width, line_length, line_stretch, line_shrink);
 
                 if adjustment_ratio > current_maximum_adjustment_ratio {
                     best_adjustment_ratio_above_threshold =
@@ -211,19 +223,22 @@ pub fn algorithm<'a>(paragraph: &'a Paragraph<'a>, lines_length: &[Pt]) -> Vec<u
 /// The generated list is ready to be rendered.
 pub fn positionate_items<'a>(
     items: &[Item<'a>],
-    line_lengths: &[Pt],
+    layout: &mut Box<dyn Layout>,
     breakpoints: &[usize],
 ) -> Vec<Vec<PositionedItem<'a>>> {
-    let adjustment_ratios =
-        compute_adjustment_ratios_with_breakpoints(items, line_lengths, breakpoints);
+    println!("Positioning items with breakpoints: {:?}", breakpoints);
+    let adjustment_ratios = compute_adjustment_ratios_with_breakpoints(items, breakpoints, layout);
     let mut lines_breakdown: Vec<Vec<PositionedItem>> = Vec::new();
 
     for breakpoint_line in 0..(breakpoints.len() - 1) {
         let mut positioned_items: Vec<PositionedItem> = Vec::new();
 
+        let (adjustment_ratio, column_x, _) = adjustment_ratios[breakpoint_line];
+
         let breakpoint_index = breakpoints[breakpoint_line];
-        let adjustment_ratio = adjustment_ratios[breakpoint_line].max(MIN_ADJUSTMENT_RATIO);
-        let mut horizontal_offset = Pt(0.0);
+        let adjustment_ratio = adjustment_ratio.max(MIN_ADJUSTMENT_RATIO);
+        let mut horizontal_offset = column_x;
+
         let beginning = if breakpoint_line == 0 {
             breakpoint_index
         } else {
@@ -308,6 +323,7 @@ mod tests {
     use crate::layout::paragraphs::utils::linebreak::{
         compute_adjustment_ratios_with_breakpoints, find_legal_breakpoints,
     };
+    use crate::layout::{Layout, TwoColumnLayout};
     use crate::parser::ast::Ast;
     use crate::Result;
 
@@ -392,6 +408,8 @@ mod tests {
 
         let en_us = Standard::from_embedded(Language::EnglishUS)?;
 
+        let mut layout: Box<dyn Layout> = Box::new(TwoColumnLayout::new());
+
         let (_, font_manager) = Config::with_title("Test").init()?;
         let config = font_manager.default_config();
 
@@ -399,20 +417,17 @@ mod tests {
 
         let paragraph = itemize_ast(&ast, &config, Pt(12.0), &en_us, indentation);
 
-        let lines_length = vec![Pt(400.0)];
-        let breakpoints = algorithm(&paragraph, &lines_length);
-        // let positions = positionate_items(&paragraph.items, &lines_length, &breakpoints);
+        let breakpoints = algorithm(&paragraph, &mut layout);
+        println!("Got breakpoints.");
+        // let positions = positionate_items(&paragraph.items, layout, &breakpoints);
 
-        let adjustment_ratios = compute_adjustment_ratios_with_breakpoints(
-            &paragraph.items,
-            &lines_length,
-            &breakpoints,
-        );
+        let adjustment_ratios =
+            compute_adjustment_ratios_with_breakpoints(&paragraph.items, &breakpoints, &mut layout);
 
-        println!("Line length: {:?}", lines_length[0]);
         println!("Breakpoints: {:?}", breakpoints);
         println!("There are {:?} lines", breakpoints.len());
         print!("\n\n");
+
         let mut current_line = 0;
         for (c, item) in paragraph.items.iter().enumerate() {
             match item.content {
@@ -434,7 +449,7 @@ mod tests {
             }
         }
 
-        print!("\n\n");
+        panic!();
 
         // panic!("Test");
 

@@ -7,22 +7,32 @@ use crate::layout::paragraphs::engine::{algorithm, positionate_items};
 use crate::layout::paragraphs::items::Content;
 use crate::layout::paragraphs::Paragraph;
 use crate::layout::Glyph;
+use crate::layout::Layout;
 
 /// An algorithm that justifies a paragraph.
 pub trait Justifier {
     /// Justifies the paragraph passed as parameter.
-    fn justify<'a>(paragraph: &'a Paragraph<'a>, text_width: Pt) -> Vec<Vec<(Glyph<'a>, Pt)>>;
+    fn justify<'a>(
+        paragraph: &'a Paragraph<'a>,
+        layout: &mut Box<dyn Layout>,
+    ) -> Vec<Vec<(Glyph<'a>, Pt)>>;
 }
 
 /// A naive justifier, that goes to the next line once a word overtakes the text width.
 pub struct NaiveJustifier;
 
 impl Justifier for NaiveJustifier {
-    fn justify<'a>(paragraph: &'a Paragraph<'a>, text_width: Pt) -> Vec<Vec<(Glyph<'a>, Pt)>> {
+    fn justify<'a>(
+        paragraph: &'a Paragraph<'a>,
+        layout: &mut Box<dyn Layout>,
+    ) -> Vec<Vec<(Glyph<'a>, Pt)>> {
+        println!("Using naive justifier.");
+
         let mut ret = vec![];
         let mut current_line = vec![];
         let mut current_word = vec![];
         let mut current_x = Pt(0.0);
+        let text_width = layout.current_column().width;
 
         for item in paragraph.iter() {
             match item.content {
@@ -103,10 +113,42 @@ impl Justifier for NaiveJustifier {
 pub struct LatexJustifier;
 
 impl Justifier for LatexJustifier {
-    fn justify<'a>(paragraph: &Paragraph<'a>, text_width: Pt) -> Vec<Vec<(Glyph<'a>, Pt)>> {
-        let lines_length = vec![text_width];
-        let breakpoints = algorithm(&paragraph, &lines_length);
-        let positioned_items = positionate_items(&paragraph.items, &lines_length, &breakpoints);
+    fn justify<'a>(
+        paragraph: &Paragraph<'a>,
+        layout: &mut Box<dyn Layout>,
+    ) -> Vec<Vec<(Glyph<'a>, Pt)>> {
+        println!("Using LaTeX justifier.");
+        println!("Layout: {:?}", layout.current_column().width);
+
+        let breakpoints = algorithm(&paragraph, layout);
+        let positioned_items = positionate_items(&paragraph.items, layout, &breakpoints);
+
+        let mut output = vec![];
+
+        for items in positioned_items {
+            let mut line = vec![];
+            for item in items {
+                line.push((item.glyph.clone(), item.horizontal_offset));
+            }
+            output.push(line);
+        }
+
+        output
+    }
+}
+
+/// The LaTeX style justifier.
+pub struct SpandexJustifier;
+
+impl Justifier for SpandexJustifier {
+    fn justify<'a>(
+        paragraph: &Paragraph<'a>,
+        layout: &mut Box<dyn Layout>,
+    ) -> Vec<Vec<(Glyph<'a>, Pt)>> {
+        println!("Using SpanDeX justifier.");
+
+        let breakpoints = algorithm(&paragraph, layout);
+        let positioned_items = positionate_items(&paragraph.items, layout, &breakpoints);
 
         let mut output = vec![];
 
