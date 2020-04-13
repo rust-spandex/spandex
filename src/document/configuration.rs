@@ -11,7 +11,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::document::{Document, Window};
 use crate::fonts::manager::FontManager;
-use crate::layout::{Layout, SingleColumnLayout};
+use crate::layout::{Layout, TwoColumnLayout};
 use crate::Result as CResult;
 
 /// Serializes a `Pt` structure.
@@ -176,7 +176,7 @@ impl Config {
             height: self.text_height,
         };
 
-        let layout: Box<dyn Layout> = Box::new(SingleColumnLayout::new());
+        let layout: Box<dyn Layout> = Box::new(TwoColumnLayout::new());
 
         let mut document =
             Document::new("Hello", self.page_width, self.page_height, window, layout);
