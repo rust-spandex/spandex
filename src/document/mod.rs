@@ -113,18 +113,13 @@ impl Document {
 
             Ast::Title { level, children } => {
                 self.counters.increment(*level as usize);
-                match &**content {
-                    Ast::Group(children) => {
-                        let mut new_children = vec![Ast::Text(format!("{}  ", self.counters))];
-                        new_children.extend_from_slice(children);
-                        let new_ast = Ast::Title {
-                            level: *level,
-                            content: Box::new(Ast::Group(new_children)),
-                        };
-                        write_paragraph::<LatexJustifier>(&new_ast, font_config, size, &en, self);
-                    }
-                    _ => write_paragraph::<LatexJustifier>(ast, font_config, size, &en, self),
-                }
+                let mut new_children = vec![Ast::Text(format!("{}  ", self.counters))];
+                new_children.extend_from_slice(children);
+                let new_ast = Ast::Title {
+                    level: *level,
+                    children: new_children,
+                };
+                write_paragraph::<LatexJustifier>(&new_ast, font_config, size, &en, self);
                 self.new_line(size);
             }
 
