@@ -35,3 +35,10 @@ pub const PLUS_INFINITY: Pt = Pt(f64::INFINITY);
 
 /// The ideal spacing between two words.
 pub const IDEAL_SPACING: Pt = Pt(5.0);
+
+// Page breaking constants.
+/// The ideal space between paragraphs.
+pub const PARAGRAPH_SKIP: Pt = Pt(15.0);
+
+/// The ideal space between the lines of a same paragraph.
+pub const LINE_SKIP: Pt = Pt(5.0);
