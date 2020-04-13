@@ -1,6 +1,7 @@
 //! This module contains everything related to the ast.
 
 use std::fmt;
+use std::path::PathBuf;
 
 use colored::*;
 
@@ -16,14 +17,14 @@ pub enum Ast {
         level: u8,
 
         /// The content of the title.
-        content: Box<Ast>,
+        children: Vec<Ast>,
     },
 
     /// Some bold content.
-    Bold(Box<Ast>),
+    Bold(Vec<Ast>),
 
     /// Some italic content.
-    Italic(Box<Ast>),
+    Italic(Vec<Ast>),
 
     /// A math inlinemath.
     InlineMath(String),
@@ -36,8 +37,8 @@ pub enum Ast {
     /// It contains many elements but must be rendered on a single paragraph.
     Paragraph(Vec<Ast>),
 
-    /// A group of content.
-    Group(Vec<Ast>),
+    /// Content stored in a specific file.
+    File(PathBuf, Vec<Ast>),
 
     /// An empty line.
     Newline,
@@ -55,79 +56,47 @@ pub enum Ast {
 }
 
 impl Ast {
+    /// Returns the children of the ast, if any.
+    pub fn children(&self) -> Option<&Vec<Ast>> {
+        match self {
+            Ast::File(_, children)
+            | Ast::Paragraph(children)
+            | Ast::Title { children, .. }
+            | Ast::Bold(children)
+            | Ast::Italic(children) => Some(children),
+            _ => None,
+        }
+    }
+
     /// Returns all the errors contained in the ast.
     pub fn errors(&self) -> Vec<EmptyError> {
         let mut errors = vec![];
 
-        match self {
-            Ast::Error(e) => errors.push(e.clone()),
+        if let Ast::Error(e) = self {
+            errors.push(e.clone());
+        }
 
-            Ast::Warning(_) => {}
-
-            Ast::Group(children) => {
-                for child in children {
-                    errors.extend(child.errors());
-                }
+        if let Some(children) = self.children() {
+            for child in children {
+                errors.extend(child.errors());
             }
-
-            Ast::Paragraph(children) => {
-                for child in children {
-                    errors.extend(child.errors());
-                }
-            }
-
-            Ast::Title { content: ast, .. } => {
-                errors.extend(ast.errors());
-            }
-
-            Ast::Bold(ast) => {
-                errors.extend(ast.errors());
-            }
-
-            Ast::Italic(ast) => {
-                errors.extend(ast.errors());
-            }
-
-            Ast::Text(_) | Ast::Newline | Ast::InlineMath(_) => (),
         }
 
         errors
     }
 
-    /// Returns all the warnings contained in the ast.
+    /// Returns all the errors contained in the ast.
     pub fn warnings(&self) -> Vec<EmptyWarning> {
         let mut warnings = vec![];
 
-        match self {
-            Ast::Warning(e) => warnings.push(e.clone()),
+        if let Ast::Warning(e) = self {
+            warnings.push(e.clone());
+        }
 
-            Ast::Error(_) => {}
-
-            Ast::Group(children) => {
-                for child in children {
-                    warnings.extend(child.warnings());
-                }
+        if let Some(children) = self.children() {
+            for child in children {
+                warnings.extend(child.warnings());
             }
-
-            Ast::Paragraph(children) => {
-                for child in children {
-                    warnings.extend(child.warnings());
-                }
-            }
-
-            Ast::Title { content: ast, .. } => {
-                warnings.extend(ast.warnings());
-            }
-
-            Ast::Bold(ast) => {
-                warnings.extend(ast.warnings());
-            }
-
-            Ast::Italic(ast) => {
-                warnings.extend(ast.warnings());
-            }
-
-            Ast::Text(_) | Ast::Newline | Ast::InlineMath(_) => (),
         }
 
         warnings
@@ -181,41 +150,30 @@ impl Ast {
             )?,
             Ast::Newline => writeln!(fmt, "{}NewLine", new_indent)?,
             Ast::InlineMath(math) => writeln!(fmt, "{}Math({:?})", new_indent, math)?,
+            Ast::File(path, _) => writeln!(
+                fmt,
+                "{}{}",
+                new_indent,
+                &format!("File(\"{}\")", path.display()).blue().bold()
+            )?,
+            Ast::Paragraph(_) => writeln!(fmt, "{}{}", new_indent, "Paragraph".blue().bold())?,
 
-            Ast::Group(children) => {
-                writeln!(fmt, "{}{}", new_indent, "Group".blue().bold())?;
-                let len = children.len();
-                for (index, child) in children.iter().enumerate() {
-                    child.print_debug(fmt, &indent, index == len - 1)?;
-                }
-            }
+            Ast::Title { level, .. } => writeln!(
+                fmt,
+                "{}{}",
+                new_indent,
+                &format!("Title(level={})", level).magenta().bold()
+            )?,
 
-            Ast::Paragraph(children) => {
-                writeln!(fmt, "{}{}", new_indent, "Paragraph".blue().bold())?;
-                let len = children.len();
-                for (index, child) in children.iter().enumerate() {
-                    child.print_debug(fmt, &indent, index == len - 1)?;
-                }
-            }
+            Ast::Bold(_) => writeln!(fmt, "{}{}", new_indent, "Bold".cyan().bold())?,
 
-            Ast::Title { content, level } => {
-                writeln!(
-                    fmt,
-                    "{}{}",
-                    new_indent,
-                    &format!("Title(level={})", level).magenta().bold()
-                )?;
-                content.print_debug(fmt, &indent, true)?;
-            }
+            Ast::Italic(_) => writeln!(fmt, "{}{}", new_indent, "Italic".cyan().bold())?,
+        }
 
-            Ast::Bold(ast) => {
-                writeln!(fmt, "{}{}", new_indent, "Bold".cyan().bold())?;
-                ast.print_debug(fmt, &indent, true)?;
-            }
-
-            Ast::Italic(ast) => {
-                writeln!(fmt, "{}{}", new_indent, "Italic".cyan().bold())?;
-                ast.print_debug(fmt, &indent, true)?;
+        if let Some(children) = self.children() {
+            let len = children.len();
+            for (index, child) in children.iter().enumerate() {
+                child.print_debug(fmt, &indent, index == len - 1)?;
             }
         }
 
@@ -226,32 +184,23 @@ impl Ast {
 impl fmt::Display for Ast {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Ast::Title { level, content } => {
+            Ast::Title { level, .. } => {
                 for _ in 0..*level {
                     write!(fmt, "{}", "#".bold())?;
                 }
-                writeln!(fmt, "{}", &format!(" {}", content).bold())?;
             }
 
-            Ast::Bold(subast) => write!(fmt, "{}", &format!("{}", subast).red())?,
-            Ast::Italic(subast) => write!(fmt, "{}", &format!("{}", subast).blue())?,
             Ast::InlineMath(content) => write!(fmt, "${}$", content)?,
             Ast::Text(content) => write!(fmt, "{}", content)?,
-            Ast::Group(children) => {
-                for child in children {
-                    write!(fmt, "{}", child)?;
-                }
-            }
-            Ast::Paragraph(children) => {
-                for child in children {
-                    write!(fmt, "{}", child)?;
-                }
-            }
-
-            Ast::Error(_) => writeln!(fmt, "?")?,
-            Ast::Newline => writeln!(fmt)?,
-            Ast::Warning(_) => (),
+            _ => (),
         }
+
+        if let Some(children) = self.children() {
+            for child in children {
+                write!(fmt, "{}", child)?;
+            }
+        }
+
         Ok(())
     }
 }

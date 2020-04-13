@@ -5,8 +5,8 @@ use crate::layout::pages::columns::Column;
 use crate::layout::paragraphs::items::Item;
 use crate::layout::paragraphs::Paragraph;
 use crate::layout::Glyph;
-use hyphenation::*;
 use printpdf::Pt;
+use spandex_hyphenation::*;
 
 /// Adds a word to a buffer.
 pub fn add_word_to_paragraph<'a>(

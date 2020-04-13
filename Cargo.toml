@@ -1,6 +1,6 @@
 [package]
 name = "spandex"
-version = "0.0.3"
+version = "0.0.4"
 description = "A modern LaTeX alternative"
 authors = ["Thomas Forgione <thomas@forgione.fr>", "Matthieu Le Boucher <matt.leboucher@gmail.com>"]
 edition = "2018"
@@ -17,13 +17,11 @@ travis-ci = { repository = "rust-spandex/spandex", branch = "master" }
 
 [dependencies]
 freetype-rs = "0.19.1"
-printpdf = "0.2.10"
-clap = "2.33.0"
+printpdf = { version = "0.2.12", default-features = false }
 toml = "0.5.0"
 serde = { version = "1.0", features = ["derive"] }
-hyphenation = { version = "0.7.1", features = ["embed_all"] }
+spandex-hyphenation = { version = "0.7.4", features = ["embed_all"] }
 petgraph = "0.4.13"
-nom = "4.2.3"
-nom_locate = "0.3.1"
-colored = "1.8.0"
-bincode = "1.1.4"
+nom = "5.0.1"
+nom_locate = "1.0.0"
+colored = "1.9.0"

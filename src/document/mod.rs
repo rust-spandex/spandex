@@ -7,9 +7,9 @@ use std::fs::File;
 use std::io::BufWriter;
 use std::path::Path;
 
-use hyphenation::load::Load;
-use hyphenation::{Language, Standard};
 use printpdf::{PdfDocument, PdfDocumentReference, PdfLayerReference, PdfPageReference, Pt};
+use spandex_hyphenation::load::Load;
+use spandex_hyphenation::{Language, Standard};
 
 use crate::document::counters::Counters;
 use crate::fonts::configuration::FontConfig;
@@ -105,13 +105,13 @@ impl Document {
         let en = Standard::from_embedded(Language::EnglishUS).unwrap();
 
         match ast {
-            Ast::Group(children) => {
+            Ast::File(_, children) => {
                 for child in children {
                     self.render(child, font_config, size);
                 }
             }
 
-            Ast::Title { level, content } => {
+            Ast::Title { level, children } => {
                 self.counters.increment(*level as usize);
                 match &**content {
                     Ast::Group(children) => {

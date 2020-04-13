@@ -68,42 +68,6 @@ impl<'a> Visitor<'a> for PtVisitor {
     visit_from!(visit_f64, f64);
 }
 
-#[cfg(test)]
-mod test {
-
-    use std::f64;
-
-    use printpdf::Pt;
-    use serde::{Deserialize, Serialize};
-
-    use crate::document::configuration::{deserialize_pt, serialize_pt};
-
-    #[derive(Serialize, Deserialize)]
-    pub struct Test {
-        #[serde(serialize_with = "serialize_pt")]
-        #[serde(deserialize_with = "deserialize_pt")]
-        pub value: Pt,
-    }
-
-    impl Test {
-        pub fn as_f64(&self) -> f64 {
-            self.value.0
-        }
-    }
-
-    #[test]
-    fn test() {
-        for value in -500..500 {
-            let value = Test {
-                value: Pt(f64::from(value)),
-            };
-            let encoded: Vec<u8> = bincode::serialize(&value).unwrap();
-            let decoded: Test = bincode::deserialize(&encoded[..]).unwrap();
-            assert!((value.as_f64() - decoded.as_f64()).abs() < f64::EPSILON);
-        }
-    }
-}
-
 /// Holds the configuration of a document, including various measurements
 /// common to all pages.
 #[derive(Clone, Serialize, Deserialize)]

@@ -15,14 +15,15 @@ script:
 
 before_deploy:
   - cargo doc --no-deps --lib
+  - echo  '<meta http-equiv="refresh" content="0; url=spandex/index.html"><a href="spandex/index.html">Redirect</a>' > target/doc/index.html
 
 deploy:
   provider: pages
   overwrite: true
   skip_cleanup: true
   github_token: $GITHUB_TOKEN
-  repo: rust-spandex/rust-spandex.github.io
-  target_branch: master
+  repo: rust-spandex/spandex
+  target_branch: gh-pages
   local_dir: target/doc/
   on:
     branch: master

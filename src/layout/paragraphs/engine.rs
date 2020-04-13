@@ -313,8 +313,8 @@ pub fn positionate_items<'a>(
 #[cfg(test)]
 mod tests {
 
-    use hyphenation::*;
     use printpdf::Pt;
+    use spandex_hyphenation::*;
 
     use crate::document::configuration::Config;
     use crate::layout::paragraphs::engine::algorithm;
