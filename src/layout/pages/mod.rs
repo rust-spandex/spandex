@@ -1,3 +1,5 @@
+//! Pages are containers which hold columns of different kinds.
+//! They also keep track of their own numbering.
 pub mod columns;
 pub mod items;
 

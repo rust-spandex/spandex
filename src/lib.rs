@@ -91,7 +91,7 @@ impl fmt::Display for Error {
             Error::HyphenationLoadError(e) => write!(fmt, "Problem with hyphenation: {}", e),
             Error::IoError(e) => write!(fmt, "an io error occured: {}", e),
             Error::DexError(e) => write!(fmt, "{}", e),
-            Error::ConfigurationError(e) => write!(fmt, "Invalid configuration."),
+            Error::ConfigurationError(_e) => write!(fmt, "Invalid configuration."),
         }
     }
 }

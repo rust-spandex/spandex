@@ -452,7 +452,5 @@ mod tests {
         panic!();
 
         // panic!("Test");
-
-        Ok(())
     }
 }

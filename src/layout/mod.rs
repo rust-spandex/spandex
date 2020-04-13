@@ -5,8 +5,8 @@ pub mod errors;
 pub mod pages;
 pub mod paragraphs;
 
-use hyphenation::Standard;
 use printpdf::Pt;
+use spandex_hyphenation::Standard;
 
 use crate::document::Document;
 use crate::fonts::configuration::FontConfig;
@@ -236,6 +236,7 @@ fn get_next_ith_column_from_current_page(layout: &mut Box<dyn Layout>, i: usize)
 /// Computes the width of a target line. If the line cannot fit in within the
 /// current column, this function will explore the next columns until the line
 /// can fit.
+#[allow(dead_code)]
 fn get_line_length_from_current_position(
     layout: &mut Box<dyn Layout>,
     column_index: usize,
@@ -300,6 +301,7 @@ fn get_column_for_line_starting_at(
 }
 
 impl TwoColumnLayout {
+    /// Creates a new two-column layout.
     pub fn new() -> TwoColumnLayout {
         TwoColumnLayout {
             pages: vec![Page::new(

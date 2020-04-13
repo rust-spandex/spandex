@@ -154,6 +154,7 @@ impl Column {
     }
 }
 
+#[allow(unused_macros)]
 macro_rules! assert_eq_column {
     ($column1: expr, $column2: expr) => {
         assert!(($column1.x.0 - $column2.x.0).abs() < 0.001);
@@ -163,8 +164,10 @@ macro_rules! assert_eq_column {
     };
 }
 
+#[allow(dead_code)]
 const EPSILON: f64 = 0.001;
 
+#[allow(unused_macros)]
 macro_rules! assert_eq_vec_column {
     ($columns1: expr, $columns2: expr) => {
         assert_eq!($columns1.len(), $columns2.len());
