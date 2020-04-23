@@ -207,13 +207,15 @@ impl Layout for TwoColumnLayout {
     }
 }
 
+impl Default for TwoColumnLayout {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Travels the layout until it finds the i-th column starting from a given
 /// column.
-fn get_next_ith_column_from_page(
-    layout: &mut Box<dyn Layout>,
-    page_index: usize,
-    i: usize,
-) -> Column {
+fn get_next_ith_column_from_page(layout: &mut dyn Layout, page_index: usize, i: usize) -> Column {
     let current_page = layout.get_ith_page(page_index);
 
     match current_page.get_ith_column_from_current(i) {
@@ -229,8 +231,9 @@ fn get_next_ith_column_from_page(
 
 /// Travels the layout until it finds the i-th column from where the cursor
 /// currently is.
-fn get_next_ith_column_from_current_page(layout: &mut Box<dyn Layout>, i: usize) -> Column {
-    get_next_ith_column_from_page(layout, layout.current_page_index(), i)
+fn get_next_ith_column_from_current_page(layout: &mut dyn Layout, i: usize) -> Column {
+    let current_page_index = layout.current_page_index();
+    get_next_ith_column_from_page(layout, current_page_index, i)
 }
 
 /// Computes the width of a target line. If the line cannot fit in within the
@@ -238,7 +241,7 @@ fn get_next_ith_column_from_current_page(layout: &mut Box<dyn Layout>, i: usize)
 /// can fit.
 #[allow(dead_code)]
 fn get_line_length_from_current_position(
-    layout: &mut Box<dyn Layout>,
+    layout: &mut dyn Layout,
     column_index: usize,
     line_offset: usize,
 ) -> Pt {
@@ -267,12 +270,12 @@ fn get_line_length_from_current_position(
 }
 
 /// Returns a column from the layout that can hold a line given by its offset.
-pub fn get_column_for_line(layout: &mut Box<dyn Layout>, line_offset: usize) -> (usize, Column) {
+pub fn get_column_for_line(layout: &mut dyn Layout, line_offset: usize) -> (usize, Column) {
     get_column_for_line_starting_at(layout, 0, line_offset)
 }
 
 fn get_column_for_line_starting_at(
-    layout: &mut Box<dyn Layout>,
+    layout: &mut dyn Layout,
     column_index: usize,
     line_offset: usize,
 ) -> (usize, Column) {
@@ -331,7 +334,7 @@ pub fn write_paragraph<J: Justifier>(
     document: &mut Document,
 ) {
     let paragraph = itemize_ast(paragraph, font_config, size, dict, Pt(0.0));
-    let justified = J::justify(&paragraph, &mut document.layout);
+    let justified = J::justify(&paragraph, &mut *document.layout);
 
     for line in justified {
         for glyph in line {
@@ -363,7 +366,7 @@ mod tests {
 
     #[test]
     fn test_line_length_of_first_line() -> Result<()> {
-        let mut layout: Box<dyn Layout> = Box::new(TwoColumnLayout::new());
+        let mut layout: Layout = TwoColumnLayout::new();
 
         let line_length = get_line_length_from_current_position(&mut layout, 0, 0);
 
@@ -374,7 +377,7 @@ mod tests {
 
     #[test]
     fn test_line_length_of_second_line() -> Result<()> {
-        let mut layout: Box<dyn Layout> = Box::new(TwoColumnLayout::new());
+        let mut layout: Layout = TwoColumnLayout::new();
 
         let line_length = get_line_length_from_current_position(&mut layout, 0, 1);
 
@@ -385,7 +388,7 @@ mod tests {
 
     #[test]
     fn test_line_length_with_overflow_on_columns() -> Result<()> {
-        let mut layout: Box<dyn Layout> = Box::new(TwoColumnLayout::new());
+        let mut layout: dyn Layout = TwoColumnLayout::new();
 
         let line_length = get_line_length_from_current_position(&mut layout, 0, 19);
 
@@ -396,7 +399,7 @@ mod tests {
 
     #[test]
     fn test_line_length_with_overflow_on_pages() -> Result<()> {
-        let mut layout: Box<dyn Layout> = Box::new(TwoColumnLayout::new());
+        let mut layout: dyn Layout = TwoColumnLayout::new();
 
         let line_length = get_line_length_from_current_position(&mut layout, 0, 34);
 
@@ -407,7 +410,7 @@ mod tests {
 
     #[test]
     fn test_line_length_with_overflow_on_pages_with_offset() -> Result<()> {
-        let mut layout: Box<dyn Layout> = Box::new(TwoColumnLayout::new());
+        let mut layout: dyn Layout = TwoColumnLayout::new();
 
         let line_length = get_line_length_from_current_position(&mut layout, 0, 33);
 

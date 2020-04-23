@@ -120,12 +120,11 @@ impl Column {
             );
 
             if a.y + a.height <= b.y + b.height {
-                let c2;
-                if a.x + a.width < b.x + b.width {
-                    c2 = Column::new(a.x + a.width, a.y, b.width - a.width + b.x - a.x, a.height);
+                let c2 = if a.x + a.width < b.x + b.width {
+                    Column::new(a.x + a.width, a.y, b.width - a.width + b.x - a.x, a.height)
                 } else {
-                    c2 = Column::new(b.x, a.y, a.x - b.x, a.height);
-                }
+                    Column::new(b.x, a.y, a.x - b.x, a.height)
+                };
 
                 // Column underneath a.
                 let c3 = Column::new(

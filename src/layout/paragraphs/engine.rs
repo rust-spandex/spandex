@@ -29,7 +29,7 @@ use crate::layout::paragraphs::utils::linebreak::{
 ///
 /// It returns the indexes of items which have been chosen as
 /// breakpoints.
-pub fn algorithm<'a>(paragraph: &'a Paragraph<'a>, layout: &mut Box<dyn Layout>) -> Vec<usize> {
+pub fn algorithm<'a>(paragraph: &'a Paragraph<'a>, layout: &mut dyn Layout) -> Vec<usize> {
     let mut graph = StableGraph::<_, f64>::new();
     let mut sum_width = Pt(0.0);
     let mut sum_stretch = Pt(0.0);
@@ -223,7 +223,7 @@ pub fn algorithm<'a>(paragraph: &'a Paragraph<'a>, layout: &mut Box<dyn Layout>)
 /// The generated list is ready to be rendered.
 pub fn positionate_items<'a>(
     items: &[Item<'a>],
-    layout: &mut Box<dyn Layout>,
+    layout: &mut dyn Layout,
     breakpoints: &[usize],
 ) -> Vec<Vec<PositionedItem<'a>>> {
     println!("Positioning items with breakpoints: {:?}", breakpoints);

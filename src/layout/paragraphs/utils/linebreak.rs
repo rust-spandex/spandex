@@ -51,7 +51,7 @@ pub fn compute_adjustment_ratio(
 pub fn compute_adjustment_ratios_with_breakpoints<'a>(
     items: &[Item<'a>],
     breakpoints: &[usize],
-    layout: &mut Box<dyn Layout>,
+    layout: &mut dyn Layout,
 ) -> Vec<(f64, Pt, Pt)> {
     let mut adjustment_ratios: Vec<(f64, Pt, Pt)> = Vec::new();
     let mut current_column = layout.current_column();

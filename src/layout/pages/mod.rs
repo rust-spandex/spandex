@@ -24,7 +24,7 @@ pub struct Page {
 impl Page {
     /// Returns a new page capable of holding a specified amount of columns.
     pub fn new(columns: Vec<Column>, number: i32) -> Page {
-        if columns.len() == 0 {
+        if columns.is_empty() {
             // Todo: use ConfigError.
             panic!("Bad layout: every page must have at least one column.");
         }

@@ -64,13 +64,13 @@ pub fn node_fits_in_column(
 ) -> bool {
     // Todo: implement logic to avoid orphans and widows.
 
-    return compute_node_vertical_position(
+    compute_node_vertical_position(
         column,
         paragraph_skip,
         line_skip,
         line_height,
         node_line_number,
-    ) <= column.height;
+    ) <= column.height
 }
 
 /// Computes the relative vertical position of a node within a given column.
@@ -94,5 +94,5 @@ pub fn compute_node_vertical_position(
     );
     // Todo: implement logic to avoid orphans and widows.
 
-    return node_vertical_position;
+    node_vertical_position
 }

@@ -14,7 +14,7 @@ pub trait Justifier {
     /// Justifies the paragraph passed as parameter.
     fn justify<'a>(
         paragraph: &'a Paragraph<'a>,
-        layout: &mut Box<dyn Layout>,
+        layout: &mut dyn Layout,
     ) -> Vec<Vec<(Glyph<'a>, Pt)>>;
 }
 
@@ -24,7 +24,7 @@ pub struct NaiveJustifier;
 impl Justifier for NaiveJustifier {
     fn justify<'a>(
         paragraph: &'a Paragraph<'a>,
-        layout: &mut Box<dyn Layout>,
+        layout: &mut dyn Layout,
     ) -> Vec<Vec<(Glyph<'a>, Pt)>> {
         println!("Using naive justifier.");
 
@@ -115,7 +115,7 @@ pub struct LatexJustifier;
 impl Justifier for LatexJustifier {
     fn justify<'a>(
         paragraph: &Paragraph<'a>,
-        layout: &mut Box<dyn Layout>,
+        layout: &mut dyn Layout,
     ) -> Vec<Vec<(Glyph<'a>, Pt)>> {
         println!("Using LaTeX justifier.");
         println!("Layout: {:?}", layout.current_column().width);
@@ -143,7 +143,7 @@ pub struct SpandexJustifier;
 impl Justifier for SpandexJustifier {
     fn justify<'a>(
         paragraph: &Paragraph<'a>,
-        layout: &mut Box<dyn Layout>,
+        layout: &mut dyn Layout,
     ) -> Vec<Vec<(Glyph<'a>, Pt)>> {
         println!("Using SpanDeX justifier.");
 
