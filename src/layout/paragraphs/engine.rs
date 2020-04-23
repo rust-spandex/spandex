@@ -317,13 +317,8 @@ mod tests {
     use spandex_hyphenation::*;
 
     use crate::document::configuration::Config;
-    use crate::layout::paragraphs::engine::algorithm;
-    use crate::layout::paragraphs::items::Content;
     use crate::layout::paragraphs::utils::ast::itemize_ast;
-    use crate::layout::paragraphs::utils::linebreak::{
-        compute_adjustment_ratios_with_breakpoints, find_legal_breakpoints,
-    };
-    use crate::layout::{Layout, TwoColumnLayout};
+    use crate::layout::paragraphs::utils::linebreak::find_legal_breakpoints;
     use crate::parser::ast::Ast;
     use crate::Result;
 
@@ -392,65 +387,65 @@ mod tests {
     //     Ok(())
     // }
 
-    #[test]
-    fn test_algorithm() -> Result<()> {
-        // let words = "In olden times when wishing still helped one, \
-        //              there lived a king whose daughters were all beautiful ; \
-        //              and the youngest was so beautiful that the sun itself, \
-        //              which has seen so much, was astonished whenever it shone \
-        //              in her face.";
+    // #[test]
+    // fn test_algorithm() -> Result<()> {
+    //     // let words = "In olden times when wishing still helped one, \
+    //     //              there lived a king whose daughters were all beautiful ; \
+    //     //              and the youngest was so beautiful that the sun itself, \
+    //     //              which has seen so much, was astonished whenever it shone \
+    //     //              in her face.";
 
-        // let words = "The Ministry of Truth, which concerned itself with news, entertainment, education and the fine arts. The Ministry of Peace, which concerned itself with war. The Ministry of Love, which maintained law and order. And the Ministry of Plenty, which was responsible for economic affairs. Their names, in Newspeak: Minitrue, Minipax, Miniluv and Miniplenty.";
+    //     // let words = "The Ministry of Truth, which concerned itself with news, entertainment, education and the fine arts. The Ministry of Peace, which concerned itself with war. The Ministry of Love, which maintained law and order. And the Ministry of Plenty, which was responsible for economic affairs. Their names, in Newspeak: Minitrue, Minipax, Miniluv and Miniplenty.";
 
-        let words = "The hallway smelt of boiled cabbage and old rag mats. At one end of it a coloured poster, too large for indoor display, had been tacked to the wall. It depicted simply an enormous face, more than a metre wide: the face of a man of about forty-five, with a heavy black moustache and ruggedly handsome features. Winston made for the stairs. It was no use trying the lift. Even at the best of times it was seldom working, and at present the electric current was cut off during daylight hours. It was part of the economy drive in preparation for Hate Week. The flat was seven flights up, and Winston, who was thirty-nine and had a varicose ulcer above his right ankle, went slowly, resting several times on the way. On each landing, opposite the lift-shaft, the poster with the enormous face gazed from the wall. It was one of those pictures which are so contrived that the eyes follow you about when you move. BIG BROTHER IS WATCHING YOU, the caption beneath it ran.";
+    //     let words = "The hallway smelt of boiled cabbage and old rag mats. At one end of it a coloured poster, too large for indoor display, had been tacked to the wall. It depicted simply an enormous face, more than a metre wide: the face of a man of about forty-five, with a heavy black moustache and ruggedly handsome features. Winston made for the stairs. It was no use trying the lift. Even at the best of times it was seldom working, and at present the electric current was cut off during daylight hours. It was part of the economy drive in preparation for Hate Week. The flat was seven flights up, and Winston, who was thirty-nine and had a varicose ulcer above his right ankle, went slowly, resting several times on the way. On each landing, opposite the lift-shaft, the poster with the enormous face gazed from the wall. It was one of those pictures which are so contrived that the eyes follow you about when you move. BIG BROTHER IS WATCHING YOU, the caption beneath it ran.";
 
-        let ast = Ast::Paragraph(vec![Ast::Text(words.into())]);
+    //     let ast = Ast::Paragraph(vec![Ast::Text(words.into())]);
 
-        let en_us = Standard::from_embedded(Language::EnglishUS)?;
+    //     let en_us = Standard::from_embedded(Language::EnglishUS)?;
 
-        let mut layout: Box<dyn Layout> = Box::new(TwoColumnLayout::new());
+    //     let mut layout = TwoColumnLayout::new();
 
-        let (_, font_manager) = Config::with_title("Test").init()?;
-        let config = font_manager.default_config();
+    //     let (_, font_manager) = Config::with_title("Test").init()?;
+    //     let config = font_manager.default_config();
 
-        let indentation = Pt(18.0);
+    //     let indentation = Pt(18.0);
 
-        let paragraph = itemize_ast(&ast, &config, Pt(12.0), &en_us, indentation);
+    //     let paragraph = itemize_ast(&ast, &config, Pt(12.0), &en_us, indentation);
 
-        let breakpoints = algorithm(&paragraph, &mut layout);
-        println!("Got breakpoints.");
-        // let positions = positionate_items(&paragraph.items, layout, &breakpoints);
+    //     let breakpoints = algorithm(&paragraph, &mut layout);
+    //     println!("Got breakpoints.");
+    //     // let positions = positionate_items(&paragraph.items, layout, &breakpoints);
 
-        let adjustment_ratios =
-            compute_adjustment_ratios_with_breakpoints(&paragraph.items, &breakpoints, &mut layout);
+    //     let adjustment_ratios =
+    //         compute_adjustment_ratios_with_breakpoints(&paragraph.items, &breakpoints, &mut layout);
 
-        println!("Breakpoints: {:?}", breakpoints);
-        println!("There are {:?} lines", breakpoints.len());
-        print!("\n\n");
+    //     println!("Breakpoints: {:?}", breakpoints);
+    //     println!("There are {:?} lines", breakpoints.len());
+    //     print!("\n\n");
 
-        let mut current_line = 0;
-        for (c, item) in paragraph.items.iter().enumerate() {
-            match item.content {
-                Content::BoundingBox(ref glyph) => print!("{}", glyph.glyph),
-                Content::Glue { .. } => {
-                    if breakpoints.contains(&c) {
-                        println!("       [{:?}]", adjustment_ratios[current_line]);
-                        current_line += 1;
-                    } else {
-                        print!(" ");
-                    }
-                }
-                Content::Penalty { .. } => {
-                    if breakpoints.contains(&c) {
-                        println!("-      [{:?}]", adjustment_ratios[current_line]);
-                        current_line += 1;
-                    }
-                }
-            }
-        }
+    //     let mut current_line = 0;
+    //     for (c, item) in paragraph.items.iter().enumerate() {
+    //         match item.content {
+    //             Content::BoundingBox(ref glyph) => print!("{}", glyph.glyph),
+    //             Content::Glue { .. } => {
+    //                 if breakpoints.contains(&c) {
+    //                     println!("       [{:?}]", adjustment_ratios[current_line]);
+    //                     current_line += 1;
+    //                 } else {
+    //                     print!(" ");
+    //                 }
+    //             }
+    //             Content::Penalty { .. } => {
+    //                 if breakpoints.contains(&c) {
+    //                     println!("-      [{:?}]", adjustment_ratios[current_line]);
+    //                     current_line += 1;
+    //                 }
+    //             }
+    //         }
+    //     }
 
-        panic!();
+    //     panic!();
 
-        // panic!("Test");
-    }
+    //     // panic!("Test");
+    // }
 }

@@ -359,14 +359,14 @@ pub fn write_paragraph<J: Justifier>(
 /// Unit tests for layouts.
 #[cfg(test)]
 mod tests {
-    use crate::layout::{get_line_length_from_current_position, Layout, TwoColumnLayout};
+    use crate::layout::{get_line_length_from_current_position, TwoColumnLayout};
     use printpdf::Pt;
 
     use crate::Result;
 
     #[test]
     fn test_line_length_of_first_line() -> Result<()> {
-        let mut layout: Layout = TwoColumnLayout::new();
+        let mut layout = TwoColumnLayout::new();
 
         let line_length = get_line_length_from_current_position(&mut layout, 0, 0);
 
@@ -377,7 +377,7 @@ mod tests {
 
     #[test]
     fn test_line_length_of_second_line() -> Result<()> {
-        let mut layout: Layout = TwoColumnLayout::new();
+        let mut layout = TwoColumnLayout::new();
 
         let line_length = get_line_length_from_current_position(&mut layout, 0, 1);
 
@@ -388,7 +388,7 @@ mod tests {
 
     #[test]
     fn test_line_length_with_overflow_on_columns() -> Result<()> {
-        let mut layout: dyn Layout = TwoColumnLayout::new();
+        let mut layout = TwoColumnLayout::new();
 
         let line_length = get_line_length_from_current_position(&mut layout, 0, 19);
 
@@ -399,7 +399,7 @@ mod tests {
 
     #[test]
     fn test_line_length_with_overflow_on_pages() -> Result<()> {
-        let mut layout: dyn Layout = TwoColumnLayout::new();
+        let mut layout = TwoColumnLayout::new();
 
         let line_length = get_line_length_from_current_position(&mut layout, 0, 34);
 
@@ -410,7 +410,7 @@ mod tests {
 
     #[test]
     fn test_line_length_with_overflow_on_pages_with_offset() -> Result<()> {
-        let mut layout: dyn Layout = TwoColumnLayout::new();
+        let mut layout = TwoColumnLayout::new();
 
         let line_length = get_line_length_from_current_position(&mut layout, 0, 33);
 
