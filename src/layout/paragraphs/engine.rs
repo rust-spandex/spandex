@@ -68,11 +68,8 @@ pub fn algorithm<'a>(paragraph: &'a Paragraph<'a>, lines_length: &[Pt]) -> Vec<u
             } => {
                 // We can only break at a glue if it is preceeded by
                 // a bounding box.
-                can_break = b > 0
-                    && (match paragraph.items[b - 1].content {
-                        Content::BoundingBox { .. } => true,
-                        _ => false,
-                    });
+                can_break =
+                    b > 0 && matches!(paragraph.items[b-1].content, Content::BoundingBox { .. });
 
                 if !can_break {
                     sum_width += item.width;
@@ -117,9 +114,7 @@ pub fn algorithm<'a>(paragraph: &'a Paragraph<'a>, lines_length: &[Pt]) -> Vec<u
                     node_to_remove.push(node);
                 }
 
-                if adjustment_ratio >= MIN_ADJUSTMENT_RATIO
-                    && adjustment_ratio <= MAX_ADJUSTMENT_RATIO
-                {
+                if (MIN_ADJUSTMENT_RATIO..=MAX_ADJUSTMENT_RATIO).contains(&adjustment_ratio) {
                     let measures_sum = Measures {
                         width: sum_width,
                         shrinkability: sum_shrink,
