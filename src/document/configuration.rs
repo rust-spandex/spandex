@@ -28,21 +28,23 @@ pub fn deserialize_pt<'a, D: Deserializer<'a>>(deserializer: D) -> Result<Pt, D:
 macro_rules! visit_from {
     ($visit: ident, $ty: ty) => {
         fn $visit<E>(self, value: $ty) -> Result<Self::Value, E>
-            where E: de::Error
+        where
+            E: de::Error,
         {
             Ok(Pt(f64::from(value)))
         }
-    }
+    };
 }
 
 macro_rules! visit_as {
     ($visit: ident, $ty: ty) => {
         fn $visit<E>(self, value: $ty) -> Result<Self::Value, E>
-            where E: de::Error
+        where
+            E: de::Error,
         {
             Ok(Pt(value as f64))
         }
-    }
+    };
 }
 
 /// Visitor for the `Pt` structure.

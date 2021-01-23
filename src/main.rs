@@ -62,8 +62,7 @@ fn main() {
 fn init(name: Option<&String>) -> Result<(), Error> {
     let mut current_dir = unwrap!(current_dir().ok(), Error::CannotReadCurrentDir);
     let current_dir_name = current_dir.clone();
-    let current_dir_name =
-        unwrap!(current_dir_name.file_name(), Error::CannotReadCurrentDir);
+    let current_dir_name = unwrap!(current_dir_name.file_name(), Error::CannotReadCurrentDir);
     let current_dir_name = unwrap!(current_dir_name.to_str(), Error::CannotReadCurrentDir);
 
     // Initialize the project
