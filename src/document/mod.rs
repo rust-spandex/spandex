@@ -154,7 +154,7 @@ impl Document {
             for glyph in line {
                 self.layer.use_text(
                     glyph.0.glyph.to_string(),
-                    Into::<Pt>::into(glyph.0.scale).0 as i64,
+                    Into::<Pt>::into(glyph.0.scale).0 as f64,
                     (self.window.x + glyph.1).into(),
                     self.cursor.1.into(),
                     glyph.0.font.printpdf(),
@@ -172,7 +172,7 @@ impl Document {
 
     /// Writes a line in the document.
     pub fn write_line(&mut self, words: &[&str], font: &Font, size: Pt, spacing: Pt) {
-        let size_i64 = Into::<Pt>::into(size).0 as i64;
+        let size_f64 = Into::<Pt>::into(size).0 as f64;
         let mut current_width = self.window.x;
 
         for word in words {
@@ -181,7 +181,7 @@ impl Document {
 
             self.layer.use_text(
                 word.to_owned(),
-                size_i64,
+                size_f64,
                 width.into(),
                 (height - size).into(),
                 font.printpdf(),
