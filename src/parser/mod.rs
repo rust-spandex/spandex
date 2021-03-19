@@ -51,3 +51,4 @@ pub struct Parsed {
 }
 
 pub use combinators::parse;
+pub use combinators::parse_content;
