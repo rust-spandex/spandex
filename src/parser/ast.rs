@@ -40,6 +40,10 @@ pub enum Ast {
     /// Content stored in a specific file.
     File(PathBuf, Vec<Ast>),
 
+    UnorderedList(Vec<Ast>), // must be UnorderedListItem
+    
+    UnorderedListItem(Vec<Ast>),
+
     /// An empty line.
     Newline,
 
@@ -63,7 +67,9 @@ impl Ast {
             | Ast::Paragraph(children)
             | Ast::Title { children, .. }
             | Ast::Bold(children)
-            | Ast::Italic(children) => Some(children),
+            | Ast::Italic(children) 
+            | Ast::UnorderedList(children)
+            | Ast::UnorderedListItem(children) => Some(children),
             _ => None,
         }
     }
@@ -168,6 +174,10 @@ impl Ast {
             Ast::Bold(_) => writeln!(fmt, "{}{}", new_indent, "Bold".cyan().bold())?,
 
             Ast::Italic(_) => writeln!(fmt, "{}{}", new_indent, "Italic".cyan().bold())?,
+
+            Ast::UnorderedList(_) => writeln!(fmt, "{}{}", new_indent, "UnorderedList".blue().bold())?,
+         
+            Ast::UnorderedListItem(_) => writeln!(fmt, "{}{}", new_indent, "UnorderedListItem".blue().bold())?,
         }
 
         if let Some(children) = self.children() {
