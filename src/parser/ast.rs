@@ -40,8 +40,10 @@ pub enum Ast {
     /// Content stored in a specific file.
     File(PathBuf, Vec<Ast>),
 
+    /// An unordered list
     UnorderedList(Vec<Ast>), // must be UnorderedListItem
     
+    /// An unordered list item
     UnorderedListItem(Vec<Ast>),
 
     /// An empty line.

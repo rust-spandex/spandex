@@ -233,6 +233,34 @@ pub fn parse_title(input: Span) -> IResult<Span, Ast> {
     ))
 }
 
+/// Parses an unordered list.
+/// ```
+/// # use spandex::parser::ast::Ast;
+/// # use spandex::parser::Span;
+/// # use spandex::parser::combinators::parse_unordered_list;
+/// let input = Span::new("- This is my list");
+/// let list = parse_unordered_list(input).unwrap().1;
+/// assert_eq!(list, 
+///     Ast::UnorderedList(
+///         vec![Ast::UnorderedListItem(
+///             vec![Ast::Text(String::from("This is my list"))]
+///         )]
+///     )
+/// );
+/// ```
+pub fn parse_unordered_list(input: Span) -> IResult<Span, Ast> {
+    let (input, _) = tag("- ")(input)?;
+    // want to allow multiple lines
+    // want to allow multiple list items
+    let (input, content) = parse_single_line(input)?;
+    let (input, _) = opt(line_ending)(input)?;
+    Ok(
+        ( input
+        , Ast::UnorderedList(vec![Ast::UnorderedListItem(content)])
+        )
+    )
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // For main
 ////////////////////////////////////////////////////////////////////////////////
