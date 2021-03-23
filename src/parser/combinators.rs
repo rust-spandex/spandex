@@ -13,8 +13,8 @@ use nom::branch::alt;
 use nom::bytes::complete::{tag, take_till1, take_until};
 use nom::character::complete::{char, line_ending, not_line_ending, space0};
 use nom::combinator::{map, map_res, opt, rest, verify};
-use nom::multi::{fold_many0, many0, many1_count};
-use nom::sequence::delimited;
+use nom::multi::{fold_many0, many0, many1, many1_count};
+use nom::sequence::{delimited, preceded};
 use nom::{IResult, Slice};
 
 use crate::layout::paragraphs::ligatures::ligature;
@@ -249,15 +249,43 @@ pub fn parse_title(input: Span) -> IResult<Span, Ast> {
 /// );
 /// ```
 pub fn parse_unordered_list(input: Span) -> IResult<Span, Ast> {
-    let (input, _) = tag("- ")(input)?;
-    // want to allow multiple lines
-    // want to allow multiple list items
-    let (input, content) = parse_single_line(input)?;
-    let (input, _) = opt(line_ending)(input)?;
+    let (input, items) = many1(parse_unordered_list_item)(input)?;
+
     Ok(
-        ( input
-        , Ast::UnorderedList(vec![Ast::UnorderedListItem(content)])
-        )
+        ( input, Ast::UnorderedList(items) )
+    )
+}
+
+/// Parses an unordered list item.
+/// ```
+/// # use spandex::parser::ast::Ast;
+/// # use spandex::parser::Span;
+/// # use spandex::parser::combinators::parse_unordered_list_item;
+/// let input = Span::new("- This is my list");
+/// let item = parse_unordered_list_item(input).unwrap().1;
+/// assert_eq!(item, 
+///     Ast::UnorderedListItem(
+///         vec![Ast::Text(String::from("This is my list"))]
+///     )
+/// );
+/// ```
+pub fn parse_unordered_list_item(input: Span) -> IResult<Span, Ast> {
+    let (input, content) = 
+        alt((
+            // I wasn't able to create a take_until_inclusive function to abstract
+            // the first two cases, as I couldn't supply the correct type. Writing 
+            // a lambda inside this function did work, as the compiler used type 
+            // inference.
+            delimited(tag("- "), take_until("\r\n-"), tag("\r\n")),
+            delimited(tag("- "), take_until("\n-"), tag("\n")),
+            preceded(tag("- "), rest),
+        ))
+        (input)?;
+
+    let (_, content) = parse_group(content)?;
+    
+    Ok(
+        ( input, Ast::UnorderedListItem(content) )
     )
 }
 
@@ -302,7 +330,7 @@ pub fn get_block(input: Span) -> IResult<Span, Span> {
 /// assert_eq!(block, Ast::Paragraph(vec![Ast::Text(String::from("First paragraph"))]));
 /// ```
 pub fn parse_block_content(input: Span) -> IResult<Span, Ast> {
-    alt((parse_title, parse_paragraph))(input)
+    alt((parse_title, parse_unordered_list, parse_paragraph))(input)
 }
 
 /// Parses a whole dex file.
