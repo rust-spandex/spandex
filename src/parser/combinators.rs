@@ -240,7 +240,7 @@ pub fn parse_title(input: Span) -> IResult<Span, Ast> {
 /// # use spandex::parser::combinators::parse_unordered_list;
 /// let input = Span::new("- This is my list");
 /// let list = parse_unordered_list(input).unwrap().1;
-/// assert_eq!(list, 
+/// assert_eq!(list,
 ///     Ast::UnorderedList(
 ///         vec![Ast::UnorderedListItem(
 ///             vec![Ast::Text(String::from("This is my list"))]
@@ -251,9 +251,7 @@ pub fn parse_title(input: Span) -> IResult<Span, Ast> {
 pub fn parse_unordered_list(input: Span) -> IResult<Span, Ast> {
     let (input, items) = many1(parse_unordered_list_item)(input)?;
 
-    Ok(
-        ( input, Ast::UnorderedList(items) )
-    )
+    Ok((input, Ast::UnorderedList(items)))
 }
 
 /// Parses an unordered list item.
@@ -263,30 +261,26 @@ pub fn parse_unordered_list(input: Span) -> IResult<Span, Ast> {
 /// # use spandex::parser::combinators::parse_unordered_list_item;
 /// let input = Span::new("- This is my list");
 /// let item = parse_unordered_list_item(input).unwrap().1;
-/// assert_eq!(item, 
+/// assert_eq!(item,
 ///     Ast::UnorderedListItem(
 ///         vec![Ast::Text(String::from("This is my list"))]
 ///     )
 /// );
 /// ```
 pub fn parse_unordered_list_item(input: Span) -> IResult<Span, Ast> {
-    let (input, content) = 
-        alt((
-            // I wasn't able to create a take_until_inclusive function to abstract
-            // the first two cases, as I couldn't supply the correct type. Writing 
-            // a lambda inside this function did work, as the compiler used type 
-            // inference.
-            delimited(tag("- "), take_until("\r\n-"), tag("\r\n")),
-            delimited(tag("- "), take_until("\n-"), tag("\n")),
-            preceded(tag("- "), rest),
-        ))
-        (input)?;
+    let (input, content) = alt((
+        // I wasn't able to create a take_until_inclusive function to abstract
+        // the first two cases, as I couldn't supply the correct type. Writing
+        // a lambda inside this function did work, as the compiler used type
+        // inference.
+        delimited(tag("- "), take_until("\r\n-"), tag("\r\n")),
+        delimited(tag("- "), take_until("\n-"), tag("\n")),
+        preceded(tag("- "), rest),
+    ))(input)?;
 
     let (_, content) = parse_group(content)?;
-    
-    Ok(
-        ( input, Ast::UnorderedListItem(content) )
-    )
+
+    Ok((input, Ast::UnorderedListItem(content)))
 }
 
 ////////////////////////////////////////////////////////////////////////////////

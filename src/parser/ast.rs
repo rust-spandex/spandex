@@ -42,7 +42,7 @@ pub enum Ast {
 
     /// An unordered list
     UnorderedList(Vec<Ast>), // must be UnorderedListItem
-    
+
     /// An unordered list item
     UnorderedListItem(Vec<Ast>),
 
@@ -69,7 +69,7 @@ impl Ast {
             | Ast::Paragraph(children)
             | Ast::Title { children, .. }
             | Ast::Bold(children)
-            | Ast::Italic(children) 
+            | Ast::Italic(children)
             | Ast::UnorderedList(children)
             | Ast::UnorderedListItem(children) => Some(children),
             _ => None,
@@ -177,9 +177,13 @@ impl Ast {
 
             Ast::Italic(_) => writeln!(fmt, "{}{}", new_indent, "Italic".cyan().bold())?,
 
-            Ast::UnorderedList(_) => writeln!(fmt, "{}{}", new_indent, "UnorderedList".blue().bold())?,
-         
-            Ast::UnorderedListItem(_) => writeln!(fmt, "{}{}", new_indent, "UnorderedListItem".blue().bold())?,
+            Ast::UnorderedList(_) => {
+                writeln!(fmt, "{}{}", new_indent, "UnorderedList".blue().bold())?
+            }
+
+            Ast::UnorderedListItem(_) => {
+                writeln!(fmt, "{}{}", new_indent, "UnorderedListItem".blue().bold())?
+            }
         }
 
         if let Some(children) = self.children() {
