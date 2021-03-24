@@ -328,6 +328,25 @@ mod tests {
     }
 
     #[test]
+    fn test_unordered_list_itemization() -> Result<()> {
+        let words = "Lorem ipsum dolor sit amet.";
+        let ast = Ast::UnorderedListItem(vec![Ast::Text(words.into())]);
+
+        let en_us = Standard::from_embedded(Language::EnglishUS)?;
+
+        let (_, font_manager) = Config::with_title("Test").init()?;
+        let config = font_manager.default_config();
+
+        // The length is one per character and per space (which becomes glue I think),
+        // plus 2 for the glue and penalty added at the end of itemize_ast_aux,
+        // but this only makes 31, so I'm not sure what the other two are.
+        let list = itemize_ast(&ast, &config, Pt(10.0), &en_us, Pt(0.0));
+        assert_eq!(list.items.len(), 33);
+
+        Ok(())
+    }
+
+    #[test]
     fn test_legal_breakpoints() -> Result<()> {
         let words = "Lorem ipsum dolor sit amet.";
         let ast = Ast::Paragraph(vec![Ast::Text(words.into())]);

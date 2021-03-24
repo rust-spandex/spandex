@@ -14,7 +14,7 @@ use spandex_hyphenation::{Language, Standard};
 use crate::document::counters::Counters;
 use crate::fonts::configuration::FontConfig;
 use crate::fonts::Font;
-use crate::layout::paragraphs::justification::{Justifier, LatexJustifier};
+use crate::layout::paragraphs::justification::{Justifier, LatexJustifier, NaiveJustifier};
 use crate::layout::paragraphs::utils::ast::itemize_ast;
 use crate::parser::ast::Ast;
 
@@ -121,6 +121,24 @@ impl Document {
             Ast::Paragraph(_) => {
                 self.write_paragraph::<LatexJustifier>(ast, font_config, size, &en);
                 self.new_line(size);
+                self.new_line(size);
+            }
+
+            Ast::UnorderedList(items) => {
+                for item in items {
+                    self.render(item, font_config, size);
+                }
+                self.new_line(size);
+            }
+
+            Ast::UnorderedListItem(_) => {
+                // The Latex Justifier caused a problem with the example 'main.dex' file here, and only
+                // showed 2 lines when there should have been 3. The Naive ustifier doesn't have this
+                // problem.
+                // The problem text is as follows:
+                //├─┬ UnorderedListItem
+                //│ └── Text("Unordered list item\nstill part of list item (putting a dash at the start of a line with no space after it stops subsequent items from parsing for some reason, need to add a test for this and ﬁx)")
+                self.write_paragraph::<NaiveJustifier>(ast, font_config, size, &en);
                 self.new_line(size);
             }
 

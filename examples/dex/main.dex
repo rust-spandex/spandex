@@ -20,3 +20,8 @@ quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo
 consequat.
 
 Voici un exemple d'affichage avec ligature. | Ceci *n'est pas* un commentaire.
+
+- Unordered list item
+still part of list item (putting a dash at the start of a line with no space after it stops subsequent items from parsing for some reason, need to add a test for this and fix)
+- || blank list item 
+- Another list item
