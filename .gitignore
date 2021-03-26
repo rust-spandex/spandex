@@ -2,3 +2,4 @@
 Cargo.lock
 **/*.rs.bk
 *.pdf
+.DS_Store
