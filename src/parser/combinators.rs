@@ -10,11 +10,11 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use nom::branch::alt;
-use nom::bytes::complete::{tag, take_till1, take_until};
+use nom::bytes::complete::{tag, take_till1, take_until, take_while};
 use nom::character::complete::{char, line_ending, not_line_ending, space0};
 use nom::combinator::{map, map_res, opt, rest, verify};
 use nom::multi::{fold_many0, many0, many1, many1_count};
-use nom::sequence::{delimited, preceded};
+use nom::sequence::{delimited, preceded, terminated};
 use nom::{IResult, Slice};
 
 use crate::layout::paragraphs::ligatures::ligature;
@@ -22,6 +22,10 @@ use crate::parser::ast::Ast;
 use crate::parser::error::{EmptyError, ErrorType, Errors};
 use crate::parser::warning::{EmptyWarning, WarningType, Warnings};
 use crate::parser::{position, Error, Parsed, Span};
+
+pub fn is_space(c: char) -> bool {
+    c == ' '
+}
 
 /// Returns true if the character passed as parameter changes the type of parsing we're going to do.
 pub fn should_stop(c: char) -> bool {
@@ -251,6 +255,8 @@ pub fn parse_title(input: Span) -> IResult<Span, Ast> {
 pub fn parse_unordered_list(input: Span) -> IResult<Span, Ast> {
     let (input, items) = many1(parse_unordered_list_item)(input)?;
 
+    // could parse all the items, with an indent, and then remake the ask with the relevant nesting as required?
+    // or do the same and have the ast items have an indent level
     Ok((input, Ast::UnorderedList(items)))
 }
 
@@ -268,13 +274,22 @@ pub fn parse_unordered_list(input: Span) -> IResult<Span, Ast> {
 /// );
 /// ```
 pub fn parse_unordered_list_item(input: Span) -> IResult<Span, Ast> {
+    
+    // "-  blah" is easy to parse for nesting
+    // " - blah" probably looks better though, and more like markdown
+    // delimeted(tag("\n"), take_while(is_whitespace), tag("-")) should do it as a parser / matcher? 
+    // and returns the string with the whitespace for working out the indent level
+    
     let (input, content) = alt((
         // I wasn't able to create a take_until_inclusive function to abstract
         // the first two cases, as I couldn't supply the correct type. Writing
         // a lambda inside this function did work, as the compiler used type
         // inference.
         delimited(tag("- "), take_until("\r\n-"), tag("\r\n")),
-        delimited(tag("- "), take_until("\n-"), tag("\n")),
+        delimited(
+            tag("- "),
+            take_until("\n-"),
+            tag("\n")),
         preceded(tag("- "), rest),
     ))(input)?;
 

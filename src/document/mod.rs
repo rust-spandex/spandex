@@ -132,8 +132,8 @@ impl Document {
             }
 
             Ast::UnorderedListItem(_) => {
-                // The Latex Justifier caused a problem with the example 'main.dex' file here, and only
-                // showed 2 lines when there should have been 3. The Naive ustifier doesn't have this
+                // The LatexJustifier caused a problem with the example 'main.dex' file here, and only
+                // showed 2 lines when there should have been 3. The NaiveJustifier doesn't have this
                 // problem.
                 // The problem text is as follows:
                 //├─┬ UnorderedListItem
