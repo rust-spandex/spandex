@@ -304,7 +304,7 @@ pub fn parse_unordered_list_item(input: Span) -> IResult<Span, Ast> {
     let (_, (characters, _terminator)) = many_till(
         none_of(""),
         alt((
-            delimited(line_ending, take_while(is_space), tag("-")),
+            delimited(line_ending, take_while(is_space), tag("- ")),
             end_of_input(),
         )),
     )(after_dash)?;
@@ -322,7 +322,7 @@ pub fn parse_unordered_list_item(input: Span) -> IResult<Span, Ast> {
 
     let unordered_list_item = Ast::UnorderedListItem {
         level: level as u8,
-        children: children,
+        children,
     };
 
     Ok((after_newline, unordered_list_item))

@@ -187,9 +187,12 @@ impl Ast {
                 writeln!(fmt, "{}{}", new_indent, "UnorderedList".blue().bold())?
             }
 
-            Ast::UnorderedListItem { level, .. } => {
-                writeln!(fmt, "{}{}", new_indent, &format!("UnorderedListItem(level={})", level).blue().bold())?
-            }
+            Ast::UnorderedListItem { level, .. } => writeln!(
+                fmt,
+                "{}{}",
+                new_indent,
+                &format!("UnorderedListItem(level={})", level).blue().bold()
+            )?,
         }
 
         if let Some(children) = self.children() {

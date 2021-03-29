@@ -22,11 +22,12 @@ consequat.
 Voici un exemple d'affichage avec ligature. | Ceci *n'est pas* un commentaire.
 
 - Unordered list
-still part of list item (putting a dash at the start of a line with no space after it stops subsequent items from parsing for some reason, need to add a test for this and fix)
+still part of list item
+-
  - Items can nest
   - as deep as required
      - nothing enforces an unary increase in the level of nesting
 - || blank list item 
 - Another list item
-
-
+- The last item can't be blank, as get_block trims the output (see comments in test and code), so the next dash will become part of this item
+- 

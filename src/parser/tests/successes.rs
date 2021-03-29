@@ -129,7 +129,7 @@ fn test_unordered_list_items_with_line_breaks() -> Result<(), Box<dyn Error>> {
 // a blank final list item. I have gone with the last
 // option for now
 fn test_empty_unordered_list_items() -> Result<(), Box<dyn Error>> {
-    let p = parse_content("- \n- \n- blah");
+    let p = parse_content("- \n-\n- \n- blah");
     assert!(p.is_ok());
 
     let (_, ast) = p.unwrap();
@@ -137,7 +137,7 @@ fn test_empty_unordered_list_items() -> Result<(), Box<dyn Error>> {
     let expected_ast = vec![Ast::UnorderedList(vec![
         Ast::UnorderedListItem {
             level: 0,
-            children: vec![],
+            children: vec![text("\n-")],
         },
         Ast::UnorderedListItem {
             level: 0,
