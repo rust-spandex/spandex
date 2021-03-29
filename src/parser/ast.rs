@@ -44,7 +44,13 @@ pub enum Ast {
     UnorderedList(Vec<Ast>), // must be UnorderedListItem
 
     /// An unordered list item
-    UnorderedListItem(Vec<Ast>),
+    UnorderedListItem {
+        /// The level of the title.
+        level: u8,
+
+        /// The content of the title.
+        children: Vec<Ast>,
+    },
 
     /// An empty line.
     Newline,
@@ -71,7 +77,7 @@ impl Ast {
             | Ast::Bold(children)
             | Ast::Italic(children)
             | Ast::UnorderedList(children)
-            | Ast::UnorderedListItem(children) => Some(children),
+            | Ast::UnorderedListItem { children, ..} => Some(children),
             _ => None,
         }
     }
@@ -181,7 +187,7 @@ impl Ast {
                 writeln!(fmt, "{}{}", new_indent, "UnorderedList".blue().bold())?
             }
 
-            Ast::UnorderedListItem(_) => {
+            Ast::UnorderedListItem { .. } => {
                 writeln!(fmt, "{}{}", new_indent, "UnorderedListItem".blue().bold())?
             }
         }

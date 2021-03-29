@@ -129,7 +129,7 @@ pub fn itemize_ast_aux<'a>(
             // This is handled in mod.rs, Document.render
         }
 
-        Ast::UnorderedListItem(children) => {
+        Ast::UnorderedListItem { level, children } => {
             itemize_ast_aux(
                 &Ast::Text("• ".into()),
                 font_config,

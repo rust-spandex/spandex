@@ -95,10 +95,18 @@ fn test_two_item_unordered_list(dex: &str) -> Result<(), Box<dyn Error>> {
 
     let (_, ast) = p.unwrap();
 
-    let expected_ast = vec![Ast::UnorderedList(vec![
-        Ast::UnorderedListItem(vec![text("Item 1")]),
-        Ast::UnorderedListItem(vec![text("Item 2")]),
-    ])];
+    let expected_ast = vec![
+        Ast::UnorderedList(vec![
+            Ast::UnorderedListItem{ 
+                level: 0, 
+                children: vec![text("Item 1")]
+            },
+            Ast::UnorderedListItem{ 
+                level: 0, 
+                children: vec![text("Item 2")]
+            }
+        ])
+    ];
 
     assert_eq!(expected_ast, ast);
 
@@ -112,10 +120,18 @@ fn test_unordered_list_items_with_line_breaks() -> Result<(), Box<dyn Error>> {
 
     let (_, ast) = p.unwrap();
 
-    let expected_ast = vec![Ast::UnorderedList(vec![
-        Ast::UnorderedListItem(vec![text("item1line1\nitem1line2")]),
-        Ast::UnorderedListItem(vec![text("item2")]),
-    ])];
+    let expected_ast = vec![
+        Ast::UnorderedList(vec![
+            Ast::UnorderedListItem { 
+                level: 0, 
+                children: vec![text("item1line1\nitem1line2")] 
+            },
+            Ast::UnorderedListItem { 
+                level: 0, 
+                children: vec![text("item2")]
+            }
+        ])
+    ];
 
     assert_eq!(expected_ast, ast);
 
@@ -135,9 +151,9 @@ fn test_empty_unordered_list_items() -> Result<(), Box<dyn Error>> {
     let (_, ast) = p.unwrap();
 
     let expected_ast = vec![Ast::UnorderedList(vec![
-        Ast::UnorderedListItem(vec![]),
-        Ast::UnorderedListItem(vec![]),
-        Ast::UnorderedListItem(vec![text("blah")]),
+        Ast::UnorderedListItem{ level:0, children: vec![] },
+        Ast::UnorderedListItem{ level:0, children: vec![] },
+        Ast::UnorderedListItem{ level:0, children: vec![text("blah")] },
     ])];
 
     assert_eq!(expected_ast, ast);

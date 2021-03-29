@@ -330,7 +330,10 @@ mod tests {
     #[test]
     fn test_unordered_list_itemization() -> Result<()> {
         let words = "Lorem ipsum dolor sit amet.";
-        let ast = Ast::UnorderedListItem(vec![Ast::Text(words.into())]);
+        let ast = Ast::UnorderedListItem {
+            level: 0,
+            children: vec![Ast::Text(words.into())]
+        };
 
         let en_us = Standard::from_embedded(Language::EnglishUS)?;
 

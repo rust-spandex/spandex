@@ -131,7 +131,7 @@ impl Document {
                 self.new_line(size);
             }
 
-            Ast::UnorderedListItem(_) => {
+            Ast::UnorderedListItem { .. } => {
                 // The LatexJustifier caused a problem with the example 'main.dex' file here, and only
                 // showed 2 lines when there should have been 3. The NaiveJustifier doesn't have this
                 // problem.

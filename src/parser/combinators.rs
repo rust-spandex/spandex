@@ -246,9 +246,10 @@ pub fn parse_title(input: Span) -> IResult<Span, Ast> {
 /// let list = parse_unordered_list(input).unwrap().1;
 /// assert_eq!(list,
 ///     Ast::UnorderedList(
-///         vec![Ast::UnorderedListItem(
-///             vec![Ast::Text(String::from("This is my list"))]
-///         )]
+///         vec![Ast::UnorderedListItem { 
+///             level: 0, 
+///             children: vec![Ast::Text(String::from("This is my list"))]
+///         }]
 ///     )
 /// );
 /// ```
@@ -268,9 +269,10 @@ pub fn parse_unordered_list(input: Span) -> IResult<Span, Ast> {
 /// let input = Span::new("- This is my list");
 /// let item = parse_unordered_list_item(input).unwrap().1;
 /// assert_eq!(item,
-///     Ast::UnorderedListItem(
-///         vec![Ast::Text(String::from("This is my list"))]
-///     )
+///     Ast::UnorderedListItem {
+///         level: 0,
+///         children: vec![Ast::Text(String::from("This is my list"))]
+///     }
 /// );
 /// ```
 pub fn parse_unordered_list_item(input: Span) -> IResult<Span, Ast> {
@@ -295,7 +297,15 @@ pub fn parse_unordered_list_item(input: Span) -> IResult<Span, Ast> {
 
     let (_, content) = parse_group(content)?;
 
-    Ok((input, Ast::UnorderedListItem(content)))
+    Ok(
+        (
+            input, 
+            Ast::UnorderedListItem {
+                level: 0,
+                children: content
+            }
+        )
+    )
 }
 
 ////////////////////////////////////////////////////////////////////////////////
