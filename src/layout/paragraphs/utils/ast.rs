@@ -130,8 +130,10 @@ pub fn itemize_ast_aux<'a>(
         }
 
         Ast::UnorderedListItem { level, children } => {
+            let bullet = " ".repeat(*level as usize) + "• ";
+            
             itemize_ast_aux(
-                &Ast::Text("• ".into()),
+                &Ast::Text(bullet.into()),
                 font_config,
                 size,
                 dictionary,
