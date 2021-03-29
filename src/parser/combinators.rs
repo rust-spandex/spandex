@@ -11,17 +11,32 @@ use std::path::{Path, PathBuf};
 
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take_till1, take_until, take_while};
-use nom::character::complete::{char, line_ending, not_line_ending, space0};
+use nom::character::complete::{char, line_ending, none_of, not_line_ending, space0};
 use nom::combinator::{map, map_res, opt, rest, verify};
-use nom::multi::{fold_many0, many0, many1, many1_count};
-use nom::sequence::{delimited, preceded, terminated};
-use nom::{IResult, Slice};
+use nom::error::{ErrorKind, ParseError};
+use nom::multi::{fold_many0, many0, many0_count, many1, many1_count, many_till};
+use nom::sequence::{delimited, terminated};
+use nom::{Err, IResult, InputLength, Slice};
 
 use crate::layout::paragraphs::ligatures::ligature;
 use crate::parser::ast::Ast;
 use crate::parser::error::{EmptyError, ErrorType, Errors};
 use crate::parser::warning::{EmptyWarning, WarningType, Warnings};
 use crate::parser::{position, Error, Parsed, Span};
+
+pub fn end_of_input<I, Error: ParseError<I>>() -> impl Fn(I) -> IResult<I, I, Error>
+where
+    I: InputLength + Copy,
+{
+    move |input: I| {
+        if input.input_len() == 0 {
+            Ok((input, input))
+        } else {
+            let e: ErrorKind = ErrorKind::Tag;
+            Err(Err::Error(Error::from_error_kind(input, e)))
+        }
+    }
+}
 
 pub fn is_space(c: char) -> bool {
     c == ' '
@@ -246,8 +261,8 @@ pub fn parse_title(input: Span) -> IResult<Span, Ast> {
 /// let list = parse_unordered_list(input).unwrap().1;
 /// assert_eq!(list,
 ///     Ast::UnorderedList(
-///         vec![Ast::UnorderedListItem { 
-///             level: 0, 
+///         vec![Ast::UnorderedListItem {
+///             level: 0,
 ///             children: vec![Ast::Text(String::from("This is my list"))]
 ///         }]
 ///     )
@@ -276,36 +291,41 @@ pub fn parse_unordered_list(input: Span) -> IResult<Span, Ast> {
 /// );
 /// ```
 pub fn parse_unordered_list_item(input: Span) -> IResult<Span, Ast> {
-    
-    // "-  blah" is easy to parse for nesting
-    // " - blah" probably looks better though, and more like markdown
-    // delimeted(tag("\n"), take_while(is_whitespace), tag("-")) should do it as a parser / matcher? 
-    // and returns the string with the whitespace for working out the indent level
-    
-    let (input, content) = alt((
-        // I wasn't able to create a take_until_inclusive function to abstract
-        // the first two cases, as I couldn't supply the correct type. Writing
-        // a lambda inside this function did work, as the compiler used type
-        // inference.
-        delimited(tag("- "), take_until("\r\n-"), tag("\r\n")),
-        delimited(
-            tag("- "),
-            take_until("\n-"),
-            tag("\n")),
-        preceded(tag("- "), rest),
-    ))(input)?;
+    let (after_dash, level) = terminated(many0_count(char(' ')), tag("- "))(input)?;
 
-    let (_, content) = parse_group(content)?;
+    // Matching the item text is fiddly, mainly because take_until is only for nom
+    // primitives, and not combinators, and the end tag is a variable length thing.
+    // We could make it simpler by only supporting a set level of nesting, and
+    // explicitly defining all these with tag
+    // This solution matches a character at a time until the start of the next item
+    // is found, or the end of the input / block is found.
+    // It then turns these characters in to a string, and uses this in a `tag`, so
+    // that the Span information is retained.
+    let (_, (characters, _terminator)) = many_till(
+        none_of(""),
+        alt((
+            delimited(line_ending, take_while(is_space), tag("-")),
+            end_of_input(),
+        )),
+    )(after_dash)?;
 
-    Ok(
-        (
-            input, 
-            Ast::UnorderedListItem {
-                level: 0,
-                children: content
-            }
-        )
-    )
+    let item_string: String = characters.into_iter().collect();
+
+    let (after_item, item_span) = tag(&*item_string)(after_dash)?;
+
+    // Items want start parsing on a dash or a space, so we need to move past
+    // any line endings
+    let (after_newline, _) = alt((line_ending, rest))(after_item)?;
+
+    // This parses the content of the list item, for italic and bold and suchlike
+    let (_, children) = parse_group(item_span)?;
+
+    let unordered_list_item = Ast::UnorderedListItem {
+        level: level as u8,
+        children: children,
+    };
+
+    Ok((after_newline, unordered_list_item))
 }
 
 ////////////////////////////////////////////////////////////////////////////////

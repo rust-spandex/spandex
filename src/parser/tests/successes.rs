@@ -4,18 +4,6 @@ use std::error::Error;
 use std::path::PathBuf;
 use test_case::test_case;
 
-// tempoary for scratching
-use nom::branch::alt;
-use nom::bytes::complete::{tag, take_till1, take_until, take_while, take};
-use nom::character::complete::{char, line_ending, not_line_ending, space0, none_of};
-use nom::combinator::{map, map_res, opt, rest, verify};
-use nom::multi::{fold_many0, many0, many1, many1_count, many_till,many0_count};
-use nom::sequence::{delimited, preceded, terminated};
-use nom::IResult;
-use crate::parser::{position, Parsed, Span};
-
-
-
 use crate::parser::{parse, parse_content, Ast};
 
 #[test]
@@ -95,18 +83,16 @@ fn test_two_item_unordered_list(dex: &str) -> Result<(), Box<dyn Error>> {
 
     let (_, ast) = p.unwrap();
 
-    let expected_ast = vec![
-        Ast::UnorderedList(vec![
-            Ast::UnorderedListItem{ 
-                level: 0, 
-                children: vec![text("Item 1")]
-            },
-            Ast::UnorderedListItem{ 
-                level: 0, 
-                children: vec![text("Item 2")]
-            }
-        ])
-    ];
+    let expected_ast = vec![Ast::UnorderedList(vec![
+        Ast::UnorderedListItem {
+            level: 0,
+            children: vec![text("Item 1")],
+        },
+        Ast::UnorderedListItem {
+            level: 0,
+            children: vec![text("Item 2")],
+        },
+    ])];
 
     assert_eq!(expected_ast, ast);
 
@@ -120,18 +106,16 @@ fn test_unordered_list_items_with_line_breaks() -> Result<(), Box<dyn Error>> {
 
     let (_, ast) = p.unwrap();
 
-    let expected_ast = vec![
-        Ast::UnorderedList(vec![
-            Ast::UnorderedListItem { 
-                level: 0, 
-                children: vec![text("item1line1\nitem1line2")] 
-            },
-            Ast::UnorderedListItem { 
-                level: 0, 
-                children: vec![text("item2")]
-            }
-        ])
-    ];
+    let expected_ast = vec![Ast::UnorderedList(vec![
+        Ast::UnorderedListItem {
+            level: 0,
+            children: vec![text("item1line1\nitem1line2")],
+        },
+        Ast::UnorderedListItem {
+            level: 0,
+            children: vec![text("item2")],
+        },
+    ])];
 
     assert_eq!(expected_ast, ast);
 
@@ -151,9 +135,18 @@ fn test_empty_unordered_list_items() -> Result<(), Box<dyn Error>> {
     let (_, ast) = p.unwrap();
 
     let expected_ast = vec![Ast::UnorderedList(vec![
-        Ast::UnorderedListItem{ level:0, children: vec![] },
-        Ast::UnorderedListItem{ level:0, children: vec![] },
-        Ast::UnorderedListItem{ level:0, children: vec![text("blah")] },
+        Ast::UnorderedListItem {
+            level: 0,
+            children: vec![],
+        },
+        Ast::UnorderedListItem {
+            level: 0,
+            children: vec![],
+        },
+        Ast::UnorderedListItem {
+            level: 0,
+            children: vec![text("blah")],
+        },
     ])];
 
     assert_eq!(expected_ast, ast);
@@ -161,46 +154,41 @@ fn test_empty_unordered_list_items() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-
-pub fn is_space(c: char) -> bool {
-    c == ' '
-}
-
-
-
-pub fn parse_unordered_list_item(input: Span) -> IResult<Span, String> {
-    let (input, level ) = terminated(many0_count(char(' ')), tag("- "))(input)?;
-    
-    let (input, (content, terminator)) = 
-            many_till(
-                none_of(""),
-                delimited(
-                    line_ending,
-                    take_while(is_space),
-                    tag("-")
-                )
-            )
-        (input)?;
-    
-    //let content = content.iter().map(|s|s.fragment).collect::<Vec<&str>>().join("");
-    let content: String = content.into_iter().collect();
-
-    Ok((input, content))
-}
-
-#[test_case("- Item 1\n- Item 2" ; "same level")]
-#[test_case("- Item 1\n - Item 2" ; "nested")]
-#[test_case(" - Item 1\n  - Item 2" ; "double nested")]
-#[test_case("- Item 1\r\n- Item 2" ; "linux, same level")]
-#[test_case("- Item 1\r\n - Item 2" ; "linux, nested")]
-#[test_case(" - Item 1\r\n  - Item 2" ; "linux, double nested")]
-fn test_nested_unordered_list(dex: &str) -> Result<(), Box<dyn Error>> {
-    let p = parse_unordered_list_item(Span::new(dex.into()));
+#[test_case("- Item 1\n- Item 2", 0 ; "same level")]
+#[test_case("- Item 1\n - Item 2", 0 ; "nested")]
+#[test_case(" - Item 1\n  - Item 2", 1 ; "double nested")]
+#[test_case("- Item 1\r\n- Item 2", 0 ; "linux, same level")]
+#[test_case("- Item 1\r\n - Item 2", 0 ; "linux, nested")]
+#[test_case(" - Item 1\r\n  - Item 2", 1 ; "linux, double nested")]
+#[test_case(" - Item 1", 1 ; "No line ending")]
+fn test_nested_unordered_list(dex: &str, expected_level: u8) -> Result<(), Box<dyn Error>> {
+    let p = parse_content(dex);
     assert!(p.is_ok());
 
     let (_, content) = p.unwrap();
 
-    assert_eq!("Item 1", content);
+    // This seems very clunky, could just export parse_unordered_list_item instead
+    assert_eq!(1, content.len());
+    match &content[0] {
+        Ast::UnorderedList(items) => {
+            let first_unordered_list_item = &items[0];
+
+            match first_unordered_list_item {
+                Ast::UnorderedListItem { level, children } => {
+                    assert_eq!(expected_level, *level);
+                    assert_eq!(vec![text("Item 1")], *children);
+                }
+
+                _ => {
+                    assert!(false);
+                }
+            }
+        }
+
+        _ => {
+            assert!(false);
+        }
+    }
 
     Ok(())
 }

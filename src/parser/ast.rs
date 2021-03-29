@@ -77,7 +77,7 @@ impl Ast {
             | Ast::Bold(children)
             | Ast::Italic(children)
             | Ast::UnorderedList(children)
-            | Ast::UnorderedListItem { children, ..} => Some(children),
+            | Ast::UnorderedListItem { children, .. } => Some(children),
             _ => None,
         }
     }

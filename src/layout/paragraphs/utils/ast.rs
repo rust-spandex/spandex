@@ -54,7 +54,7 @@ pub fn itemize_ast_aux<'a>(
                     buffer,
                 );
             }
-            
+
             end_line(buffer);
         }
 
@@ -155,5 +155,5 @@ fn end_line<'a>(buffer: &mut Paragraph<'a>) {
     // specifying the available space at the right of the last tine, and a penalty item to
     // force a line break.
     buffer.push(Item::glue(Pt(0.0), PLUS_INFINITY, Pt(0.0)));
-    buffer.push(Item::penalty(Pt(0.0), f64::NEG_INFINITY, false));    
+    buffer.push(Item::penalty(Pt(0.0), f64::NEG_INFINITY, false));
 }

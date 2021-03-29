@@ -332,7 +332,7 @@ mod tests {
         let words = "Lorem ipsum dolor sit amet.";
         let ast = Ast::UnorderedListItem {
             level: 0,
-            children: vec![Ast::Text(words.into())]
+            children: vec![Ast::Text(words.into())],
         };
 
         let en_us = Standard::from_embedded(Language::EnglishUS)?;
