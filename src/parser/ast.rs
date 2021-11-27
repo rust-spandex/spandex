@@ -109,7 +109,7 @@ impl Ast {
         indent: &str,
         last_child: bool,
     ) -> fmt::Result {
-        let delimiter1 = if indent == "" {
+        let delimiter1 = if indent.is_empty() {
             "─"
         } else if last_child {
             "└"

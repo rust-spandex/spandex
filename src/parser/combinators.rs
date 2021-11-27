@@ -15,7 +15,7 @@ use nom::character::complete::{char, line_ending, not_line_ending, space0};
 use nom::combinator::{map, map_res, opt, rest, verify};
 use nom::multi::{fold_many0, many0, many1_count};
 use nom::sequence::delimited;
-use nom::IResult;
+use nom::{IResult, Slice};
 
 use crate::layout::paragraphs::ligatures::ligature;
 use crate::parser::ast::Ast;
@@ -89,7 +89,7 @@ pub fn parse_italic(input: Span) -> IResult<Span, Ast> {
 /// ```
 pub fn parse_inline_math(input: Span) -> IResult<Span, Ast> {
     let (input, content) = in_between("$", input)?;
-    Ok((input, Ast::InlineMath(content.fragment.into())))
+    Ok((input, Ast::InlineMath(content.fragment().to_string())))
 }
 
 /// Parses a delimited element.
@@ -130,7 +130,7 @@ pub fn parse_any(input: Span) -> IResult<Span, Ast> {
         parse_delimited_unmatch_error,
         map(tag("|"), |_| Ast::Text(String::from("|"))),
         map(take_till1(should_stop), |x: Span| {
-            Ast::Text(ligature(x.fragment))
+            Ast::Text(ligature(x.fragment()))
         }),
     ))(input)
 }
@@ -244,9 +244,9 @@ pub fn parse_title(input: Span) -> IResult<Span, Ast> {
 /// # use spandex::parser::combinators::get_block;
 /// let input = Span::new("First paragraph\n\nSecond paragraph");
 /// let (input, block) = get_block(input).unwrap();
-/// assert_eq!(block.fragment, "First paragraph");
+/// assert_eq!(block.fragment(), &"First paragraph");
 /// let (input, block) = get_block(input).unwrap();
-/// assert_eq!(block.fragment, "Second paragraph");
+/// assert_eq!(block.fragment(), &"Second paragraph");
 /// ```
 pub fn get_block(input: Span) -> IResult<Span, Span> {
     let take_until_double_line_ending = |i| {
@@ -256,12 +256,12 @@ pub fn get_block(input: Span) -> IResult<Span, Span> {
             take_until("\n\n"),
         ))(i)
     };
-    let at_least_1_char = verify(rest, |s: &Span| !s.fragment.is_empty());
+    let at_least_1_char = verify(rest, |s: &Span| !s.fragment().is_empty());
 
-    let (input, mut span) = alt((take_until_double_line_ending, at_least_1_char))(input)?;
+    let (input, span) = alt((take_until_double_line_ending, at_least_1_char))(input)?;
+    let len_after_trimmed = span.fragment().trim_end().len();
     let (input, _) = many0(line_ending)(input)?;
-    span.fragment = span.fragment.trim_end();
-    Ok((input, span))
+    Ok((input, span.slice(..len_after_trimmed)))
 }
 
 /// Parses a block of content.
@@ -280,7 +280,7 @@ pub fn parse_block_content(input: Span) -> IResult<Span, Ast> {
 /// Parses a whole dex file.
 pub fn parse_content(input: &str) -> IResult<Span, Vec<Ast>> {
     let parse_block = map_res(get_block, parse_block_content);
-    fold_many0(parse_block, vec![], |mut content: Vec<_>, (_, block)| {
+    fold_many0(parse_block, Vec::new, |mut content: Vec<_>, (_, block)| {
         content.push(block);
         content
     })(Span::new(input))

@@ -146,8 +146,7 @@ pub fn is_forced_break<'a>(item: &'a Item<'a>) -> bool {
 /// is an item index such that this item is either a peanalty which isn't
 /// infinite or a glue following a bounding box.
 pub fn find_legal_breakpoints(paragraph: &Paragraph) -> Vec<usize> {
-    let mut legal_breakpoints: Vec<usize> = Vec::new();
-    legal_breakpoints.push(0);
+    let mut legal_breakpoints: Vec<usize> = vec![0];
 
     let mut last_item_was_box = false;
 

@@ -34,9 +34,9 @@ pub struct Position {
 /// Returns the position of a span.
 pub fn position(span: &Span) -> Position {
     Position {
-        line: span.line,
+        line: span.location_line(),
         column: span.get_utf8_column(),
-        offset: span.offset,
+        offset: span.location_offset(),
     }
 }
 

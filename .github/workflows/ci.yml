@@ -1,0 +1,187 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [ master, main ]
+
+jobs:
+  build:
+    name: Build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        build:
+          # - linux-musl
+          - linux-gnu # temporary because of freetype
+          - windows
+          - macos
+          - macos-arm-64
+          - linux-arm-64
+        include:
+          # - build: linux-musl
+          #   os: ubuntu-latest
+          #   toolchain: stable
+          #   target: x86_64-unknown-linux-musl
+          #
+          - build: linux-gnu
+            os: ubuntu-latest
+            toolchain: stable
+            target: x86_64-unknown-linux-gnu
+
+          - build: windows
+            os: windows-latest
+            toolchain: stable
+            target: x86_64-pc-windows-msvc
+
+          - build: macos
+            os: macos-latest
+            toolchain: stable
+            target: x86_64-apple-darwin
+
+          - build: macos-arm-64
+            os: macos-11
+            toolchain: nightly
+            target: aarch64-apple-darwin
+            cross: true
+
+          - build: linux-arm-64
+            os: ubuntu-latest
+            toolchain: nightly
+            # target: aarch64-unknown-linux-musl
+            target: aarch64-unknown-linux-gnu # temporary because of freetype
+            cross: true
+
+    steps:
+      - name: install musl-tools if musl target
+        if: ${{ contains(matrix.target, 'musl') }}
+        run: sudo apt install musl-tools
+
+      - uses: actions/checkout@v2
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.toolchain }}
+          target: ${{ matrix.target }}
+          override: true
+
+      - name: Download cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/
+            target/
+          key: ${{ matrix.target }}-build-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ matrix.target }}-build-
+            ${{ matrix.target }}-
+
+      - name: Install cross compiler
+        if: ${{ matrix.cross }}
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: cross
+
+      - name: Use cross instead of cargo for cross compilation
+        if: ${{ matrix.cross }}
+        run: cross build --release --target ${{ matrix.target }}
+
+      - uses: actions-rs/cargo@v1
+        if: ${{ !matrix.cross }}
+        with:
+          command: build
+          args: --release --target ${{ matrix.target }}
+
+      - name: Compress compiled binary
+        if: ${{ !startsWith(matrix.os, 'windows') }}
+        run: |
+          cd target/${{ matrix.target }}/release
+          tar czf spandex_${{ matrix.target }}.tar.gz spandex
+
+      - uses: actions/upload-artifact@v2
+        if: ${{ !startsWith(matrix.os, 'windows') }}
+        with:
+          name: spandex_${{ matrix.target }}.tar.gz
+          path: target/${{ matrix.target }}/release/spandex_${{ matrix.target }}.tar.gz
+
+      - uses: actions/upload-artifact@v2
+        if: ${{ startsWith(matrix.os, 'windows') }}
+        with:
+          name: spandex_${{ matrix.target }}
+          path: target/${{ matrix.target }}/release/spandex.exe
+
+  test:
+    name: Test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
+        toolchain:
+          - stable
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.toolchain }}
+          override: true
+
+      - name: Download cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/
+            target/
+          key: test-${{ matrix.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            test-${{ matrix.os }}-
+
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+
+  check_formatting:
+    name: Check formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          components: rustfmt
+          override: true
+
+      - uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+
+  clippy:
+    name: Check clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          components: clippy
+          override: true
+
+      - uses: actions-rs/cargo@v1
+        env:
+          RUSTFLAGS: -D warnings
+        with:
+          command: clippy

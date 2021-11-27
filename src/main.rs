@@ -62,8 +62,7 @@ fn main() {
 fn init(name: Option<&String>) -> Result<(), Error> {
     let mut current_dir = unwrap!(current_dir().ok(), Error::CannotReadCurrentDir);
     let current_dir_name = current_dir.clone();
-    let current_dir_name =
-        unwrap!(current_dir_name.file_name(), Error::CannotReadCurrentDir);
+    let current_dir_name = unwrap!(current_dir_name.file_name(), Error::CannotReadCurrentDir);
     let current_dir_name = unwrap!(current_dir_name.to_str(), Error::CannotReadCurrentDir);
 
     // Initialize the project
@@ -133,7 +132,7 @@ fn run() -> Result<(), Error> {
 
     // The first argument is the name of the binary, the second one is the command
     if args.len() < 2 {
-        eprintln!("{}: {}", "error".red().bold(), "toto");
+        eprintln!("{}: toto", "error".red().bold());
         print_help();
         exit(1);
     }
@@ -156,11 +155,9 @@ fn run() -> Result<(), Error> {
         command => {
             // Unknwon command
             eprintln!(
-                "{}: {}{}{}",
+                "{}: command \"{}\" does not exist.",
                 "error".bold().red(),
-                "command \"",
                 command,
-                "\" does not exist."
             );
             print_help();
         }
