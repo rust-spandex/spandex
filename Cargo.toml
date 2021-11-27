@@ -23,5 +23,5 @@ nom_locate = "4.0.0"
 printpdf = { version = "0.4.1", default-features = false }
 freetype-rs = "0.28.0"
 toml = "0.5.8"
-petgraph = "0.5.1" # 0.6.0
+petgraph = "0.6.0"
 colored = "2.0.0"
