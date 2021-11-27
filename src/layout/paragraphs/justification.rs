@@ -105,7 +105,7 @@ pub struct LatexJustifier;
 impl Justifier for LatexJustifier {
     fn justify<'a>(paragraph: &Paragraph<'a>, text_width: Pt) -> Vec<Vec<(Glyph<'a>, Pt)>> {
         let lines_length = vec![text_width];
-        let breakpoints = algorithm(&paragraph, &lines_length);
+        let breakpoints = algorithm(paragraph, &lines_length);
         let positioned_items = positionate_items(&paragraph.items, &lines_length, &breakpoints);
 
         let mut output = vec![];

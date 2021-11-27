@@ -99,7 +99,7 @@ pub fn algorithm<'a>(paragraph: &'a Paragraph<'a>, lines_length: &[Pt]) -> Vec<u
 
                 let adjustment_ratio = compute_adjustment_ratio(
                     actual_width,
-                    get_line_length(&lines_length, a.line),
+                    get_line_length(lines_length, a.line),
                     line_stretch,
                     line_shrink,
                 );
@@ -125,7 +125,7 @@ pub fn algorithm<'a>(paragraph: &'a Paragraph<'a>, lines_length: &[Pt]) -> Vec<u
                         b,
                         a,
                         adjustment_ratio,
-                        &item,
+                        item,
                         &paragraph.items,
                         &measures_sum,
                     );

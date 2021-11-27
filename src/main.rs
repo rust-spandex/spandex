@@ -132,7 +132,7 @@ fn run() -> Result<(), Error> {
 
     // The first argument is the name of the binary, the second one is the command
     if args.len() < 2 {
-        eprintln!("{}: {}", "error".red().bold(), "toto");
+        eprintln!("{}: toto", "error".red().bold());
         print_help();
         exit(1);
     }
@@ -155,11 +155,9 @@ fn run() -> Result<(), Error> {
         command => {
             // Unknwon command
             eprintln!(
-                "{}: {}{}{}",
+                "{}: command \"{}\" does not exist.",
                 "error".bold().red(),
-                "command \"",
                 command,
-                "\" does not exist."
             );
             print_help();
         }
