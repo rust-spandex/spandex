@@ -14,6 +14,7 @@ jobs:
         with:
           toolchain: stable
       - uses: actions-rs/cargo@v1
+      - name: Generate docs
         run: |
           cargo doc --no-deps --lib
           echo "<meta http-equiv=\"refresh\" content=\"0; url=spandex/index.html\"><a href=\"spandex/index.html\">Redirect</a>" > target/doc/index.html
