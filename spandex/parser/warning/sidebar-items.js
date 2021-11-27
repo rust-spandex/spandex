@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["WarningType","The different types of warning that can occur."]],"struct":[["EmptyWarning","An warning that occured during the parsing."],["Warnings","A struct that contains many warnings that references a file."]]});

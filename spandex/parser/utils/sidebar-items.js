@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["compute_column","Computes the column of a specified byte depending on its line and offset."],["is_new_line","Returns true if the char at specified byte is a \\n."],["next_new_line","Finds the next \\n char."],["previous_new_line","Finds the previous \\n char."],["replicate","Replicates a char n times."]]});

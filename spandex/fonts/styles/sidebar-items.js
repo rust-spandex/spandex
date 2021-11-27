@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["FontStyle","A style for a font. It can be bold, italic, both or none."]]});

@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["LatexJustifier","The LaTeX style justifier."],["NaiveJustifier","A naive justifier, that goes to the next line once a word overtakes the text width."]],"trait":[["Justifier","An algorithm that justifies a paragraph."]]});

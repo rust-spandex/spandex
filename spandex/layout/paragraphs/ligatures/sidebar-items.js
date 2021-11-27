@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["ligature","Ligates a string."]]});

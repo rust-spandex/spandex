@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["deserialize_pt","Deserializes a `Pt` structure."],["serialize_pt","Serializes a `Pt` structure."]],"struct":[["Config","Holds the configuration of a document, including various measurements common to all pages."],["PtVisitor","Visitor for the `Pt` structure."]]});

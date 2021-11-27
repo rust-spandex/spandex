@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["algorithm","Finds the optimal sequence of breakpoints that minimize the amount of demerits while breaking a paragraph down into lines."],["positionate_items","Generates a list of positioned items from a list of items making up a paragraph. The generated list is ready to be rendered."]]});

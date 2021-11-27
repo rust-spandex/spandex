@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["Ast","The abstract syntax tree representing the parsed file."]]});

@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["spandex"] = [{"text":"impl&lt;'a&gt; <a class=\"trait\" href=\"https://docs.rs/serde/1.0.114/serde/de/trait.Visitor.html\" title=\"trait serde::de::Visitor\">Visitor</a>&lt;'a&gt; for <a class=\"struct\" href=\"spandex/document/configuration/struct.PtVisitor.html\" title=\"struct spandex::document::configuration::PtVisitor\">PtVisitor</a>","synthetic":false,"types":["spandex::document::configuration::PtVisitor"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

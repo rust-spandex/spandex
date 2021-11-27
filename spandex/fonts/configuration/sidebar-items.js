@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["FontConfig","A font configuration for a document."]]});

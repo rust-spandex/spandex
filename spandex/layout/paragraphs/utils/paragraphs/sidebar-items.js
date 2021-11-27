@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["add_word_to_paragraph","Adds a word to a buffer."],["get_line_length","Returns the length of the line of given index, from a list of potential line lengths. If the list is too short, the line length will default to `DEFAULT_LINE_LENGTH`."],["glue_from_context","Returns the glue based on the spatial context of the cursor."]]});

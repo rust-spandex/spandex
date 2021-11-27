@@ -1,0 +1,1 @@
+initSidebarItems({"mod":[["ast","Utility functions for manipulating an abstract syntax tree representing a paragraph."],["linebreak","Utility functions for the various stages of the line breaking algorithm."],["paragraphs","Utility functions for manipulating and typesetting a `Paragraph`."]]});

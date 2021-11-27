@@ -1,0 +1,3 @@
+var N = null;var sourcesIndex = {};
+sourcesIndex["spandex"] = {"name":"","dirs":[{"name":"document","files":["configuration.rs","counters.rs","mod.rs"]},{"name":"fonts","files":["configuration.rs","manager.rs","mod.rs","styles.rs"]},{"name":"layout","dirs":[{"name":"paragraphs","dirs":[{"name":"utils","files":["ast.rs","linebreak.rs","mod.rs","paragraphs.rs"]}],"files":["engine.rs","graph.rs","items.rs","justification.rs","ligatures.rs","mod.rs"]}],"files":["constants.rs","mod.rs"]},{"name":"parser","files":["ast.rs","combinators.rs","error.rs","mod.rs","utils.rs","warning.rs"]}],"files":["lib.rs"]};
+createSourceSidebar();

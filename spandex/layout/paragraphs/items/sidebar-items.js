@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["Content","Possible available types for an item."]],"struct":[["Item","Top abstraction of an item, which is a specification for a box, a glue or a penalty."],["PositionedItem","Holds the information of an item that’s ready to be rendered."]]});

@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Counters","The struct that manages the counters for the document."]]});

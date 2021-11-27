@@ -1,0 +1,1 @@
+initSidebarItems({"mod":[["constants","Various constants used for laying out the items of a document."],["paragraphs","Logic for laying out a paragraph."]],"struct":[["Glyph","A glyph with its font style."]]});
