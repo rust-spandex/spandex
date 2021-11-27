@@ -80,7 +80,6 @@ jobs:
           - macos-latest
         toolchain:
           - stable
-          - beta
 
     steps:
       - uses: actions/checkout@v2
