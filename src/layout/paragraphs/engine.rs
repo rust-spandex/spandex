@@ -69,7 +69,7 @@ pub fn algorithm<'a>(paragraph: &'a Paragraph<'a>, lines_length: &[Pt]) -> Vec<u
                 // We can only break at a glue if it is preceeded by
                 // a bounding box.
                 can_break =
-                    b > 0 && matches!(paragraph.items[b-1].content, Content::BoundingBox { .. });
+                    b > 0 && matches!(paragraph.items[b - 1].content, Content::BoundingBox { .. });
 
                 if !can_break {
                     sum_width += item.width;
