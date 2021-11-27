@@ -12,20 +12,50 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        build:
+          # - linux-musl
+          - linux-gnu # temporary because of freetype
+          - windows
+          - macos
+          - macos-arm-64
+          - linux-arm-64
         include:
-          - os: ubuntu-latest
-            # target: x86_64-unknown-linux-musl
-            target: x86_64-unknown-linux-gnu # temporary because of freetype
+          # - build: linux-musl
+          #   os: ubuntu-latest
+          #   toolchain: stable
+          #   target: x86_64-unknown-linux-musl
+          #
+          - build: linux-gnu
+            os: ubuntu-latest
+            toolchain: stable
+            target: x86_64-unknown-linux-gnu
 
-          - os: windows-latest
+          - build: windows
+            os: windows-latest
+            toolchain: stable
             target: x86_64-pc-windows-msvc
 
-          - os: macos-latest
+          - build: macos
+            os: macos-latest
+            toolchain: stable
             target: x86_64-apple-darwin
+
+          - build: macos-arm-64
+            os: macos-11
+            toolchain: nightly
+            target: aarch64-apple-darwin
+            cross: true
+
+          - build: linux-arm-64
+            os: ubuntu-latest
+            toolchain: nightly
+            # target: aarch64-unknown-linux-musl
+            target: aarch64-unknown-linux-gnu # temporary because of freetype
+            cross: true
 
     steps:
       - name: install musl-tools if musl target
-        if: ${{ matrix.target == 'x86_64-unknown-linux-musl' }}
+        if: ${{ contains(matrix.target, 'musl') }}
         run: sudo apt install musl-tools
 
       - uses: actions/checkout@v2
@@ -33,7 +63,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: ${{ matrix.toolchain }}
           target: ${{ matrix.target }}
           override: true
 
@@ -48,7 +78,19 @@ jobs:
             ${{ matrix.target }}-build-
             ${{ matrix.target }}-
 
+      - name: Install cross compiler
+        if: ${{ matrix.cross }}
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: cross
+
+      - name: Use cross instead of cargo for cross compilation
+        if: ${{ matrix.cross }}
+        run: cross build --release --target ${{ matrix.target }}
+
       - uses: actions-rs/cargo@v1
+        if: ${{ !matrix.cross }}
         with:
           command: build
           args: --release --target ${{ matrix.target }}
@@ -57,19 +99,19 @@ jobs:
         if: ${{ !startsWith(matrix.os, 'windows') }}
         run: |
           cd target/${{ matrix.target }}/release
-          tar czf spandex_${{ matrix.target }}.tar.gz spandex
+          tar czf elm-test-rs_${{ matrix.target }}.tar.gz elm-test-rs
 
       - uses: actions/upload-artifact@v2
         if: ${{ !startsWith(matrix.os, 'windows') }}
         with:
-          name: spandex_${{ matrix.target }}.tar.gz
-          path: target/${{ matrix.target }}/release/spandex_${{ matrix.target }}.tar.gz
+          name: elm-test-rs_${{ matrix.target }}.tar.gz
+          path: target/${{ matrix.target }}/release/elm-test-rs_${{ matrix.target }}.tar.gz
 
       - uses: actions/upload-artifact@v2
         if: ${{ startsWith(matrix.os, 'windows') }}
         with:
-          name: spandex_${{ matrix.target }}
-          path: target/${{ matrix.target }}/release/spandex.exe
+          name: elm-test-rs_${{ matrix.target }}
+          path: target/${{ matrix.target }}/release/elm-test-rs.exe
 
   test:
     name: Test
