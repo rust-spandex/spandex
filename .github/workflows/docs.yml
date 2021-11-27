@@ -14,17 +14,17 @@ jobs:
         with:
           toolchain: stable
       - uses: actions-rs/cargo@v1
-      - run: |
-        cargo doc --no-deps --lib
-        echo '<meta http-equiv="refresh" content="0; url=spandex/index.html"><a href="spandex/index.html">Redirect</a>' > target/doc/index.html
-        cd target/doc
-        git init
-        git remote add origin https://tforgione:$TOKEN@github.com/rust-spandex/spandex
-        git checkout -b gh-pages
-        git add .
-        git commit -m "Deployment from github actions"
-        git push -f --set-upstream origin gh-pages
-      env:
-        TOKEN: ${{ secrets.TOKEN }}
+        run: |
+          cargo doc --no-deps --lib
+          echo "<meta http-equiv=\"refresh\" content=\"0; url=spandex/index.html\"><a href=\"spandex/index.html\">Redirect</a>" > target/doc/index.html
+          cd target/doc
+          git init
+          git remote add origin https://tforgione:$TOKEN@github.com/rust-spandex/spandex
+          git checkout -b gh-pages
+          git add .
+          git commit -m "Deployment from github actions"
+          git push -f --set-upstream origin gh-pages
+        env:
+          TOKEN: ${{ secrets.TOKEN }}
 
 
