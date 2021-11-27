@@ -99,19 +99,19 @@ jobs:
         if: ${{ !startsWith(matrix.os, 'windows') }}
         run: |
           cd target/${{ matrix.target }}/release
-          tar czf elm-test-rs_${{ matrix.target }}.tar.gz elm-test-rs
+          tar czf spandex_${{ matrix.target }}.tar.gz spandex
 
       - uses: actions/upload-artifact@v2
         if: ${{ !startsWith(matrix.os, 'windows') }}
         with:
-          name: elm-test-rs_${{ matrix.target }}.tar.gz
-          path: target/${{ matrix.target }}/release/elm-test-rs_${{ matrix.target }}.tar.gz
+          name: spandex_${{ matrix.target }}.tar.gz
+          path: target/${{ matrix.target }}/release/spandex_${{ matrix.target }}.tar.gz
 
       - uses: actions/upload-artifact@v2
         if: ${{ startsWith(matrix.os, 'windows') }}
         with:
-          name: elm-test-rs_${{ matrix.target }}
-          path: target/${{ matrix.target }}/release/elm-test-rs.exe
+          name: spandex_${{ matrix.target }}
+          path: target/${{ matrix.target }}/release/spandex.exe
 
   test:
     name: Test
