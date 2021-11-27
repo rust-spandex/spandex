@@ -13,13 +13,14 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-      - uses: actions-rs/cargo@v1
       - name: Generate docs
         run: |
           cargo doc --no-deps --lib
           echo "<meta http-equiv=\"refresh\" content=\"0; url=spandex/index.html\"><a href=\"spandex/index.html\">Redirect</a>" > target/doc/index.html
           cd target/doc
           git init
+          git config user.email "thomas@forgione.fr"
+          git config user.name "Thomas Forgione"
           git remote add origin https://tforgione:$TOKEN@github.com/rust-spandex/spandex
           git checkout -b gh-pages
           git add .
