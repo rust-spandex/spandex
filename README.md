@@ -1,6 +1,6 @@
 # SpanDeX
 
-[![Build Status](https://travis-ci.org/rust-spandex/spandex.svg?branch=master)](https://travis-ci.org/rust-spandex/spandex)
+[![CI](https://github.com/rust-spandex/spandex/actions/workflows/ci.yml/badge.svg)](https://github.com/rust-spandex/spandex/actions/workflows/ci.yml)
 [![Crate](https://img.shields.io/crates/v/spandex.svg)](https://crates.io/crates/spandex)
 
 
