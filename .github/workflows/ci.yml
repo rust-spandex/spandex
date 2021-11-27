@@ -141,10 +141,9 @@ jobs:
           path: |
             ~/.cargo/
             target/
-          key: ${{ matrix.target }}-test-${{ hashFiles('Cargo.lock') }}
+          key: test-${{ matrix.os }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
-            ${{ matrix.target }}-test-
-            ${{ matrix.target }}-
+            test-${{ matrix.os }}-
 
       - uses: actions-rs/cargo@v1
         with:
