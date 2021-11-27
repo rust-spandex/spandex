@@ -18,10 +18,10 @@ travis-ci = { repository = "rust-spandex/spandex", branch = "master" }
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 spandex-hyphenation = { version = "0.7.4", features = ["embed_all"] }
-nom = "5.0.1"
-nom_locate = "1.0.0"
-printpdf = { version = "0.3.4", default-features = false }
-freetype-rs = "0.26.0"
+nom = "7.1.0"
+nom_locate = "4.0.0"
+printpdf = { version = "0.3.4", default-features = false } # 0.4.1
+freetype-rs = "0.26.0" # 0.28.0
 toml = "0.5.8"
-petgraph = "0.5.1"
+petgraph = "0.5.1" # 0.6.0
 colored = "2.0.0"
