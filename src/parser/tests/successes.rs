@@ -75,8 +75,8 @@ fn test_titles() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-#[test_case("- Item 1\n- Item 2" ; "windows line ending")]
-#[test_case("- Item 1\r\n- Item 2" ; "linux line ending")]
+#[test_case("- Item 1\n- Item 2" ; "linux line ending")]
+#[test_case("- Item 1\r\n- Item 2" ; "windows line ending")]
 fn test_two_item_unordered_list(dex: &str) -> Result<(), Box<dyn Error>> {
     let p = parse_content(dex);
     assert!(p.is_ok());
@@ -157,9 +157,9 @@ fn test_empty_unordered_list_items() -> Result<(), Box<dyn Error>> {
 #[test_case("- Item 1\n- Item 2", 0 ; "same level")]
 #[test_case("- Item 1\n - Item 2", 0 ; "nested")]
 #[test_case(" - Item 1\n  - Item 2", 1 ; "double nested")]
-#[test_case("- Item 1\r\n- Item 2", 0 ; "linux, same level")]
-#[test_case("- Item 1\r\n - Item 2", 0 ; "linux, nested")]
-#[test_case(" - Item 1\r\n  - Item 2", 1 ; "linux, double nested")]
+#[test_case("- Item 1\r\n- Item 2", 0 ; "windows, same level")]
+#[test_case("- Item 1\r\n - Item 2", 0 ; "windows, nested")]
+#[test_case(" - Item 1\r\n  - Item 2", 1 ; "windows, double nested")]
 #[test_case(" - Item 1", 1 ; "No line ending")]
 fn test_nested_unordered_list(dex: &str, expected_level: u8) -> Result<(), Box<dyn Error>> {
     let p = parse_content(dex);
