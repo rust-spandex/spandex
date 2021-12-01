@@ -75,51 +75,46 @@ fn test_titles() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-#[test_case("- Item 1\n- Item 2" ; "linux line ending")]
-#[test_case("- Item 1\r\n- Item 2" ; "windows line ending")]
-fn test_two_item_unordered_list(dex: &str) -> Result<(), Box<dyn Error>> {
-    let p = parse_content(dex);
-    assert!(p.is_ok());
-
-    let (_, ast) = p.unwrap();
-
-    let expected_ast = vec![Ast::UnorderedList(vec![
-        Ast::UnorderedListItem {
-            level: 0,
-            children: vec![text("Item 1")],
-        },
-        Ast::UnorderedListItem {
-            level: 0,
-            children: vec![text("Item 2")],
-        },
-    ])];
-
-    assert_eq!(expected_ast, ast);
-
-    Ok(())
+/// Helper function to create an unordered list AST hierarchy.
+fn make_simple_ast_unordered_list(items: &[(u8, &[&str])]) -> Ast {
+    Ast::UnorderedList(
+        items
+            .iter()
+            .map(|&(level, item_txt)| Ast::UnorderedListItem {
+                level,
+                children: item_txt.iter().map(|&t| text(t)).collect(),
+            })
+            .collect(),
+    )
 }
 
 #[test]
-fn test_unordered_list_items_with_line_breaks() -> Result<(), Box<dyn Error>> {
-    let p = parse_content("- item1line1\nitem1line2\n- item2");
-    assert!(p.is_ok());
-
-    let (_, ast) = p.unwrap();
-
-    let expected_ast = vec![Ast::UnorderedList(vec![
-        Ast::UnorderedListItem {
-            level: 0,
-            children: vec![text("item1line1\nitem1line2")],
-        },
-        Ast::UnorderedListItem {
-            level: 0,
-            children: vec![text("item2")],
-        },
+fn test_two_item_unordered_list() {
+    let content = "
+- Item 1
+- Item 2";
+    // Remove the first end of line with &[1..] slice
+    let (_, ast) = parse_content(&content[1..]).unwrap();
+    let expected_ast = vec![make_simple_ast_unordered_list(&[
+        (0, &["Item 1"]),
+        (0, &["Item 2"]),
     ])];
-
     assert_eq!(expected_ast, ast);
+}
 
-    Ok(())
+#[test]
+fn test_unordered_list_items_with_line_breaks() {
+    let content = "
+- item1line1
+item1line2
+- item2";
+    // Remove the first end of line with &[1..] slice
+    let (_, ast) = parse_content(&content[1..]).unwrap();
+    let expected_ast = vec![make_simple_ast_unordered_list(&[
+        (0, &["item1line1\nitem1line2"]),
+        (0, &["item2"]),
+    ])];
+    assert_eq!(expected_ast, ast);
 }
 
 #[test]
@@ -128,30 +123,20 @@ fn test_unordered_list_items_with_line_breaks() -> Result<(), Box<dyn Error>> {
 // of a line, or stop trimming whitespace, or disallow
 // a blank final list item. I have gone with the last
 // option for now
-fn test_empty_unordered_list_items() -> Result<(), Box<dyn Error>> {
-    let p = parse_content("- \n-\n- \n- blah");
-    assert!(p.is_ok());
-
-    let (_, ast) = p.unwrap();
-
-    let expected_ast = vec![Ast::UnorderedList(vec![
-        Ast::UnorderedListItem {
-            level: 0,
-            children: vec![text("\n-")],
-        },
-        Ast::UnorderedListItem {
-            level: 0,
-            children: vec![],
-        },
-        Ast::UnorderedListItem {
-            level: 0,
-            children: vec![text("blah")],
-        },
+fn test_empty_unordered_list_items() {
+    let content = "
+- 
+-
+- 
+- blah";
+    // Remove the first end of line with &[1..] slice
+    let (_, ast) = parse_content(&content[1..]).unwrap();
+    let expected_ast = vec![make_simple_ast_unordered_list(&[
+        (0, &["\n-"]),
+        (0, &[]),
+        (0, &["blah"]),
     ])];
-
     assert_eq!(expected_ast, ast);
-
-    Ok(())
 }
 
 #[test_case("- Item 1\n- Item 2", 0 ; "same level")]
