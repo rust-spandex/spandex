@@ -10,7 +10,6 @@ use crate::parser::{parse, parse_content, Ast};
 fn test_title_1() -> Result<(), Box<dyn Error>> {
     let path = "assets/tests/successes/test-title-1.dex";
     let p = parse(path);
-    assert!(p.is_ok());
 
     let ast = p.unwrap().ast;
 
@@ -31,7 +30,6 @@ fn test_title_1() -> Result<(), Box<dyn Error>> {
 fn test_title_2() -> Result<(), Box<dyn Error>> {
     let path = "assets/tests/successes/test-title-2.dex";
     let p = parse(path);
-    assert!(p.is_ok());
 
     let ast = p.unwrap().ast;
 
@@ -52,7 +50,6 @@ fn test_title_2() -> Result<(), Box<dyn Error>> {
 fn test_titles() -> Result<(), Box<dyn Error>> {
     let path = "assets/tests/successes/test-titles.dex";
     let p = parse(path);
-    assert!(p.is_ok());
 
     let ast = p.unwrap().ast;
 
@@ -148,7 +145,6 @@ fn test_empty_unordered_list_items() {
 #[test_case(" - Item 1", 1 ; "No line ending")]
 fn test_nested_unordered_list(dex: &str, expected_level: u8) -> Result<(), Box<dyn Error>> {
     let p = parse_content(dex);
-    assert!(p.is_ok());
 
     let (_, content) = p.unwrap();
 
