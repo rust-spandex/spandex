@@ -2,7 +2,6 @@
 
 use std::error::Error;
 use std::path::PathBuf;
-use test_case::test_case;
 
 use crate::parser::{parse, parse_content, Ast};
 
@@ -136,11 +135,31 @@ fn test_empty_unordered_list_items() {
     assert_eq!(expected_ast, ast);
 }
 
-#[test_case("- Item 1\n- Item 2", 0 ; "same level")]
-#[test_case("- Item 1\r\n- Item 2", 0 ; "windows, same level")]
-#[test_case("- Item 1\n - Item 2", 0 ; "nested")]
-#[test_case(" - Item 1\n  - Item 2", 1 ; "double nested")]
-#[test_case(" - Item 1", 1 ; "No line ending")]
+#[test]
+fn test_nested_unordered_list_same_level() -> Result<(), Box<dyn Error>> {
+    test_nested_unordered_list("- Item 1\n- Item 2", 0)
+}
+
+#[test]
+fn test_nested_unordered_list_windows_same_level() -> Result<(), Box<dyn Error>> {
+    test_nested_unordered_list("- Item 1\r\n- Item 2", 0)
+}
+
+#[test]
+fn test_nested_unordered_list_nested() -> Result<(), Box<dyn Error>> {
+    test_nested_unordered_list("- Item 1\n - Item 2", 0)
+}
+
+#[test]
+fn test_nested_unordered_list_double_nested() -> Result<(), Box<dyn Error>> {
+    test_nested_unordered_list(" - Item 1\n  - Item 2", 1)
+}
+
+#[test]
+fn test_nested_unordered_list_no_line_ending() -> Result<(), Box<dyn Error>> {
+    test_nested_unordered_list(" - Item 1", 1)
+}
+
 fn test_nested_unordered_list(dex: &str, expected_level: u8) -> Result<(), Box<dyn Error>> {
     let p = parse_content(dex);
 
