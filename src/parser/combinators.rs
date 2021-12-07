@@ -271,7 +271,7 @@ pub fn parse_title(input: Span) -> IResult<Span, Ast> {
 pub fn parse_unordered_list(input: Span) -> IResult<Span, Ast> {
     let (input, items) = many1(parse_unordered_list_item)(input)?;
 
-    // could parse all the items, with an indent, and then remake the ask with the relevant nesting as required?
+    // could parse all the items, with an indent, and then remake the ast with the relevant nesting as required?
     // or do the same and have the ast items have an indent level
     Ok((input, Ast::UnorderedList(items)))
 }
