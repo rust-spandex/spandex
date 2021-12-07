@@ -137,11 +137,9 @@ fn test_empty_unordered_list_items() {
 }
 
 #[test_case("- Item 1\n- Item 2", 0 ; "same level")]
+#[test_case("- Item 1\r\n- Item 2", 0 ; "windows, same level")]
 #[test_case("- Item 1\n - Item 2", 0 ; "nested")]
 #[test_case(" - Item 1\n  - Item 2", 1 ; "double nested")]
-#[test_case("- Item 1\r\n- Item 2", 0 ; "windows, same level")]
-#[test_case("- Item 1\r\n - Item 2", 0 ; "windows, nested")]
-#[test_case(" - Item 1\r\n  - Item 2", 1 ; "windows, double nested")]
 #[test_case(" - Item 1", 1 ; "No line ending")]
 fn test_nested_unordered_list(dex: &str, expected_level: u8) -> Result<(), Box<dyn Error>> {
     let p = parse_content(dex);
